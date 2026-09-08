@@ -1,0 +1,205 @@
+{
+  "app_name": "Chai Panchayat",
+  "personality": "3 Editorial Mobile",
+  "personality_one_liner": "A premium, fast, and highly readable Indian digital news app combining high-quality newspaper authority with modern mobile usability.",
+  "color": {
+    "surface": "#FFFDF8",
+    "onSurface": "#171717",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#171717",
+    "surfaceTertiary": "#F5F2EC",
+    "onSurfaceTertiary": "#171717",
+    "surfaceInverse": "#101010",
+    "onSurfaceInverse": "#F5F5F5",
+    "brand": "#E85D04",
+    "brandPrimary": "#E85D04",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#C94B00",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#FCECE3",
+    "onBrandTertiary": "#C94B00",
+    "success": "#2A9D5B",
+    "onSuccess": "#FFFFFF",
+    "warning": "#D97706",
+    "onWarning": "#FFFFFF",
+    "error": "#C1121F",
+    "onError": "#FFFFFF",
+    "info": "#666666",
+    "onInfo": "#FFFFFF",
+    "border": "#E8E4DE",
+    "borderStrong": "#D3CEC6",
+    "divider": "#E8E4DE",
+    "muted": "#666666",
+    "onBrand": "#FFFFFF",
+    
+    "dark_surface": "#101010",
+    "dark_onSurface": "#F5F5F5",
+    "dark_surfaceSecondary": "#1A1A1A",
+    "dark_onSurfaceSecondary": "#F5F5F5",
+    "dark_surfaceTertiary": "#222222",
+    "dark_onSurfaceTertiary": "#F5F5F5",
+    "dark_surfaceInverse": "#FFFDF8",
+    "dark_onSurfaceInverse": "#171717",
+    "dark_brand": "#E85D04",
+    "dark_brandPrimary": "#E85D04",
+    "dark_onBrandPrimary": "#FFFFFF",
+    "dark_brandSecondary": "#C94B00",
+    "dark_onBrandSecondary": "#FFFFFF",
+    "dark_brandTertiary": "#3A1F10",
+    "dark_onBrandTertiary": "#E85D04",
+    "dark_success": "#2A9D5B",
+    "dark_warning": "#D97706",
+    "dark_error": "#C1121F",
+    "dark_border": "#2A2A2A",
+    "dark_borderStrong": "#444444",
+    "dark_divider": "#2A2A2A",
+    "dark_muted": "#A7A7A7"
+  },
+  "typography": {
+    "displayFontFamily": "Noto Serif Display",
+    "textFontFamily": "Inter",
+    "scale": {
+      "small": { "fontSize": 11, "lineHeight": 14 },
+      "metadata": { "fontSize": 13, "lineHeight": 18 },
+      "body": { "fontSize": 17, "lineHeight": 27 },
+      "card_headline": { "fontSize": 18, "lineHeight": 23 },
+      "section": { "fontSize": 22, "lineHeight": 28 },
+      "article_headline": { "fontSize": 28, "lineHeight": 34 },
+      "hero_headline": { "fontSize": 32, "lineHeight": 38 }
+    },
+    "guidelines": "Use Noto Serif Display for all headlines (Hero, Article, Section, News Card). Use Inter for body text, metadata, navigation, and small UI labels. Saffron is accent only, never a full background."
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room for reading. Cards have 16dp horizontal padding and 8-16dp vertical spacing.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 4,
+    "md": 10,
+    "lg": 16,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "MaterialCommunityIcons",
+  "glassmorphism": {
+    "enabled": "false",
+    "do's": [],
+    "dont's": [
+      "No glassmorphism anywhere in the app. This is an editorial app, not a dashboard.",
+      "Avoid blur on navigation or headers. Use solid surface colors or borders to separate."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "none",
+      "android": "none",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "none",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "haptics": {
+    "tab_press": "light",
+    "bookmark_toggle": "medium",
+    "pull_to_refresh": "medium",
+    "article_share": "light"
+  },
+  "screens": [
+    {
+      "name": "Home",
+      "purpose": "Discover the latest news through a premium hero section, category strips, and scannable feed.",
+      "states": {
+        "loading": "Skeleton loader using gray placeholder image and animated text lines. No spinners.",
+        "empty": "No stories found' with retry button, minimal iconography.",
+        "error": "'You're offline' banner at the top, show cached news below."
+      },
+      "layout": "Header: Chai Panchayat logo at top-left, Search and Notification icons at top-right. Below header: Horizontal scrollable category chip strip (Latest | India | UP | etc.). Hero Section: 16:9 featured article image with gradient scrim (transparent to 80% surfaceInverse), large Noto Serif headline overlay. Feed: 'Latest News' section header followed by vertical list of news cards. News Cards: Horizontal IMAGE|TEXT layout. Image width 110-130dp, max radius 10dp, very subtle elevation. Animations: 150-250ms fade/slide on cards."
+    },
+    {
+      "name": "Article Detail",
+      "purpose": "Provide a distraction-free, highly readable article reading experience.",
+      "states": {
+        "loading": "Skeleton loader representing the headline and body paragraphs.",
+        "empty": "Not applicable",
+        "error": "Failed to load article. Retry button."
+      },
+      "layout": "Scrollable View. Top: Category label (brand color text), large Noto Serif headline (28/34), publication date/time (muted). Featured image (full width). Body: Rendered HTML content (17sp, 1.6 line-height, proper heading/blockquote/list rendering). Bottom/Sticky: Share/Bookmark/Text-size action bar."
+    },
+    {
+      "name": "Search",
+      "purpose": "Find news articles quickly.",
+      "states": {
+        "loading": "Skeleton list of horizontal news cards.",
+        "empty": "No results found for your query. Try another keyword.",
+        "error": "Error fetching search results. Retry button."
+      },
+      "layout": "Sticky search input at the top with auto-focus. Recent searches chip list below it if query is empty. Results show as a vertical list of horizontal IMAGE|TEXT news cards."
+    },
+    {
+      "name": "Category",
+      "purpose": "Browse articles specific to a particular category (e.g., India, UP, Sports).",
+      "states": {
+        "loading": "Skeleton list of horizontal news cards.",
+        "empty": "No stories found in this category.",
+        "error": "Failed to load category feed. Retry button."
+      },
+      "layout": "Header with Category Title (Noto Serif). Single vertical list of horizontal news cards. Pull-to-refresh enabled."
+    },
+    {
+      "name": "Saved",
+      "purpose": "Access bookmarked offline articles.",
+      "states": {
+        "loading": "Skeleton list.",
+        "empty": "You haven't saved any stories yet.",
+        "error": "Not applicable (local storage)."
+      },
+      "layout": "Simple vertical list of saved news cards. Swipe left to remove bookmark."
+    },
+    {
+      "name": "Settings",
+      "purpose": "Manage app preferences, dark mode, and account settings.",
+      "states": {
+        "loading": "Not applicable",
+        "empty": "Not applicable",
+        "error": "Not applicable"
+      },
+      "layout": "List of simple rows (Text + Chevron/Switch). Includes Dark Mode toggle, Text Size preference, Offline Reading cache settings."
+    }
+  ],
+  "images": {
+    "india_politics_placeholder": {
+      "url": "https://images.unsplash.com/photo-1695042849689-f682ec337576?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxpbmRpYSUyMG5ld3MlMjBwb2xpdGljc3xlbnwwfHx8fDE3ODg4ODE4MzF8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "A large crowd holding the Indian flag, suitable for a politics or national news placeholder."
+    },
+    "sports_cricket_placeholder": {
+      "url": "https://images.unsplash.com/photo-1675693303492-9a5bc898bf94?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwxfHxzcG9ydHMlMjBjcmlja2V0JTIwc3RhZGl1bSUyMGluZGlhfGVufDB8fHx8MTc4ODg4MTgzMXww&ixlib=rb-4.1.0&q=85",
+      "alt": "A cricket stadium under a dark red evening sky, suitable for a sports news placeholder."
+    },
+    "business_market_placeholder": {
+      "url": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHN0b2NrJTIwbWFya2V0JTIwZ3JhcGh8ZW58MHx8fHwxNzg4ODgxODMxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Stock market candlestick chart on a dark screen, suitable for a business news placeholder."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the user's specific hex codes for light and dark modes provided in the brief. Saffron (#E85D04) should act only as an accent (selected tabs, buttons, chips, breaking news badges), never as a full screen or card background.",
+    "Implement pure 'Editorial Mobile' personality (no glassmorphism, no large shadows, max 10dp radius). Background uses the warm #FFFDF8 and cards use pure #FFFFFF.",
+    "Typography MUST use Noto Serif Display for headlines and Inter for UI/Body. Ensure the custom Type Scale is mapped correctly, specifically handling the large 32/38 Hero and 28/34 Article sizes. Line-height is strictly 1.6 (27px on 17px text) for article reading experience.",
+    "Cards follow a horizontal IMAGE|TEXT structure. The image should be 110-130dp wide. Keep card padding 16dp horizontal. Use very subtle elevation (almost flat, mostly relying on borders).",
+    "Hero cards with text overlapping the image MUST use a gradient scrim (transparent to 80% surfaceInverse) to guarantee text contrast. Noto Serif headline overlays on this image.",
+    "Use skeleton loading states with animated text lines instead of generic circular spinners for all lists.",
+    "The Bottom navigation must have 4 tabs (Home, Categories, Saved, Settings) with MaterialCommunityIcons. Selected is Saffron #E85D04, Unselected #777777.",
+    "Implement a '3 new stories' indicator pill that floats subtly over the Home feed when new data is available.",
+    "Render the WordPress HTML content properly in Article Detail, maintaining the editorial look (heading/blockquote/list styling).",
+    "App icon is already uploaded at /app/frontend/assets/images/logo.png - use it in the Top Header area."
+  ]
+}
