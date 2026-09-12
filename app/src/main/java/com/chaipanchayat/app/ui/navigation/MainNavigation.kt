@@ -1,7 +1,24 @@
 package com.chaipanchayat.app.ui.navigation
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.GridView
@@ -25,7 +42,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +64,7 @@ import com.chaipanchayat.app.ui.screens.SavedScreen
 import com.chaipanchayat.app.ui.screens.SearchScreen
 import com.chaipanchayat.app.ui.screens.SettingsScreen
 import com.chaipanchayat.app.ui.screens.VideosScreen
+import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
@@ -56,8 +77,16 @@ private data class TabBarItem(
 )
 
 @Composable
-fun MainAppNavigation() {
+fun MainAppNavigation(
+    initialArticleId: Long? = null
+) {
     val rootNavController = rememberNavController()
+
+    androidx.compose.runtime.LaunchedEffect(initialArticleId) {
+        if (initialArticleId != null && initialArticleId > 0L) {
+            rootNavController.navigate(NavRoutes.articleRoute(initialArticleId))
+        }
+    }
 
     NavHost(
         navController = rootNavController,
@@ -138,67 +167,105 @@ fun MainTabsScaffold(
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 4.dp
-            ) {
-                tabs.forEach { item ->
-                    val isSelected = selectedTab == item.tab
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { selectedTab = item.tab },
-                        icon = {
-                            Icon(
-                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                contentDescription = item.tab.title
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = item.tab.title,
-                                fontFamily = InterFamily,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = ChaiSaffron,
-                            selectedTextColor = ChaiSaffron,
-                            indicatorColor = ChaiTheme.extended.brandTertiary,
-                            unselectedIconColor = ChaiTheme.extended.muted,
-                            unselectedTextColor = ChaiTheme.extended.muted
-                        ),
-                        modifier = Modifier.testTag(item.testTag)
-                    )
+            val isLiquid = ChaiTheme.extended.isLiquidGlass
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(
+                            if (isLiquid) ChaiTheme.extended.glassBorderBrush
+                            else androidx.compose.ui.graphics.SolidColor(ChaiTheme.extended.border.copy(alpha = 0.7f))
+                        )
+                )
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp
+                ) {
+                    tabs.forEach { item ->
+                        val isSelected = selectedTab == item.tab
+                        val activeColor = ChaiSaffron
+                        val indicatorBg = ChaiSaffron.copy(alpha = 0.12f)
+
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = { selectedTab = item.tab },
+                            icon = {
+                                Box {
+                                    Icon(
+                                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                        contentDescription = item.tab.title,
+                                        modifier = Modifier.size(23.dp)
+                                    )
+                                    // Live red badge indicator on VIDEOS tab
+                                    if (item.tab == MainTab.VIDEOS) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(ChaiCrimson, CircleShape)
+                                                .align(Alignment.TopEnd)
+                                                .offset(x = 3.dp, y = (-2).dp)
+                                        )
+                                    }
+                                }
+                            },
+                            label = {
+                                Text(
+                                    text = item.tab.title,
+                                    fontFamily = InterFamily,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 10.5.sp,
+                                    letterSpacing = 0.2.sp
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = activeColor,
+                                selectedTextColor = activeColor,
+                                indicatorColor = indicatorBg,
+                                unselectedIconColor = ChaiTheme.extended.muted,
+                                unselectedTextColor = ChaiTheme.extended.muted
+                            ),
+                            modifier = Modifier.testTag(item.testTag)
+                        )
+                    }
                 }
             }
         }
     ) { innerPadding ->
-        when (selectedTab) {
-            MainTab.HOME -> HomeScreen(
-                onNavigateToArticle = onNavigateToArticle,
-                onNavigateToSearch = onNavigateToSearch,
-                modifier = Modifier.padding(innerPadding)
-            )
+        AnimatedContent(
+            targetState = selectedTab,
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(220))) togetherWith
+                        (fadeOut(animationSpec = tween(200)))
+            },
+            label = "tab_content_transition"
+        ) { targetTab ->
+            when (targetTab) {
+                MainTab.HOME -> HomeScreen(
+                    onNavigateToArticle = onNavigateToArticle,
+                    onNavigateToSearch = onNavigateToSearch,
+                    modifier = Modifier.padding(innerPadding)
+                )
 
-            MainTab.VIDEOS -> VideosScreen(
-                onNavigateToArticle = onNavigateToArticle,
-                modifier = Modifier.padding(innerPadding)
-            )
+                MainTab.VIDEOS -> VideosScreen(
+                    onNavigateToArticle = onNavigateToArticle,
+                    modifier = Modifier.padding(innerPadding)
+                )
 
-            MainTab.CATEGORIES -> CategoriesScreen(
-                onNavigateToCategory = onNavigateToCategory,
-                modifier = Modifier.padding(innerPadding)
-            )
+                MainTab.CATEGORIES -> CategoriesScreen(
+                    onNavigateToCategory = onNavigateToCategory,
+                    modifier = Modifier.padding(innerPadding)
+                )
 
-            MainTab.SAVED -> SavedScreen(
-                onNavigateToArticle = onNavigateToArticle,
-                modifier = Modifier.padding(innerPadding)
-            )
+                MainTab.SAVED -> SavedScreen(
+                    onNavigateToArticle = onNavigateToArticle,
+                    modifier = Modifier.padding(innerPadding)
+                )
 
-            MainTab.SETTINGS -> SettingsScreen(
-                modifier = Modifier.padding(innerPadding)
-            )
+                MainTab.SETTINGS -> SettingsScreen(
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
         }
     }
 }

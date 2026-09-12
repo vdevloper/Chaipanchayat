@@ -8,6 +8,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -369,13 +370,23 @@ private fun FeaturedVideoCard(
 ) {
     val context = LocalContext.current
 
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = RoundedCornerShape(16.dp)
+
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = cardShape,
+        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 4.dp else 2.dp),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("featured-video-card")
+            .then(
+                if (isLiquid) {
+                    Modifier.border(1.dp, ChaiTheme.extended.glassBorderBrush, cardShape)
+                } else {
+                    Modifier.border(0.8.dp, ChaiTheme.extended.border, cardShape)
+                }
+            )
     ) {
         Column {
             // Thumbnail with Play Button
@@ -532,12 +543,22 @@ private fun VideoFeedCard(
 ) {
     val context = LocalContext.current
 
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = RoundedCornerShape(12.dp)
+
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        shape = cardShape,
+        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 3.dp else 1.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (isLiquid) {
+                    Modifier.border(1.dp, ChaiTheme.extended.glassBorderBrush, cardShape)
+                } else {
+                    Modifier.border(0.8.dp, ChaiTheme.extended.border, cardShape)
+                }
+            )
             .clickable(onClick = onPlay)
     ) {
         Row(

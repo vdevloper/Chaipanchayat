@@ -1,6 +1,8 @@
 package com.chaipanchayat.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,12 +14,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +49,7 @@ import com.chaipanchayat.app.data.api.WordPressApiClient
 import com.chaipanchayat.app.data.model.WPPost
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.components.NewsCard
+import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
@@ -58,6 +65,15 @@ fun SearchScreen(
     var results by remember { mutableStateOf<List<WPPost>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
+
+    val trendingTopics = listOf(
+        "राजनीति (Politics)",
+        "क्रिकेट (Cricket)",
+        "उत्तर प्रदेश (UP)",
+        "चुनाव (Elections)",
+        "सिनेमा (Cinema)",
+        "अपराध (Crime)"
+    )
 
     LaunchedEffect(query) {
         val trimmed = query.trim()
@@ -85,6 +101,14 @@ fun SearchScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
+        // Top Brand Accent Ribbon
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .background(ChaiBrandGradient)
+        )
+
         // Search Input Top Header
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -96,20 +120,29 @@ fun SearchScreen(
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                Surface(
+                    shape = CircleShape,
+                    color = ChaiTheme.extended.surfaceSecondary,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
                     placeholder = {
                         Text(
-                            text = "Search stories, topics...",
+                            text = "खबर, मुद्दा या व्यक्ति खोजें...",
                             color = ChaiTheme.extended.muted,
                             fontFamily = InterFamily,
                             fontSize = 14.sp
@@ -131,7 +164,7 @@ fun SearchScreen(
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = ChaiTheme.extended.surfaceSecondary,
                         unfocusedContainerColor = ChaiTheme.extended.surfaceSecondary,
@@ -140,13 +173,13 @@ fun SearchScreen(
                     ),
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 8.dp)
+                        .padding(end = 6.dp)
                         .testTag("search-input")
                 )
             }
         }
 
-        HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border)
+        HorizontalDivider(thickness = 0.8.dp, color = ChaiTheme.extended.border.copy(alpha = 0.7f))
 
         // Results state
         if (isSearching) {
@@ -159,27 +192,105 @@ fun SearchScreen(
                 CircularProgressIndicator(color = ChaiSaffron)
             }
         } else if (!hasSearched && query.isBlank()) {
-            EmptyState(
-                title = "Search Chai Panchayat",
-                message = "Type a keyword, person, or issue to search all published stories.",
-                icon = Icons.Outlined.Search
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.TrendingUp,
+                        contentDescription = null,
+                        tint = ChaiSaffron,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "ट्रेंडिंग विषय • TRENDING SEARCHES",
+                        color = ChaiTheme.extended.muted,
+                        fontFamily = InterFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        letterSpacing = 0.8.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    trendingTopics.take(3).forEach { topic ->
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = ChaiTheme.extended.surfaceSecondary,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable { query = topic.substringBefore(" (") }
+                        ) {
+                            Text(
+                                text = topic,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = InterFamily,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    trendingTopics.drop(3).forEach { topic ->
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = ChaiTheme.extended.surfaceSecondary,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable { query = topic.substringBefore(" (") }
+                        ) {
+                            Text(
+                                text = topic,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = InterFamily,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(30.dp))
+
+                EmptyState(
+                    title = "चाय पंचायत खोजें",
+                    message = "किसी भी खबर, मुद्दे या नेता के बारे में जानने के लिए सर्च करें।",
+                    icon = Icons.Outlined.Search
+                )
+            }
         } else if (hasSearched && results.isEmpty()) {
             EmptyState(
-                title = "No results found",
-                message = "We couldn't find any articles matching \"$query\".",
+                title = "कोई परिणाम नहीं मिला",
+                message = "\"$query\" से संबंधित कोई लेख नहीं मिला। कृपया अन्य शब्द आज़माएं।",
                 icon = Icons.Outlined.Search
             )
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item {
                     Text(
-                        text = "${results.size} RESULTS",
+                        text = "${results.size} परिणाम मिले • RESULTS",
                         color = ChaiTheme.extended.muted,
                         fontFamily = InterFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.sp,
+                        fontSize = 11.5.sp,
+                        letterSpacing = 0.8.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                     )
                 }
@@ -192,7 +303,7 @@ fun SearchScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(28.dp))
                 }
             }
         }
