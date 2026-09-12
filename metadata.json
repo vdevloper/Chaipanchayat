@@ -1,0 +1,6 @@
+{
+  "name": "Chai Panchayat",
+  "description": "A premium, editorial Indian digital news mobile app",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
