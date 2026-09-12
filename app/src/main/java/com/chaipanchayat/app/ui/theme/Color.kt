@@ -6,6 +6,7 @@ val ChaiSaffron = Color(0xFFE85D04)
 val ChaiSaffronDark = Color(0xFFC94B00)
 val ChaiSaffronTintLight = Color(0xFFFCECE3)
 val ChaiSaffronTintDark = Color(0xFF3A1F10)
+val ChaiCrimson = Color(0xFFC1121F)
 
 // Light Palette
 val LightSurface = Color(0xFFFFFDF8)

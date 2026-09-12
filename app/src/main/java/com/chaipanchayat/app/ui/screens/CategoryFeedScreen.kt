@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.api.WordPressApiClient
 import com.chaipanchayat.app.data.model.WPPost
+import com.chaipanchayat.app.data.repository.NewsRepository
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.components.HeroCard
 import com.chaipanchayat.app.ui.components.HeroSkeleton
@@ -45,20 +46,32 @@ fun CategoryFeedScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var posts by remember { mutableStateOf<List<WPPost>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val repository = remember { NewsRepository.getInstance() }
+    val initialCached = remember { repository.getCachedPosts(categoryId).orEmpty() }
+
+    var posts by remember { mutableStateOf(initialCached) }
+    var isLoading by remember { mutableStateOf(initialCached.isEmpty()) }
     var isRefreshing by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
 
     suspend fun loadFeed(showLoader: Boolean = true) {
-        if (showLoader) isLoading = true
+        val cached = repository.getCachedPosts(categoryId)
+        if (!cached.isNullOrEmpty()) {
+            posts = cached
+            isLoading = false
+        } else if (showLoader && posts.isEmpty()) {
+            isLoading = true
+        }
+
         try {
-            posts = WordPressApiClient.fetchPosts(categoryId = categoryId)
+            posts = repository.getPosts(categoryId = categoryId, forceRefresh = isRefreshing)
             isError = false
         } catch (_: Exception) {
-            isError = true
+            if (posts.isEmpty()) {
+                isError = true
+            }
         } finally {
             isLoading = false
             isRefreshing = false

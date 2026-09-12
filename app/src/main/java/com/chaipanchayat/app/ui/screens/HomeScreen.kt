@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.api.WordPressApiClient
 import com.chaipanchayat.app.data.model.WPCategory
 import com.chaipanchayat.app.data.model.WPPost
+import com.chaipanchayat.app.data.repository.NewsRepository
 import com.chaipanchayat.app.ui.components.CategoryChipItem
 import com.chaipanchayat.app.ui.components.CategoryChips
 import com.chaipanchayat.app.ui.components.EmptyState
@@ -68,10 +69,14 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var posts by remember { mutableStateOf<List<WPPost>>(emptyList()) }
-    var categories by remember { mutableStateOf<List<WPCategory>>(emptyList()) }
+    val repository = remember { NewsRepository.getInstance() }
+    val initialCachedPosts = remember { repository.getCachedPosts(null).orEmpty() }
+    val initialCachedCats = remember { repository.getCachedCategories().orEmpty() }
+
+    var posts by remember { mutableStateOf(initialCachedPosts) }
+    var categories by remember { mutableStateOf(initialCachedCats) }
     var selectedCategoryId by remember { mutableLongStateOf(0L) }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(initialCachedPosts.isEmpty()) }
     var isRefreshing by remember { mutableStateOf(false) }
     var isOffline by remember { mutableStateOf(false) }
     var newStoriesCount by remember { mutableIntStateOf(0) }
@@ -80,15 +85,24 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
 
     suspend fun loadFeed(showLoader: Boolean = true) {
-        if (showLoader) isLoading = true
+        val catId = if (selectedCategoryId == 0L) null else selectedCategoryId
+        val cached = repository.getCachedPosts(catId)
+        if (!cached.isNullOrEmpty()) {
+            posts = cached
+            isLoading = false
+        } else if (showLoader && posts.isEmpty()) {
+            isLoading = true
+        }
+
         try {
-            val catId = if (selectedCategoryId == 0L) null else selectedCategoryId
-            val fetchedPosts = WordPressApiClient.fetchPosts(categoryId = catId)
+            val fetchedPosts = repository.getPosts(categoryId = catId, forceRefresh = isRefreshing)
             posts = fetchedPosts
             isOffline = false
             newStoriesCount = 0
         } catch (e: Exception) {
-            isOffline = true
+            if (posts.isEmpty()) {
+                isOffline = true
+            }
         } finally {
             isLoading = false
             isRefreshing = false
@@ -97,7 +111,7 @@ fun HomeScreen(
 
     suspend fun loadCategories() {
         try {
-            categories = WordPressApiClient.fetchCategories()
+            categories = repository.getCategories()
         } catch (_: Exception) {
         }
     }

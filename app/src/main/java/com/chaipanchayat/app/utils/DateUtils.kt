@@ -40,6 +40,8 @@ object DateUtils {
         return formatLongDate(iso)
     }
 
+    fun getRelativeTime(iso: String): String = timeAgo(iso)
+
     fun formatLongDate(iso: String): String {
         val date = parseDate(iso) ?: return iso
         val outSdf = SimpleDateFormat("d MMMM yyyy", Locale.ENGLISH)

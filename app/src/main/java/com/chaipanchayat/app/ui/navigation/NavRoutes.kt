@@ -12,6 +12,7 @@ object NavRoutes {
 
 enum class MainTab(val title: String) {
     HOME("Home"),
+    VIDEOS("Videos"),
     CATEGORIES("Categories"),
     SAVED("Saved"),
     SETTINGS("Settings")

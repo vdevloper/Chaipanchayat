@@ -1,32 +1,70 @@
 package com.chaipanchayat.app.data.api
 
+import android.content.Context
+import com.chaipanchayat.app.data.model.VideoItem
 import com.chaipanchayat.app.data.model.WPCategory
 import com.chaipanchayat.app.data.model.WPPost
 import com.chaipanchayat.app.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl
+import okhttp3.Cache
+import okhttp3.CacheControl
+import okhttp3.ConnectionPool
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.TimeUnit
+import java.util.regex.Pattern
 
 object WordPressApiClient {
 
     private const val BASE_URL = "https://chaipanchayat.com/wp-json/wp/v2"
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val YOUTUBE_REGEX = Pattern.compile(
+        "(?:youtube\\.com\\/(?:embed\\/|watch\\?v=|v\\/)|youtu\\.be\\/)([a-zA-Z0-9_-]{11})",
+        Pattern.CASE_INSENSITIVE
+    )
+
+    private var client: OkHttpClient = buildClient(null)
+
+    fun init(context: Context) {
+        val cacheDir = File(context.cacheDir, "http_cache")
+        client = buildClient(cacheDir)
+    }
+
+    private fun buildClient(cacheDir: File?): OkHttpClient {
+        val builder = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
+
+        if (cacheDir != null) {
+            val cacheSize = 30L * 1024 * 1024 // 30 MB
+            builder.cache(Cache(cacheDir, cacheSize))
+
+            // Cache Interceptor for super-fast cached responses
+            builder.addNetworkInterceptor(Interceptor { chain ->
+                val response = chain.proceed(chain.request())
+                response.newBuilder()
+                    .header("Cache-Control", "public, max-age=180") // 3 minutes freshness
+                    .removeHeader("Pragma")
+                    .build()
+            })
+        }
+
+        return builder.build()
+    }
 
     suspend fun fetchPosts(
         page: Int = 1,
-        perPage: Int = 20,
+        perPage: Int = 15,
         categoryId: Long? = null,
-        search: String? = null
+        search: String? = null,
+        includeContent: Boolean = false
     ): List<WPPost> = withContext(Dispatchers.IO) {
         val urlBuilder = "$BASE_URL/posts".toHttpUrlOrNull()?.newBuilder()
             ?: throw IllegalArgumentException("Invalid URL")
@@ -36,6 +74,14 @@ object WordPressApiClient {
         urlBuilder.addQueryParameter("orderby", "date")
         urlBuilder.addQueryParameter("order", "desc")
         urlBuilder.addQueryParameter("_embed", "1")
+
+        // Performance: if not requesting full article content, omit the heavy HTML payload!
+        if (!includeContent) {
+            urlBuilder.addQueryParameter(
+                "_fields",
+                "id,date,link,slug,title,excerpt,categories,_links,_embedded"
+            )
+        }
 
         if (categoryId != null && categoryId > 0) {
             urlBuilder.addQueryParameter("categories", categoryId.toString())
@@ -55,7 +101,7 @@ object WordPressApiClient {
         }
         val responseBody = response.body?.string().orEmpty()
         val jsonArray = JSONArray(responseBody)
-        val posts = mutableListOf<WPPost>()
+        val posts = ArrayList<WPPost>(jsonArray.length())
         for (i in 0 until jsonArray.length()) {
             val obj = jsonArray.getJSONObject(i)
             posts.add(parsePost(obj))
@@ -73,6 +119,57 @@ object WordPressApiClient {
         val responseBody = response.body?.string().orEmpty()
         val obj = JSONObject(responseBody)
         parsePost(obj)
+    }
+
+    suspend fun fetchVideoPosts(
+        page: Int = 1,
+        perPage: Int = 20
+    ): List<VideoItem> = withContext(Dispatchers.IO) {
+        val urlBuilder = "$BASE_URL/posts".toHttpUrlOrNull()?.newBuilder()
+            ?: throw IllegalArgumentException("Invalid URL")
+
+        urlBuilder.addQueryParameter("search", "youtube")
+        urlBuilder.addQueryParameter("per_page", perPage.toString())
+        urlBuilder.addQueryParameter("page", page.toString())
+        urlBuilder.addQueryParameter("orderby", "date")
+        urlBuilder.addQueryParameter("order", "desc")
+        urlBuilder.addQueryParameter("_embed", "1")
+
+        val request = Request.Builder().url(urlBuilder.build()).get().build()
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) {
+            throw RuntimeException("WordPress API error: ${response.code}")
+        }
+
+        val responseBody = response.body?.string().orEmpty()
+        val jsonArray = JSONArray(responseBody)
+        val videoItems = mutableListOf<VideoItem>()
+        val seenIds = mutableSetOf<String>()
+
+        for (i in 0 until jsonArray.length()) {
+            val obj = jsonArray.getJSONObject(i)
+            val post = parsePost(obj)
+            val ytId = post.youtubeId
+
+            if (!ytId.isNullOrBlank() && !seenIds.contains(ytId)) {
+                seenIds.add(ytId)
+                videoItems.add(
+                    VideoItem(
+                        id = post.id,
+                        title = post.cleanTitle,
+                        youtubeId = ytId,
+                        youtubeUrl = "https://www.youtube.com/watch?v=$ytId",
+                        thumbnail = "https://img.youtube.com/vi/$ytId/hqdefault.jpg",
+                        category = post.primaryCategory ?: "Ground Report",
+                        date = post.date,
+                        articleId = post.id,
+                        description = post.cleanExcerpt
+                    )
+                )
+            }
+        }
+
+        videoItems
     }
 
     suspend fun fetchCategories(): List<WPCategory> = withContext(Dispatchers.IO) {
@@ -170,6 +267,14 @@ object WordPressApiClient {
             }
         }
 
+        // Extract YouTube ID if present in content or excerpt
+        var youtubeId: String? = null
+        val fullSearchText = "$rawContent $rawExcerpt $link"
+        val ytMatcher = YOUTUBE_REGEX.matcher(fullSearchText)
+        if (ytMatcher.find()) {
+            youtubeId = ytMatcher.group(1)
+        }
+
         return WPPost(
             id = id,
             date = date,
@@ -183,7 +288,8 @@ object WordPressApiClient {
             categories = categories,
             featuredImageUrl = featuredImage,
             primaryCategory = primaryCategory?.let { HtmlUtils.decodeEntities(it) },
-            authorName = authorName
+            authorName = authorName,
+            youtubeId = youtubeId
         )
     }
 }

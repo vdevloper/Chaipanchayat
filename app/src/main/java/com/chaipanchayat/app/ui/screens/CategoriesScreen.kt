@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.api.WordPressApiClient
 import com.chaipanchayat.app.data.model.WPCategory
+import com.chaipanchayat.app.data.repository.NewsRepository
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
@@ -55,18 +56,23 @@ fun CategoriesScreen(
     onNavigateToCategory: (Long, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var categories by remember { mutableStateOf<List<WPCategory>>(emptyList()) }
+    val repository = remember { NewsRepository.getInstance() }
+    val initialCats = remember { repository.getCachedCategories().orEmpty() }
+
+    var categories by remember { mutableStateOf(initialCats) }
     var searchQuery by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(initialCats.isEmpty()) }
     var isError by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        if (categories.isEmpty()) isLoading = true
         try {
-            isLoading = true
-            categories = WordPressApiClient.fetchCategories()
+            categories = repository.getCategories()
             isError = false
         } catch (_: Exception) {
-            isError = true
+            if (categories.isEmpty()) {
+                isError = true
+            }
         } finally {
             isLoading = false
         }

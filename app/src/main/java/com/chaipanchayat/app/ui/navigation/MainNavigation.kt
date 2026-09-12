@@ -6,10 +6,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +43,7 @@ import com.chaipanchayat.app.ui.screens.HomeScreen
 import com.chaipanchayat.app.ui.screens.SavedScreen
 import com.chaipanchayat.app.ui.screens.SearchScreen
 import com.chaipanchayat.app.ui.screens.SettingsScreen
+import com.chaipanchayat.app.ui.screens.VideosScreen
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
@@ -127,6 +130,7 @@ fun MainTabsScaffold(
 
     val tabs = listOf(
         TabBarItem(MainTab.HOME, Icons.Filled.Home, Icons.Outlined.Home, "tab-home"),
+        TabBarItem(MainTab.VIDEOS, Icons.Filled.PlayCircle, Icons.Outlined.PlayCircleOutline, "tab-videos"),
         TabBarItem(MainTab.CATEGORIES, Icons.Filled.GridView, Icons.Outlined.GridView, "tab-categories"),
         TabBarItem(MainTab.SAVED, Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder, "tab-saved"),
         TabBarItem(MainTab.SETTINGS, Icons.Filled.Settings, Icons.Outlined.Settings, "tab-settings")
@@ -174,6 +178,11 @@ fun MainTabsScaffold(
             MainTab.HOME -> HomeScreen(
                 onNavigateToArticle = onNavigateToArticle,
                 onNavigateToSearch = onNavigateToSearch,
+                modifier = Modifier.padding(innerPadding)
+            )
+
+            MainTab.VIDEOS -> VideosScreen(
+                onNavigateToArticle = onNavigateToArticle,
                 modifier = Modifier.padding(innerPadding)
             )
 

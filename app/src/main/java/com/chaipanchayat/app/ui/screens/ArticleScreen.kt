@@ -55,6 +55,7 @@ import coil.request.ImageRequest
 import com.chaipanchayat.app.data.api.WordPressApiClient
 import com.chaipanchayat.app.data.model.WPPost
 import com.chaipanchayat.app.data.repository.BookmarkRepository
+import com.chaipanchayat.app.data.repository.NewsRepository
 import com.chaipanchayat.app.data.repository.SettingsRepository
 import com.chaipanchayat.app.ui.components.ArticleHtmlView
 import com.chaipanchayat.app.ui.components.ArticleSkeleton
@@ -90,7 +91,7 @@ fun ArticleScreen(
     LaunchedEffect(postId) {
         isLoading = true
         try {
-            val fetched = WordPressApiClient.fetchPost(postId)
+            val fetched = NewsRepository.getInstance().getPost(postId)
             post = fetched
             isError = false
         } catch (e: Exception) {
