@@ -7,6 +7,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import com.chaipanchayat.app.data.api.WordPressApiClient
+import com.chaipanchayat.app.data.repository.NewsRepository
 import java.io.File
 
 class ChaiApplication : Application(), ImageLoaderFactory {
@@ -15,6 +16,8 @@ class ChaiApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         // Initialize HTTP disk cache and connection pool
         WordPressApiClient.init(this)
+        // Initialize local database storage caching
+        NewsRepository.init(this)
     }
 
     override fun newImageLoader(): ImageLoader {
@@ -31,7 +34,7 @@ class ChaiApplication : Application(), ImageLoaderFactory {
                     .build()
             }
             .crossfade(true)
-            .allowHardware(true)
+            .allowHardware(false)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
             .build()

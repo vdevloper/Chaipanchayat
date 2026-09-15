@@ -113,8 +113,9 @@ fun SavedScreen(
                     }
                     Text(
                         text = if (bookmarks.isEmpty()) "बाद में पढ़ने के लिए अपनी पसंदीदा खबरें यहाँ रखें।" else "${bookmarks.size} खबरें सुरक्षित हैं",
-                        color = ChaiTheme.extended.muted,
+                        color = ChaiTheme.extended.textSecondary,
                         fontFamily = InterFamily,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 13.sp,
                         modifier = Modifier.padding(start = 14.dp, top = 2.dp)
                     )
@@ -127,7 +128,7 @@ fun SavedScreen(
                     ) {
                         Text(
                             text = "${bookmarks.size} सहेजे गए",
-                            color = ChaiSaffron,
+                            color = ChaiTheme.extended.brandText,
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
@@ -250,10 +251,10 @@ fun SavedArticleCard(
                 if (!bookmark.category.isNullOrBlank()) {
                     Text(
                         text = bookmark.category.uppercase(),
-                        color = ChaiSaffron,
+                        color = ChaiTheme.extended.goldText,
                         fontFamily = InterFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
+                        fontSize = 10.5.sp,
                         letterSpacing = 0.8.sp,
                         maxLines = 1
                     )
@@ -264,9 +265,9 @@ fun SavedArticleCard(
                     text = bookmark.title,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = NotoSerifFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -275,9 +276,10 @@ fun SavedArticleCard(
 
                 Text(
                     text = DateUtils.timeAgo(bookmark.date),
-                    color = ChaiTheme.extended.muted,
+                    color = ChaiTheme.extended.textSecondary,
                     fontFamily = InterFamily,
-                    fontSize = 11.sp
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.sp
                 )
             }
 

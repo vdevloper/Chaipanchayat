@@ -1,5 +1,11 @@
 package com.chaipanchayat.app.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +35,9 @@ import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.HealthAndSafety
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material.icons.outlined.Theaters
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.VideoLibrary
@@ -40,11 +48,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -58,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.model.WPCategory
+import com.chaipanchayat.app.data.model.WPTag
 import com.chaipanchayat.app.data.repository.NewsRepository
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
@@ -65,6 +78,8 @@ import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
@@ -74,25 +89,43 @@ fun CategoriesScreen(
 ) {
     val repository = remember { NewsRepository.getInstance() }
     val initialCats = remember { repository.getCachedCategories().orEmpty() }
+    val initialTags = remember { repository.getCachedTags().orEmpty() }
 
     var categories by remember { mutableStateOf(initialCats) }
+    var tags by remember { mutableStateOf(initialTags) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(initialCats.isEmpty()) }
+    var isLoading by remember { mutableStateOf(initialCats.isEmpty() && initialTags.isEmpty()) }
+    var isSyncing by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        if (categories.isEmpty()) isLoading = true
+    suspend fun fetchFromNetwork(forceRefresh: Boolean) {
+        if (categories.isEmpty() && tags.isEmpty()) isLoading = true
+        if (forceRefresh) isSyncing = true
         try {
-            categories = repository.getCategories()
+            coroutineScope {
+                val catsDeferred = async { repository.getCategories(forceRefresh = forceRefresh) }
+                val tagsDeferred = async { repository.getTags(forceRefresh = forceRefresh) }
+                val fetchedCats = catsDeferred.await()
+                val fetchedTags = tagsDeferred.await()
+                categories = fetchedCats
+                tags = fetchedTags
+            }
             isError = false
         } catch (_: Exception) {
-            if (categories.isEmpty()) {
+            if (categories.isEmpty() && tags.isEmpty()) {
                 isError = true
             }
         } finally {
             isLoading = false
+            isSyncing = false
         }
+    }
+
+    LaunchedEffect(Unit) {
+        // Sync live categories and tags from WordPress API
+        fetchFromNetwork(forceRefresh = true)
     }
 
     val filteredCategories = remember(categories, searchQuery) {
@@ -100,6 +133,14 @@ fun CategoriesScreen(
             categories
         } else {
             categories.filter { it.name.contains(searchQuery.trim(), ignoreCase = true) }
+        }
+    }
+
+    val filteredTags = remember(tags, searchQuery) {
+        if (searchQuery.isBlank()) {
+            tags
+        } else {
+            tags.filter { it.name.contains(searchQuery.trim(), ignoreCase = true) }
         }
     }
 
@@ -140,39 +181,123 @@ fun CategoriesScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "विषय",
+                            text = "विषय एवं सेक्शन्स",
                             color = MaterialTheme.colorScheme.onSurface,
                             fontFamily = NotoSerifFamily,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 24.sp
+                            fontSize = 22.sp
                         )
                     }
                     Text(
-                        text = "विषय अनुसार ताज़ा खबरें और विशेष विश्लेषण",
+                        text = "वेबसाइट से लाइव अपडेटेड कैटेगरीज एवं टैग्स",
                         color = ChaiTheme.extended.muted,
                         fontFamily = InterFamily,
-                        fontSize = 12.5.sp,
+                        fontSize = 12.sp,
                         modifier = Modifier.padding(start = 14.dp, top = 2.dp)
                     )
                 }
 
-                Surface(
-                    shape = CircleShape,
-                    color = ChaiTheme.extended.surfaceSecondary,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "${categories.size} विषय",
-                        color = ChaiSaffron,
-                        fontFamily = InterFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.5.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                fetchFromNetwork(forceRefresh = true)
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = ChaiSaffron,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Refresh,
+                                contentDescription = "Sync from site",
+                                tint = ChaiTheme.extended.muted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = CircleShape,
+                        color = ChaiTheme.extended.surfaceSecondary,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border)
+                    ) {
+                        Text(
+                            text = if (selectedTabIndex == 0) "${categories.size} विषय" else "${tags.size} टैग्स",
+                            color = ChaiSaffron,
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            // Editorial Segmented Switcher (Categories vs Tags)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ChaiTheme.extended.surfaceSecondary, RoundedCornerShape(10.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (selectedTabIndex == 0) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    border = if (selectedTabIndex == 0) androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border) else null,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedTabIndex = 0 }
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "विषय (Categories)",
+                            fontFamily = InterFamily,
+                            fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 12.5.sp,
+                            color = if (selectedTabIndex == 0) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (selectedTabIndex == 1) MaterialTheme.colorScheme.surface else Color.Transparent,
+                    border = if (selectedTabIndex == 1) androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border) else null,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedTabIndex = 1 }
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "टैग्स व सेक्शन्स (Tags)",
+                            fontFamily = InterFamily,
+                            fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 12.5.sp,
+                            color = if (selectedTabIndex == 1) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Search Filter Box
             OutlinedTextField(
@@ -180,7 +305,7 @@ fun CategoriesScreen(
                 onValueChange = { searchQuery = it },
                 placeholder = {
                     Text(
-                        text = "विषय खोजें (उदा. राजनीति, खेल, अपराध)...",
+                        text = if (selectedTabIndex == 0) "विषय खोजें (उदा. राजनीति, खेल, अपराध)..." else "टैग खोजें...",
                         color = ChaiTheme.extended.muted,
                         fontFamily = InterFamily,
                         fontSize = 13.sp
@@ -224,7 +349,7 @@ fun CategoriesScreen(
         }
 
         // Content Area
-        if (isLoading && categories.isEmpty()) {
+        if (isLoading && categories.isEmpty() && tags.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -234,47 +359,79 @@ fun CategoriesScreen(
                     modifier = Modifier.size(36.dp)
                 )
             }
-        } else if (isError && categories.isEmpty()) {
+        } else if (isError && categories.isEmpty() && tags.isEmpty()) {
             EmptyState(
                 title = "विषय लोड नहीं हो सके",
                 message = "कृपया अपना इंटरनेट कनेक्शन जांचें और पुनः प्रयास करें।",
                 actionLabel = "पुनः प्रयास करें",
                 onAction = {
                     coroutineScope.launch {
-                        isLoading = true
-                        try {
-                            categories = repository.getCategories(forceRefresh = true)
-                            isError = false
-                        } catch (_: Exception) {
-                            isError = true
-                        } finally {
-                            isLoading = false
-                        }
+                        fetchFromNetwork(forceRefresh = true)
                     }
                 }
             )
-        } else if (filteredCategories.isEmpty()) {
-            EmptyState(
-                title = "कोई विषय नहीं मिला",
-                message = "\"$searchQuery\" नाम का कोई विषय उपलब्ध नहीं है।",
-                icon = Icons.Outlined.Search
-            )
         } else {
-            // Spec Section 12: Clean category index rather than giant two-column cards
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = 32.dp),
+            AnimatedContent(
+                targetState = selectedTabIndex,
+                transitionSpec = {
+                    fadeIn(tween(250, easing = FastOutSlowInEasing)) togetherWith
+                            fadeOut(tween(180, easing = FastOutSlowInEasing))
+                },
+                label = "categories_tags_transition",
                 modifier = Modifier.fillMaxSize()
-            ) {
-                items(filteredCategories, key = { it.id }) { cat ->
-                    CategoryIndexRow(
-                        category = cat,
-                        onClick = { onNavigateToCategory(cat.id, cat.name) }
-                    )
-                    HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = ChaiTheme.extended.border.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(start = 64.dp)
-                    )
+            ) { tab ->
+                if (tab == 0) {
+                    // CATEGORIES LIST
+                    if (filteredCategories.isEmpty()) {
+                        EmptyState(
+                            title = "कोई विषय नहीं मिला",
+                            message = "\"$searchQuery\" नाम का कोई विषय उपलब्ध नहीं है।",
+                            icon = Icons.Outlined.Search
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 32.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(filteredCategories, key = { it.id }) { cat ->
+                                CategoryIndexRow(
+                                    category = cat,
+                                    onClick = { onNavigateToCategory(cat.id, cat.name) }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = ChaiTheme.extended.border.copy(alpha = 0.6f),
+                                    modifier = Modifier.padding(start = 64.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // TAGS LIST
+                    if (filteredTags.isEmpty()) {
+                        EmptyState(
+                            title = "कोई टैग नहीं मिला",
+                            message = "\"$searchQuery\" नाम का कोई टैग उपलब्ध नहीं है।",
+                            icon = Icons.Outlined.Tag
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 32.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(filteredTags, key = { it.id }) { tag ->
+                                TagIndexRow(
+                                    tag = tag,
+                                    onClick = { onNavigateToCategory(-tag.id, "#${tag.name}") }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = ChaiTheme.extended.border.copy(alpha = 0.6f),
+                                    modifier = Modifier.padding(start = 64.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -333,10 +490,10 @@ private fun CategoryIndexRow(
         ) {
             Text(
                 text = "${category.count} लेख",
-                color = ChaiTheme.extended.muted,
+                color = ChaiTheme.extended.textSecondary,
                 fontFamily = InterFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 11.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
             )
         }
@@ -347,7 +504,73 @@ private fun CategoryIndexRow(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
             contentDescription = null,
-            tint = ChaiTheme.extended.muted,
+            tint = ChaiTheme.extended.textSecondary,
+            modifier = Modifier.size(13.dp)
+        )
+    }
+}
+
+@Composable
+private fun TagIndexRow(
+    tag: WPTag,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .testTag("tag-row-${tag.id}")
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = ChaiSaffron.copy(alpha = 0.12f),
+            border = androidx.compose.foundation.BorderStroke(0.8.dp, ChaiSaffron.copy(alpha = 0.3f)),
+            modifier = Modifier.size(38.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.Tag,
+                    contentDescription = null,
+                    tint = ChaiTheme.extended.brandText,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Text(
+            text = tag.name,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontFamily = NotoSerifFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            modifier = Modifier.weight(1f)
+        )
+
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = ChaiTheme.extended.surfaceSecondary,
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, ChaiTheme.extended.border)
+        ) {
+            Text(
+                text = "${tag.count} लेख",
+                color = ChaiTheme.extended.textSecondary,
+                fontFamily = InterFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+            contentDescription = null,
+            tint = ChaiTheme.extended.textSecondary,
             modifier = Modifier.size(13.dp)
         )
     }

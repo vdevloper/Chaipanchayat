@@ -10,7 +10,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.aistudio.chaipanchayat.kqxvyz"
+        applicationId = "com.chaipanchayat.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

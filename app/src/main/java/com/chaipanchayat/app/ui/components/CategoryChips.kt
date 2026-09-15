@@ -38,6 +38,7 @@ import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
+import com.chaipanchayat.app.utils.rememberChaiHaptics
 
 data class CategoryChipItem(
     val id: Long, // 0 for Latest
@@ -69,6 +70,7 @@ fun CategoryChips(
     isLoading: Boolean = false
 ) {
     val scrollState = rememberScrollState()
+    val haptics = rememberChaiHaptics()
 
     Row(
         modifier = modifier
@@ -105,7 +107,7 @@ fun CategoryChips(
                     color = if (isSelected) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = if (isSelected) ChaiSaffron else ChaiTheme.extended.border.copy(alpha = 0.7f)
+                        color = if (isSelected) ChaiSaffron else ChaiTheme.extended.border
                     ),
                     shadowElevation = if (isSelected) 3.dp else 0.dp,
                     modifier = Modifier
@@ -119,7 +121,12 @@ fun CategoryChips(
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
-                            onClick = { onSelect(chip.id) }
+                            onClick = {
+                                if (chip.id != selectedId) {
+                                    haptics.click()
+                                    onSelect(chip.id)
+                                }
+                            }
                         )
                 ) {
                     Row(
@@ -128,15 +135,15 @@ fun CategoryChips(
                     ) {
                         Text(
                             text = getCategoryEmoji(chip.name),
-                            fontSize = 13.sp
+                            fontSize = 13.5.sp
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = chip.name,
                             color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                             fontFamily = InterFamily,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                            fontSize = 13.5.sp,
                             letterSpacing = 0.2.sp
                         )
                     }

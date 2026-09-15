@@ -148,8 +148,9 @@ fun SettingsScreen(
                 Text(
                     text = "प्राथमिकताएं एवं ऐप नियंत्रण",
                     fontFamily = InterFamily,
-                    fontSize = 13.sp,
-                    color = ChaiTheme.extended.muted,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.5.sp,
+                    color = ChaiTheme.extended.textSecondary,
                     modifier = Modifier.padding(start = 16.dp, top = 4.dp)
                 )
             }
@@ -713,10 +714,10 @@ private fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
         fontFamily = InterFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 11.sp,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 11.5.sp,
         letterSpacing = 1.2.sp,
-        color = ChaiTheme.extended.muted,
+        color = ChaiTheme.extended.brandText,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
     )
 }
@@ -742,7 +743,7 @@ private fun SettingsNavRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = ChaiTheme.extended.muted,
+                tint = ChaiTheme.extended.textSecondary,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(14.dp))
@@ -752,7 +753,7 @@ private fun SettingsNavRow(
             Text(
                 text = title,
                 fontFamily = InterFamily,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -761,8 +762,9 @@ private fun SettingsNavRow(
                 Text(
                     text = subtitle,
                     fontFamily = InterFamily,
-                    fontSize = 12.sp,
-                    color = ChaiTheme.extended.muted
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.5.sp,
+                    color = ChaiTheme.extended.textSecondary
                 )
             }
         }
@@ -771,9 +773,9 @@ private fun SettingsNavRow(
             Text(
                 text = trailingValue,
                 fontFamily = InterFamily,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 13.5.sp,
-                color = ChaiSaffron
+                color = ChaiTheme.extended.brandText
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -781,7 +783,7 @@ private fun SettingsNavRow(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
             contentDescription = null,
-            tint = ChaiTheme.extended.muted.copy(alpha = 0.6f),
+            tint = ChaiTheme.extended.textSecondary,
             modifier = Modifier.size(13.dp)
         )
     }
@@ -807,7 +809,7 @@ private fun SettingsToggleRow(
             Text(
                 text = title,
                 fontFamily = InterFamily,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -816,8 +818,9 @@ private fun SettingsToggleRow(
                 Text(
                     text = subtitle,
                     fontFamily = InterFamily,
-                    fontSize = 12.sp,
-                    color = ChaiTheme.extended.muted
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 12.5.sp,
+                    color = ChaiTheme.extended.textSecondary
                 )
             }
         }
@@ -828,7 +831,7 @@ private fun SettingsToggleRow(
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = ChaiSaffron,
-                uncheckedThumbColor = ChaiTheme.extended.muted,
+                uncheckedThumbColor = ChaiTheme.extended.textSecondary,
                 uncheckedTrackColor = ChaiTheme.extended.surfaceSecondary
             )
         )
@@ -850,7 +853,7 @@ private fun SettingsInfoRow(
         Text(
             text = title,
             fontFamily = InterFamily,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -858,9 +861,9 @@ private fun SettingsInfoRow(
         Text(
             text = value,
             fontFamily = InterFamily,
-            fontWeight = FontWeight.Normal,
+            fontWeight = FontWeight.Medium,
             fontSize = 13.5.sp,
-            color = ChaiTheme.extended.muted
+            color = ChaiTheme.extended.textSecondary
         )
     }
 }

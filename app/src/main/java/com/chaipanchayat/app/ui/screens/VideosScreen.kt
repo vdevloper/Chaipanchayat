@@ -3,10 +3,6 @@ package com.chaipanchayat.app.ui.screens
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
-import android.view.ViewGroup
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import com.chaipanchayat.app.ui.components.ChaiVideoPlayer
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -624,8 +621,8 @@ private fun VideoFeedCard(
                     text = video.title,
                     fontFamily = NotoSerifFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    lineHeight = 19.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
@@ -639,8 +636,9 @@ private fun VideoFeedCard(
                     Text(
                         text = DateUtils.getRelativeTime(video.date),
                         fontFamily = InterFamily,
-                        fontSize = 11.sp,
-                        color = ChaiTheme.extended.muted
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        color = ChaiTheme.extended.textSecondary
                     )
 
                     Row {
@@ -717,52 +715,17 @@ private fun VideoPlayerSheet(
                 }
             }
 
-            // Embedded YouTube Web Player
-            Box(
+            // Robust ChaiVideoPlayer (works with both YouTube and direct MP4/WebM)
+            ChaiVideoPlayer(
+                youtubeId = video.youtubeId,
+                videoUrl = video.videoUrl,
+                title = video.title,
+                thumbnailUrl = video.thumbnail,
+                autoPlay = false,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .background(Color.Black)
-            ) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            layoutParams = ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.mediaPlaybackRequiresUserGesture = false
-                            webChromeClient = WebChromeClient()
-                            webViewClient = WebViewClient()
-
-                            val embedHtml = """
-                                <!DOCTYPE html>
-                                <html>
-                                <head>
-                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                                <style>
-                                    body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
-                                    iframe { width: 100vw; height: 56.25vw; max-height: 100vh; border: 0; }
-                                </style>
-                                </head>
-                                <body>
-                                <iframe 
-                                    src="https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&playsinline=1&rel=0" 
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                    allowfullscreen>
-                                </iframe>
-                                </body>
-                                </html>
-                            """.trimIndent()
-
-                            loadDataWithBaseURL("https://www.youtube.com", embedHtml, "text/html", "utf-8", null)
-                        }
-                    }
-                )
-            }
+                    .padding(horizontal = 16.dp)
+            )
 
             // Video Title & Meta
             Column(modifier = Modifier.padding(16.dp)) {

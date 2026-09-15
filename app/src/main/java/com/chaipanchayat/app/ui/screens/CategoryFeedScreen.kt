@@ -76,7 +76,11 @@ fun CategoryFeedScreen(
         }
 
         try {
-            posts = repository.getPosts(categoryId = categoryId, forceRefresh = isRefreshing)
+            posts = if (categoryId < 0) {
+                repository.getPostsByTag(tagId = -categoryId, forceRefresh = isRefreshing)
+            } else {
+                repository.getPosts(categoryId = categoryId, forceRefresh = isRefreshing)
+            }
             isError = false
         } catch (_: Exception) {
             if (posts.isEmpty()) {

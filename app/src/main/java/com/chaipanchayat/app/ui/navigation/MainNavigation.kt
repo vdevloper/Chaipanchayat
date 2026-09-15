@@ -1,11 +1,16 @@
 package com.chaipanchayat.app.ui.navigation
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -68,6 +73,7 @@ import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
+import com.chaipanchayat.app.utils.rememberChaiHaptics
 
 private data class TabBarItem(
     val tab: MainTab,
@@ -91,7 +97,31 @@ fun MainAppNavigation(
     NavHost(
         navController = rootNavController,
         startDestination = NavRoutes.MAIN,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        enterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { it / 3 },
+                animationSpec = tween(320, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(300))
+        },
+        exitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { -it / 4 },
+                animationSpec = tween(280, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(240))
+        },
+        popEnterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { -it / 4 },
+                animationSpec = tween(300, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(300))
+        },
+        popExitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { it / 3 },
+                animationSpec = tween(280, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(240))
+        }
     ) {
         composable(NavRoutes.MAIN) {
             MainTabsScaffold(
@@ -107,7 +137,27 @@ fun MainAppNavigation(
             )
         }
 
-        composable(NavRoutes.SEARCH) {
+        composable(
+            route = NavRoutes.SEARCH,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { it / 4 },
+                    animationSpec = tween(320, easing = FastOutSlowInEasing)
+                ) + fadeIn(tween(300))
+            },
+            exitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { it / 4 },
+                    animationSpec = tween(280, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(240))
+            },
+            popExitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { it / 4 },
+                    animationSpec = tween(280, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(240))
+            }
+        ) {
             SearchScreen(
                 onNavigateToArticle = { id ->
                     rootNavController.navigate(NavRoutes.articleRoute(id))
@@ -118,7 +168,31 @@ fun MainAppNavigation(
 
         composable(
             route = NavRoutes.ARTICLE,
-            arguments = listOf(navArgument("id") { type = NavType.LongType })
+            arguments = listOf(navArgument("id") { type = NavType.LongType }),
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(340, easing = FastOutSlowInEasing)
+                ) + fadeIn(tween(320))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 4 },
+                    animationSpec = tween(280, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(240))
+            },
+            popEnterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { -it / 4 },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeIn(tween(300))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(260))
+            }
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getLong("id") ?: 0L
             ArticleScreen(
@@ -132,7 +206,25 @@ fun MainAppNavigation(
             arguments = listOf(
                 navArgument("id") { type = NavType.LongType },
                 navArgument("name") { type = NavType.StringType }
-            )
+            ),
+            enterTransition = {
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(340, easing = FastOutSlowInEasing)
+                ) + fadeIn(tween(320))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { -it / 4 },
+                    animationSpec = tween(280, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(240))
+            },
+            popExitTransition = {
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(260))
+            }
         ) { backStackEntry ->
             val categoryId = backStackEntry.arguments?.getLong("id") ?: 0L
             val rawName = backStackEntry.arguments?.getString("name").orEmpty()
@@ -156,6 +248,7 @@ fun MainTabsScaffold(
     onNavigateToSearch: () -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
+    val haptics = rememberChaiHaptics()
 
     val tabs = listOf(
         TabBarItem(MainTab.HOME, Icons.Filled.Home, Icons.Outlined.Home, "tab-home"),
@@ -184,12 +277,17 @@ fun MainTabsScaffold(
                 ) {
                     tabs.forEach { item ->
                         val isSelected = selectedTab == item.tab
-                        val activeColor = ChaiSaffron
-                        val indicatorBg = ChaiSaffron.copy(alpha = 0.12f)
+                        val activeColor = ChaiTheme.extended.brandText
+                        val indicatorBg = ChaiSaffron.copy(alpha = 0.14f)
 
                         NavigationBarItem(
                             selected = isSelected,
-                            onClick = { selectedTab = item.tab },
+                            onClick = {
+                                if (selectedTab != item.tab) {
+                                    haptics.click()
+                                    selectedTab = item.tab
+                                }
+                            },
                             icon = {
                                 Box {
                                     Icon(
@@ -213,8 +311,8 @@ fun MainTabsScaffold(
                                 Text(
                                     text = item.tab.title,
                                     fontFamily = InterFamily,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 10.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    fontSize = 11.sp,
                                     letterSpacing = 0.2.sp
                                 )
                             },
@@ -222,8 +320,8 @@ fun MainTabsScaffold(
                                 selectedIconColor = activeColor,
                                 selectedTextColor = activeColor,
                                 indicatorColor = indicatorBg,
-                                unselectedIconColor = ChaiTheme.extended.muted,
-                                unselectedTextColor = ChaiTheme.extended.muted
+                                unselectedIconColor = ChaiTheme.extended.textSecondary,
+                                unselectedTextColor = ChaiTheme.extended.textSecondary
                             ),
                             modifier = Modifier.testTag(item.testTag)
                         )
@@ -235,8 +333,15 @@ fun MainTabsScaffold(
         AnimatedContent(
             targetState = selectedTab,
             transitionSpec = {
-                (fadeIn(animationSpec = tween(220))) togetherWith
-                        (fadeOut(animationSpec = tween(200)))
+                val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                (slideInHorizontally(
+                    initialOffsetX = { direction * it / 5 },
+                    animationSpec = tween(260, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(240))) togetherWith
+                        (slideOutHorizontally(
+                            targetOffsetX = { -direction * it / 5 },
+                            animationSpec = tween(220, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(200)))
             },
             label = "tab_content_transition"
         ) { targetTab ->

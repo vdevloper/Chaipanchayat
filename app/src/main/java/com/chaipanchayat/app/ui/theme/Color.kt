@@ -36,35 +36,41 @@ val ChaiHeroOverlayGradient = Brush.verticalGradient(
     )
 )
 
-// Premium Light Editorial Palette (Warm Newspaper Ivory & Editorial Contrast)
-val LightSurface = Color(0xFFFBF9F5)
+// Premium Light Editorial Palette (Warm Newspaper Ivory & Ultra-High Editorial Contrast)
+val LightSurface = Color(0xFFF8F9FA)
 val LightSurfaceSecondary = Color(0xFFFFFFFF)
-val LightSurfaceTertiary = Color(0xFFF4F1EA)
-val LightOnSurface = Color(0xFF141416)
-val LightMuted = Color(0xFF707784)
-val LightBorder = Color(0xFFE5E0D8)
-val LightSkeleton = Color(0xFFEFECE6)
+val LightSurfaceTertiary = Color(0xFFF1F5F9)
+val LightOnSurface = Color(0xFF0F172A) // Deep Slate-900 for ultra-crisp readable headlines
+val LightSecondaryText = Color(0xFF334155) // Slate-700 for high-contrast bylines and excerpts
+val LightMuted = Color(0xFF475569) // Slate-600 (contrast > 7:1) for readable dates/meta
+val LightBorder = Color(0xFFE2E8F0)
+val LightSkeleton = Color(0xFFE2E8F0)
 val LightCardGlow = Color(0x0DFF5A00)
+val LightBrandText = Color(0xFFC2410C) // Burnt saffron (contrast > 5.3:1 on white) for tags
+val LightGoldText = Color(0xFF854D0E) // Deep gold (contrast > 6.2:1 on white) for badges
 val ErrorBreakingNews = Color(0xFFE52B2B)
 
-// Spec v2.0 Obsidian Dark Palette
-val DarkSurface = Color(0xFF090A0D) // Background #090A0D
-val DarkSurfaceSecondary = Color(0xFF11141A) // Surface #11141A
-val DarkSurfaceTertiary = Color(0xFF181B22) // Elevated #181B22
-val DarkOnSurface = Color(0xFFF5F2EC) // Primary Text #F5F2EC
-val DarkSecondaryText = Color(0xFF9EA3AE) // Secondary Text #9EA3AE
-val DarkMuted = Color(0xFF707784) // Muted Text #707784
-val DarkBorder = Color(0xFF252A34) // Border #252A34
-val DarkSkeleton = Color(0xFF181B22)
-val DarkCardGlow = Color(0x14FF5A00)
+// Spec v2.0 Obsidian Dark Palette (High-Contrast, Eye-Friendly Night Reading)
+val DarkSurface = Color(0xFF090B10) // Deep pure canvas
+val DarkSurfaceSecondary = Color(0xFF131722) // Elevated card background
+val DarkSurfaceTertiary = Color(0xFF1C2232) // Higher elevation
+val DarkOnSurface = Color(0xFFF8FAFC) // Slate-50 crisp white for maximum legibility
+val DarkSecondaryText = Color(0xFFCBD5E1) // Slate-300 (contrast > 11:1) for subtitles
+val DarkMuted = Color(0xFFA1A1AA) // Zinc-400 (contrast > 7:1) for clear readable timestamps
+val DarkBorder = Color(0xFF283042) // Crisp card border
+val DarkSkeleton = Color(0xFF181E2C)
+val DarkCardGlow = Color(0x18FF5A00)
+val DarkBrandText = Color(0xFFFF8533) // Radiant saffron (contrast > 8:1 on dark)
+val DarkGoldText = Color(0xFFFBBF24) // Radiant gold (contrast > 9:1 on dark)
 
 // World-Class Liquid Glass Palette (Refractive, Frosted, Specular)
 val LiquidGlassBackground = Color(0xFF060911)
 val LiquidGlassSurface = Color(0xD90E1626)
 val LiquidGlassSurfaceSecondary = Color(0xCC152138)
 val LiquidGlassSurfaceTertiary = Color(0xA61E2E4C)
-val LiquidGlassOnSurface = Color(0xFFF1F5F9)
-val LiquidGlassMuted = Color(0xFF94A3B8)
+val LiquidGlassOnSurface = Color(0xFFFFFFFF)
+val LiquidGlassSecondaryText = Color(0xFFE2E8F0)
+val LiquidGlassMuted = Color(0xFFCBD5E1)
 val LiquidGlassBorderColor = Color(0x4038BDF8)
 val LiquidGlassSkeleton = Color(0x801B273E)
 val LiquidGlassGlow = Color(0x3800F0FF)

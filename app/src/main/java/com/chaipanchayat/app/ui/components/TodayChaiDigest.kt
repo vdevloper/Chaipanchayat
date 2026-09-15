@@ -120,15 +120,15 @@ fun TodayChaiDigest(
                             text = "आज की चाय",
                             fontFamily = NotoSerifFamily,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 18.sp,
+                            fontSize = 18.5.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "आज की 5 बड़ी खबरें — 2 मिनट में",
                             fontFamily = InterFamily,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
-                            color = ChaiTheme.extended.muted
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.5.sp,
+                            color = ChaiTheme.extended.textSecondary
                         )
                     }
                 }
@@ -141,10 +141,10 @@ fun TodayChaiDigest(
                 ) {
                     Text(
                         text = "5 MIN",
-                        color = ChaiSaffron,
+                        color = ChaiTheme.extended.brandText,
                         fontFamily = InterFamily,
                         fontWeight = FontWeight.Black,
-                        fontSize = 10.sp,
+                        fontSize = 10.5.sp,
                         letterSpacing = 0.8.sp,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
@@ -206,7 +206,7 @@ private fun DigestItemRow(
             fontFamily = InterFamily,
             fontWeight = FontWeight.Black,
             fontSize = 15.sp,
-            color = ChaiSaffron,
+            color = ChaiTheme.extended.brandText,
             letterSpacing = 0.5.sp,
             modifier = Modifier.width(32.dp)
         )
@@ -221,8 +221,8 @@ private fun DigestItemRow(
                 text = post.cleanTitle,
                 fontFamily = NotoSerifFamily,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
+                fontSize = 15.sp,
+                lineHeight = 21.5.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
@@ -236,21 +236,22 @@ private fun DigestItemRow(
                         text = post.primaryCategory.uppercase(),
                         fontFamily = InterFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp,
-                        color = ChaiGold,
+                        fontSize = 10.5.sp,
+                        color = ChaiTheme.extended.goldText,
                         letterSpacing = 0.5.sp
                     )
                     Text(
                         text = " • ",
-                        color = ChaiTheme.extended.muted,
+                        color = ChaiTheme.extended.textSecondary,
                         fontSize = 10.sp
                     )
                 }
                 Text(
                     text = DateUtils.timeAgo(post.date),
                     fontFamily = InterFamily,
-                    fontSize = 10.5.sp,
-                    color = ChaiTheme.extended.muted
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 11.5.sp,
+                    color = ChaiTheme.extended.textSecondary
                 )
             }
         }

@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Schedule
@@ -54,6 +55,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -81,14 +83,19 @@ import com.chaipanchayat.app.data.repository.NewsRepository
 import com.chaipanchayat.app.data.repository.SettingsRepository
 import com.chaipanchayat.app.ui.components.ArticleHtmlView
 import com.chaipanchayat.app.ui.components.ArticleSkeleton
+import com.chaipanchayat.app.ui.components.ChaiVideoPlayer
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.components.TopBar
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
+import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
+import com.chaipanchayat.app.utils.ChaiAudioReader
+import com.chaipanchayat.app.utils.ChaiHaptics
 import com.chaipanchayat.app.utils.DateUtils
+import com.chaipanchayat.app.utils.rememberChaiHaptics
 import kotlinx.coroutines.launch
 
 @Composable
@@ -98,6 +105,7 @@ fun ArticleScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptics = rememberChaiHaptics()
     val bookmarkRepo = BookmarkRepository.getInstance(context)
     val settingsRepo = SettingsRepository.getInstance(context)
 
@@ -107,7 +115,15 @@ fun ArticleScreen(
     var post by remember { mutableStateOf<WPPost?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isError by remember { mutableStateOf(false) }
-    var isAudioPlaying by remember { mutableStateOf(false) }
+
+    val audioReader = remember { ChaiAudioReader(context) }
+    DisposableEffect(Unit) {
+        onDispose {
+            audioReader.release()
+        }
+    }
+    val audioPlayState by audioReader.playState
+    val audioProgress by audioReader.progress
 
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
@@ -171,12 +187,16 @@ fun ArticleScreen(
     ) {
         // Top Bar
         TopBar(
-            onBack = onBack,
+            onBack = {
+                haptics.click()
+                onBack()
+            },
             title = post?.primaryCategory,
             rightActions = {
                 post?.let { p ->
                     IconButton(
                         onClick = {
+                            haptics.click()
                             if (p.link.isNotBlank()) {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(p.link))
                                 context.startActivity(intent)
@@ -300,25 +320,26 @@ fun ArticleScreen(
 
                         Column {
                             Text(
-                                text = if (!currentPost.authorName.isNullOrBlank()) "ब्यूरो / ${currentPost.authorName}" else "चाय पंचायत डिजिटल टीम",
+                                text = if (!currentPost.authorName.isNullOrBlank()) "ब्यूरो / ${currentPost.authorName}" else "चाय पंचायत टीम",
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontFamily = InterFamily,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp
+                                fontSize = 13.sp
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = DateUtils.formatDateTime(currentPost.date),
-                                    color = ChaiTheme.extended.muted,
+                                    color = ChaiTheme.extended.textSecondary,
                                     fontFamily = InterFamily,
-                                    fontSize = 11.sp
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp
                                 )
                                 Text(
                                     text = " • 3 मिनट पठन",
-                                    color = ChaiSaffron,
+                                    color = ChaiTheme.extended.brandText,
                                     fontFamily = InterFamily,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 11.sp
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
                                 )
                             }
                         }
@@ -326,7 +347,7 @@ fun ArticleScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Interactive Audio Listen Widget
+                    // Interactive Audio Listen Widget with real Text-to-Speech
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = ChaiTheme.extended.surfaceSecondary,
@@ -334,67 +355,157 @@ fun ArticleScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
-                            .clickable { isAudioPlaying = !isAudioPlaying }
+                            .clickable {
+                                haptics.medium()
+                                audioReader.togglePlayPause(currentPost.cleanTitle, currentPost.rawContent)
+                            }
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = ChaiSaffron,
-                                    modifier = Modifier.size(38.dp)
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = if (isAudioPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                            contentDescription = "Play audio",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(22.dp)
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = ChaiSaffron,
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = if (audioPlayState == ChaiAudioReader.PlayState.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                                contentDescription = "Play audio",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = when (audioPlayState) {
+                                                ChaiAudioReader.PlayState.PLAYING -> "ऑडियो बज रहा है • Playing Audio"
+                                                ChaiAudioReader.PlayState.PAUSED -> "ऑडियो रुका हुआ है • Tap to Resume"
+                                                ChaiAudioReader.PlayState.PREPARING -> "ऑडियो तैयार हो रहा है..."
+                                                ChaiAudioReader.PlayState.COMPLETED -> "ऑडियो पूरा हुआ • पुनः सुनें"
+                                                ChaiAudioReader.PlayState.ERROR -> "ऑडियो सेवा तैयार हो रही है • टैप करें"
+                                                else -> "ऑडियो सुनें • Listen in Hindi"
+                                            },
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontFamily = InterFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = when (audioPlayState) {
+                                                ChaiAudioReader.PlayState.PLAYING -> "हिंदी स्वरवाचन सक्रिय • Hindi Voice"
+                                                ChaiAudioReader.PlayState.PAUSED -> "रोका गया • Tap to resume"
+                                                else -> "चाय पंचायत ऑडियो वाचक • Hindi TTS"
+                                            },
+                                            color = ChaiTheme.extended.textSecondary,
+                                            fontFamily = InterFamily,
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 11.5.sp
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = if (isAudioPlaying) "ऑडियो बज रहा है • Playing Audio" else "ऑडियो सुनें • Listen to Story",
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontFamily = InterFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp
-                                    )
-                                    Text(
-                                        text = "हिंदी वॉइस • 2:45 min",
-                                        color = ChaiTheme.extended.muted,
-                                        fontFamily = InterFamily,
-                                        fontSize = 11.sp
-                                    )
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (audioPlayState == ChaiAudioReader.PlayState.PLAYING) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Box(modifier = Modifier.width(3.dp).height(waveHeight1.dp).background(ChaiSaffron, CircleShape))
+                                            Box(modifier = Modifier.width(3.dp).height(waveHeight2.dp).background(ChaiSaffron, CircleShape))
+                                            Box(modifier = Modifier.width(3.dp).height(waveHeight3.dp).background(ChaiSaffron, CircleShape))
+                                        }
+                                    }
+
+                                    if (audioPlayState == ChaiAudioReader.PlayState.PLAYING || audioPlayState == ChaiAudioReader.PlayState.PAUSED) {
+                                        IconButton(
+                                            onClick = {
+                                                haptics.click()
+                                                audioReader.stop()
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Stop,
+                                                contentDescription = "Stop audio",
+                                                tint = ChaiTheme.extended.muted,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Filled.Headphones,
+                                            contentDescription = null,
+                                            tint = ChaiSaffron,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
 
-                            // Dynamic animated sound wave
-                            if (isAudioPlaying) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
-                                    Box(modifier = Modifier.width(3.dp).height(waveHeight1.dp).background(ChaiSaffron, CircleShape))
-                                    Box(modifier = Modifier.width(3.dp).height(waveHeight2.dp).background(ChaiSaffron, CircleShape))
-                                    Box(modifier = Modifier.width(3.dp).height(waveHeight3.dp).background(ChaiSaffron, CircleShape))
-                                }
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Filled.Headphones,
-                                    contentDescription = null,
-                                    tint = ChaiSaffron,
-                                    modifier = Modifier.size(20.dp)
+                            if (audioPlayState == ChaiAudioReader.PlayState.PLAYING || audioPlayState == ChaiAudioReader.PlayState.PAUSED) {
+                                LinearProgressIndicator(
+                                    progress = { audioProgress },
+                                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                                    color = ChaiSaffron,
+                                    trackColor = ChaiTheme.extended.border
                                 )
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // In-Post Video Report Card (if video attached to the news post)
+                    if (!currentPost.youtubeId.isNullOrBlank() || !currentPost.videoUrl.isNullOrBlank()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(ChaiCrimson)
+                                )
+                                Text(
+                                    text = "वीडियो रिपोर्ट • VIDEO REPORT",
+                                    fontFamily = InterFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = ChaiCrimson,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                            ChaiVideoPlayer(
+                                youtubeId = currentPost.youtubeId,
+                                videoUrl = currentPost.videoUrl,
+                                title = currentPost.cleanTitle,
+                                thumbnailUrl = currentPost.featuredImageUrl,
+                                autoPlay = false
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -440,6 +551,7 @@ fun ArticleScreen(
             ) {
                 FloatingActionButton(
                     onClick = {
+                        haptics.click()
                         coroutineScope.launch {
                             scrollState.animateScrollTo(0)
                         }
@@ -487,6 +599,7 @@ fun ArticleScreen(
                         color = if (isBookmarked) ChaiTheme.extended.brandTertiary else Color.Transparent,
                         modifier = Modifier
                             .clickable {
+                                haptics.success()
                                 coroutineScope.launch {
                                     bookmarkRepo.toggleBookmark(currentPost)
                                 }
@@ -519,7 +632,10 @@ fun ArticleScreen(
                         shape = RoundedCornerShape(10.dp),
                         color = Color.Transparent,
                         modifier = Modifier
-                            .clickable { settingsRepo.cycleTextSize() }
+                            .clickable {
+                                haptics.click()
+                                settingsRepo.cycleTextSize()
+                            }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                             .testTag("article-textsize-button")
                     ) {
@@ -547,6 +663,7 @@ fun ArticleScreen(
                         color = Color.Transparent,
                         modifier = Modifier
                             .clickable {
+                                haptics.click()
                                 val sendIntent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     putExtra(Intent.EXTRA_TEXT, "${currentPost.cleanTitle}\n\nपूरी खबर: ${currentPost.link}\n\nचाय पंचायत")

@@ -14,7 +14,8 @@ data class WPPost(
     val featuredImageUrl: String?,
     val primaryCategory: String?,
     val authorName: String?,
-    val youtubeId: String? = null
+    val youtubeId: String? = null,
+    val videoUrl: String? = null
 )
 
 data class VideoItem(
@@ -26,7 +27,8 @@ data class VideoItem(
     val category: String?,
     val date: String,
     val articleId: Long,
-    val description: String = ""
+    val description: String = "",
+    val videoUrl: String? = null
 )
 
 data class WPCategory(
@@ -35,4 +37,11 @@ data class WPCategory(
     val slug: String,
     val count: Int,
     val description: String? = null
+)
+
+data class WPTag(
+    val id: Long,
+    val name: String,
+    val slug: String,
+    val count: Int
 )

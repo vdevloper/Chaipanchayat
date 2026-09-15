@@ -56,7 +56,7 @@ private sealed class HtmlBlock {
     data class Blockquote(val text: String) : HtmlBlock()
     data class ListItem(val isOrdered: Boolean, val index: Int, val text: String) : HtmlBlock()
     data class ImageBlock(val src: String, val alt: String?) : HtmlBlock()
-    data class VideoEmbed(val youtubeId: String, val title: String?) : HtmlBlock()
+    data class VideoEmbed(val youtubeId: String, val title: String? = null, val videoUrl: String? = null) : HtmlBlock()
     data object Divider : HtmlBlock()
 }
 
@@ -83,8 +83,9 @@ fun ArticleHtmlView(
                         baseStyle = TextStyle(
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Normal,
-                            fontSize = (17 * multiplier).sp,
-                            lineHeight = (27 * multiplier).sp,
+                            fontSize = (17.5f * multiplier).sp,
+                            lineHeight = (28.5f * multiplier).sp,
+                            letterSpacing = 0.2.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         ),
                         onUriClick = { uriHandler.openUri(it) }
@@ -100,10 +101,10 @@ fun ArticleHtmlView(
                         else -> 18 * multiplier
                     }.sp
                     val lineHeight = when (block.level) {
-                        1 -> 30 * multiplier
-                        2 -> 28 * multiplier
-                        3 -> 26 * multiplier
-                        else -> 24 * multiplier
+                        1 -> 32 * multiplier
+                        2 -> 30 * multiplier
+                        3 -> 28 * multiplier
+                        else -> 26 * multiplier
                     }.sp
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -126,9 +127,9 @@ fun ArticleHtmlView(
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(3.dp)
-                                .height(40.dp)
-                                .background(ChaiSaffron, RoundedCornerShape(2.dp))
+                                .width(3.5.dp)
+                                .height(42.dp)
+                                .background(ChaiTheme.extended.brandText, RoundedCornerShape(2.dp))
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
@@ -136,9 +137,9 @@ fun ArticleHtmlView(
                             fontFamily = NotoSerifFamily,
                             fontWeight = FontWeight.Normal,
                             fontStyle = FontStyle.Italic,
-                            fontSize = (17 * multiplier).sp,
-                            lineHeight = (26 * multiplier).sp,
-                            color = ChaiTheme.extended.muted
+                            fontSize = (17.5f * multiplier).sp,
+                            lineHeight = (27.5f * multiplier).sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
                         )
                     }
                     Spacer(modifier = Modifier.height(14.dp))
@@ -154,8 +155,8 @@ fun ArticleHtmlView(
                             text = if (block.isOrdered) "${block.index}." else "•",
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = (16 * multiplier).sp,
-                            color = ChaiSaffron,
+                            fontSize = (16.5f * multiplier).sp,
+                            color = ChaiTheme.extended.brandText,
                             modifier = Modifier.width(22.dp)
                         )
                         Box(modifier = Modifier.weight(1f)) {
@@ -163,8 +164,8 @@ fun ArticleHtmlView(
                                 html = block.text,
                                 baseStyle = TextStyle(
                                     fontFamily = InterFamily,
-                                    fontSize = (16 * multiplier).sp,
-                                    lineHeight = (24 * multiplier).sp,
+                                    fontSize = (16.5f * multiplier).sp,
+                                    lineHeight = (25.5f * multiplier).sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 ),
                                 onUriClick = { uriHandler.openUri(it) }
@@ -193,77 +194,13 @@ fun ArticleHtmlView(
 
                 is HtmlBlock.VideoEmbed -> {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Black,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                val url = "https://www.youtube.com/watch?v=${block.youtubeId}"
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                context.startActivity(intent)
-                            }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                        ) {
-                            // Video Thumbnail
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data("https://img.youtube.com/vi/${block.youtubeId}/hqdefault.jpg")
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = block.title ?: "Video report",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-
-                            // Scrim Gradient
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Black.copy(alpha = 0.2f),
-                                                Color.Black.copy(alpha = 0.6f)
-                                            )
-                                        )
-                                    )
-                            )
-
-                            // Center Play Badge
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .align(Alignment.Center)
-                                    .background(ChaiCrimson, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Play Video",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-
-                            // Bottom Label
-                            Text(
-                                text = "वीडियो रिपोर्ट देखें • Tap to Watch Video",
-                                fontFamily = InterFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp,
-                                color = Color.White,
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(12.dp)
-                            )
-                        }
-                    }
+                    ChaiVideoPlayer(
+                        youtubeId = block.youtubeId.ifBlank { null },
+                        videoUrl = block.videoUrl,
+                        title = block.title,
+                        autoPlay = false,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
@@ -313,11 +250,15 @@ private fun parseHtmlToBlocks(rawHtml: String): List<HtmlBlock> {
         .replace(Regex("<figcaption[\\s\\S]*?</figcaption>", RegexOption.IGNORE_CASE), "")
 
     val blockPattern = Pattern.compile(
-        "<(p|h1|h2|h3|h4|h5|h6|blockquote|ul|ol|img|hr|iframe)([^>]*)>([\\s\\S]*?)</\\1>|<img([^>]*)/?>|<hr\\s*/?>|<iframe([^>]*)/?>",
+        "<(p|h1|h2|h3|h4|h5|h6|blockquote|ul|ol|img|hr|iframe|video)([^>]*)>([\\s\\S]*?)</\\1>|<img([^>]*)/?>|<hr\\s*/?>|<iframe([^>]*)/?>|<video([^>]*)/?>",
         Pattern.CASE_INSENSITIVE
     )
     val youtubePattern = Pattern.compile(
-        "(?:youtube\\.com\\/(?:embed\\/|watch\\?v=|v\\/)|youtu\\.be\\/)([a-zA-Z0-9_-]{11})",
+        "(?:youtube\\.com\\/(?:embed\\/|watch\\?v=|v\\/|shorts\\/)|youtu\\.be\\/)([a-zA-Z0-9_-]{11})",
+        Pattern.CASE_INSENSITIVE
+    )
+    val videoSrcPattern = Pattern.compile(
+        "src=[\"']([^\"']+\\.(?:mp4|webm|m4v)[^\"']*)[\"']",
         Pattern.CASE_INSENSITIVE
     )
 
@@ -326,17 +267,24 @@ private fun parseHtmlToBlocks(rawHtml: String): List<HtmlBlock> {
 
     while (matcher.find()) {
         foundAny = true
-        val tag = (matcher.group(1) ?: if (matcher.group(4) != null) "img" else if (matcher.group(5) != null) "iframe" else "hr").lowercase()
-        val attrs = matcher.group(2) ?: matcher.group(4) ?: matcher.group(5) ?: ""
+        val tag = (matcher.group(1) ?: if (matcher.group(4) != null) "img" else if (matcher.group(5) != null) "iframe" else if (matcher.group(6) != null) "video" else "hr").lowercase()
+        val attrs = matcher.group(2) ?: matcher.group(4) ?: matcher.group(5) ?: matcher.group(6) ?: ""
         val inner = matcher.group(3) ?: ""
 
         when {
             tag == "hr" -> blocks.add(HtmlBlock.Divider)
-            tag == "iframe" -> {
-                val ytMatcher = youtubePattern.matcher(attrs)
+            tag == "iframe" || tag == "video" -> {
+                val fullSnippet = "$attrs $inner"
+                val ytMatcher = youtubePattern.matcher(fullSnippet)
                 if (ytMatcher.find()) {
                     val ytId = ytMatcher.group(1) ?: ""
-                    blocks.add(HtmlBlock.VideoEmbed(ytId, null))
+                    blocks.add(HtmlBlock.VideoEmbed(ytId, null, null))
+                } else {
+                    val vSrcMatcher = videoSrcPattern.matcher(fullSnippet)
+                    if (vSrcMatcher.find()) {
+                        val vUrl = vSrcMatcher.group(1) ?: ""
+                        blocks.add(HtmlBlock.VideoEmbed("", null, vUrl))
+                    }
                 }
             }
             tag == "img" -> {
@@ -348,12 +296,18 @@ private fun parseHtmlToBlocks(rawHtml: String): List<HtmlBlock> {
                     blocks.add(HtmlBlock.ImageBlock(src, alt))
                 }
             }
-            tag == "p" -> {
-                // Check if p contains a YouTube iframe or link
+            tag == "p" || tag == "blockquote" -> {
+                // Check if paragraph contains an embedded video or YouTube link
                 val ytMatcher = youtubePattern.matcher(inner)
-                if (ytMatcher.find() && (inner.contains("iframe") || inner.contains("youtube.com") || inner.contains("youtu.be"))) {
+                val vSrcMatcher = videoSrcPattern.matcher(inner)
+                if (ytMatcher.find() && (inner.contains("iframe") || inner.contains("youtube.com") || inner.contains("youtu.be") || inner.trim().startsWith("http"))) {
                     val ytId = ytMatcher.group(1) ?: ""
-                    blocks.add(HtmlBlock.VideoEmbed(ytId, null))
+                    blocks.add(HtmlBlock.VideoEmbed(ytId, null, null))
+                } else if (vSrcMatcher.find()) {
+                    val vUrl = vSrcMatcher.group(1) ?: ""
+                    blocks.add(HtmlBlock.VideoEmbed("", null, vUrl))
+                } else if (tag == "blockquote") {
+                    blocks.add(HtmlBlock.Blockquote(inner.trim()))
                 } else {
                     val text = inner.trim()
                     if (text.isNotBlank()) {
@@ -364,9 +318,6 @@ private fun parseHtmlToBlocks(rawHtml: String): List<HtmlBlock> {
             tag.startsWith("h") -> {
                 val level = tag.substring(1).toIntOrNull() ?: 2
                 blocks.add(HtmlBlock.Heading(level, inner.trim()))
-            }
-            tag == "blockquote" -> {
-                blocks.add(HtmlBlock.Blockquote(inner.trim()))
             }
             tag == "ul" || tag == "ol" -> {
                 val isOrdered = tag == "ol"

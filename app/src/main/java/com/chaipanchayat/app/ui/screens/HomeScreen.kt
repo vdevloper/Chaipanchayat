@@ -126,15 +126,15 @@ fun HomeScreen(
         }
     }
 
-    suspend fun loadCategories() {
+    suspend fun loadCategories(forceRefresh: Boolean = false) {
         try {
-            categories = repository.getCategories()
+            categories = repository.getCategories(forceRefresh = forceRefresh)
         } catch (_: Exception) {
         }
     }
 
     LaunchedEffect(Unit) {
-        loadCategories()
+        loadCategories(forceRefresh = true)
     }
 
     LaunchedEffect(selectedCategoryId) {
@@ -221,6 +221,7 @@ fun HomeScreen(
                                 refreshRotation += 360f
                                 coroutineScope.launch {
                                     isRefreshing = true
+                                    loadCategories(forceRefresh = true)
                                     loadFeed(showLoader = false)
                                 }
                             },
@@ -279,6 +280,7 @@ fun HomeScreen(
                     refreshRotation += 360f
                     isRefreshing = true
                     coroutineScope.launch {
+                        loadCategories(forceRefresh = true)
                         loadFeed(showLoader = false)
                     }
                 },
@@ -359,10 +361,10 @@ fun HomeScreen(
 
                                 Text(
                                     text = "${posts.size} लेख",
-                                    color = ChaiTheme.extended.muted,
+                                    color = ChaiTheme.extended.textSecondary,
                                     fontFamily = InterFamily,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 11.5.sp
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
                                 )
                             }
                         }

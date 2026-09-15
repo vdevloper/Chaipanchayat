@@ -67,10 +67,10 @@ fun BreakingNewsTicker(
 
     var currentIndex by remember { mutableIntStateOf(0) }
 
-    // Auto-cycle ticker every 4 seconds
+    // Auto-cycle ticker every 6.5 seconds (calm reading pace, avoids sensory overload)
     LaunchedEffect(posts) {
         while (true) {
-            delay(4200)
+            delay(6500)
             if (posts.isNotEmpty()) {
                 currentIndex = (currentIndex + 1) % posts.size
             }
@@ -79,52 +79,43 @@ fun BreakingNewsTicker(
 
     val currentPost = posts.getOrNull(currentIndex) ?: return
 
-    // Pulse animation for the LIVE beacon
-    val infiniteTransition = rememberInfiniteTransition(label = "beacon_pulse")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.25f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_scale"
-    )
+    // Gentle, non-distracting breath animation for LIVE badge (no harsh scaling)
+    val infiniteTransition = rememberInfiniteTransition(label = "beacon_breathe")
     val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
+        initialValue = 0.7f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = FastOutSlowInEasing),
+            animation = tween(1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulse_alpha"
     )
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = ChaiTheme.extended.surfaceSecondary,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .border(
                 width = 1.dp,
-                color = ChaiCrimson.copy(alpha = 0.25f),
-                shape = RoundedCornerShape(12.dp)
+                color = ChaiTheme.extended.border,
+                shape = RoundedCornerShape(10.dp)
             )
             .clickable { onPostClick(currentPost.id) }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Pulsing Live Indicator Pill
+            // Calm Live Indicator Pill
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(ChaiBrandGradient)
-                    .padding(horizontal = 7.dp, vertical = 3.dp),
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(ChaiCrimson)
+                    .padding(horizontal = 6.dp, vertical = 2.5.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
@@ -133,30 +124,29 @@ fun BreakingNewsTicker(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
-                            .scale(pulseScale)
+                            .size(5.dp)
                             .background(Color.White.copy(alpha = pulseAlpha), CircleShape)
                     )
-                    Spacer(modifier = Modifier.width(5.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "LIVE",
                         color = Color.White,
                         fontFamily = InterFamily,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 10.sp,
-                        letterSpacing = 0.6.sp
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 9.5.sp,
+                        letterSpacing = 0.5.sp
                     )
                 }
             }
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Animated Headline Switcher
+            // Smooth crossfade headline animation (smooth, no jarring slides)
             AnimatedContent(
                 targetState = currentPost,
                 transitionSpec = {
-                    (slideInVertically { height -> height } + fadeIn(tween(400))) togetherWith
-                            (slideOutVertically { height -> -height } + fadeOut(tween(400)))
+                    fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) togetherWith
+                            fadeOut(animationSpec = tween(350, easing = FastOutSlowInEasing))
                 },
                 modifier = Modifier.weight(1f),
                 label = "ticker_headline"
@@ -164,7 +154,7 @@ fun BreakingNewsTicker(
                 Text(
                     text = targetPost.cleanTitle,
                     fontFamily = InterFamily,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
@@ -177,7 +167,7 @@ fun BreakingNewsTicker(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = ChaiCrimson.copy(alpha = 0.8f),
+                tint = ChaiTheme.extended.muted,
                 modifier = Modifier.size(11.dp)
             )
         }

@@ -57,6 +57,7 @@ import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.utils.DateUtils
+import com.chaipanchayat.app.utils.rememberChaiHaptics
 import kotlinx.coroutines.launch
 
 @Composable
@@ -68,6 +69,7 @@ fun NewsCard(
     val cardShape = RoundedCornerShape(16.dp)
     val thumbShape = RoundedCornerShape(12.dp)
     val context = LocalContext.current
+    val haptics = rememberChaiHaptics()
     val bookmarkRepo = remember { BookmarkRepository.getInstance(context) }
     val isBookmarked by bookmarkRepo.isBookmarked(post.id).collectAsState(initial = false)
     val coroutineScope = rememberCoroutineScope()
@@ -109,7 +111,10 @@ fun NewsCard(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = {
+                    haptics.click()
+                    onClick()
+                }
             )
     ) {
         Row(
@@ -150,10 +155,10 @@ fun NewsCard(
                 if (!post.primaryCategory.isNullOrBlank()) {
                     Text(
                         text = post.primaryCategory.uppercase(),
-                        color = ChaiSaffron,
+                        color = ChaiTheme.extended.brandText,
                         fontFamily = InterFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         letterSpacing = 0.6.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -166,8 +171,8 @@ fun NewsCard(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = NotoSerifFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    lineHeight = 20.sp,
+                    fontSize = 16.sp,
+                    lineHeight = 22.5.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -180,9 +185,10 @@ fun NewsCard(
                 ) {
                     Text(
                         text = DateUtils.timeAgo(post.date),
-                        color = ChaiTheme.extended.muted,
+                        color = ChaiTheme.extended.textSecondary,
                         fontFamily = InterFamily,
-                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
                         maxLines = 1
                     )
 
@@ -192,6 +198,7 @@ fun NewsCard(
                         // Quick Bookmark
                         IconButton(
                             onClick = {
+                                haptics.medium()
                                 coroutineScope.launch {
                                     bookmarkRepo.toggleBookmark(post)
                                 }
@@ -201,8 +208,8 @@ fun NewsCard(
                             Icon(
                                 imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
                                 contentDescription = "Save story",
-                                tint = if (isBookmarked) ChaiSaffron else ChaiTheme.extended.muted,
-                                modifier = Modifier.size(17.dp)
+                                tint = if (isBookmarked) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
 
@@ -211,6 +218,7 @@ fun NewsCard(
                         // Quick Share
                         IconButton(
                             onClick = {
+                                haptics.click()
                                 val sendIntent = Intent().apply {
                                     action = Intent.ACTION_SEND
                                     putExtra(

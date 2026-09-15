@@ -37,7 +37,7 @@ import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 @Composable
 fun Logo(
     modifier: Modifier = Modifier,
-    size: Dp = 38.dp,
+    size: Dp = 42.dp,
     showWordmark: Boolean = true
 ) {
     Row(
@@ -70,25 +70,25 @@ fun Logo(
                         color = MaterialTheme.colorScheme.onSurface,
                         fontFamily = NotoSerifFamily,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 19.sp,
-                        lineHeight = 22.sp
+                        fontSize = 23.sp,
+                        lineHeight = 26.sp
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     Icon(
                         imageVector = Icons.Default.Verified,
                         contentDescription = "Verified",
                         tint = ChaiSaffron,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
                 Text(
-                    text = "CHAI PANCHAYAT DIGITAL",
+                    text = "CHAI PANCHAYAT",
                     color = ChaiSaffron,
                     fontFamily = InterFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp,
-                    lineHeight = 12.sp,
-                    letterSpacing = 0.6.sp
+                    fontSize = 11.sp,
+                    lineHeight = 13.sp,
+                    letterSpacing = 0.8.sp
                 )
             }
         }

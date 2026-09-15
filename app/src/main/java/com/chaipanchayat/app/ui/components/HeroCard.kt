@@ -62,6 +62,7 @@ import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.utils.DateUtils
+import com.chaipanchayat.app.utils.rememberChaiHaptics
 import kotlinx.coroutines.launch
 
 @Composable
@@ -71,6 +72,7 @@ fun HeroCard(
     modifier: Modifier = Modifier
 ) {
     val cardShape = RoundedCornerShape(18.dp)
+    val haptics = rememberChaiHaptics()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -113,7 +115,10 @@ fun HeroCard(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = {
+                    haptics.click()
+                    onClick()
+                }
             )
     ) {
         Box(
@@ -187,6 +192,7 @@ fun HeroCard(
                 ) {
                     IconButton(
                         onClick = {
+                            haptics.medium()
                             coroutineScope.launch {
                                 bookmarkRepo.toggleBookmark(post)
                             }
