@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VerifiedUser
+import com.chaipanchayat.app.ui.components.ContactUsDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -100,6 +102,7 @@ fun SettingsScreen(
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showTextSizeDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showContactDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showTermsDialog by remember { mutableStateOf(false) }
@@ -255,15 +258,21 @@ fun SettingsScreen(
         }
 
         // ==========================================
-        // SECTION: ABOUT
+        // SECTION: ABOUT & PUBLISHER
         // ==========================================
         item {
-            SettingsSectionHeader(title = "ABOUT")
+            SettingsSectionHeader(title = "ABOUT & PUBLISHER")
             SettingsNavRow(
                 icon = Icons.Outlined.Info,
-                title = "About Chai Panchayat",
+                title = "About Chai Panchayat (हमारे बारे में)",
                 onClick = { showAboutDialog = true },
                 testTag = "settings-about-row"
+            )
+            SettingsNavRow(
+                icon = Icons.Outlined.Email,
+                title = "Contact Us & Publisher (संपर्क एवं प्रकाशक)",
+                onClick = { showContactDialog = true },
+                testTag = "settings-contact-row"
             )
             SettingsNavRow(
                 icon = Icons.Outlined.PrivacyTip,
@@ -279,7 +288,7 @@ fun SettingsScreen(
             )
             SettingsInfoRow(
                 title = "App Version",
-                value = "2.0 (Chai Editorial)"
+                value = "2.1 (Chai Editorial)"
             )
         }
     }
@@ -621,7 +630,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "उत्तर प्रदेश एवं पूर्वांचल की विश्वसनीय आवाज़। निष्पक्ष पत्रकारिता, ग्राउंड रिपोर्ट्स और सामयिक विश्लेषण का डिजिटल मंच।",
+                        text = "उत्तर प्रदेश एवं पूर्वांचल की विश्वसनीय आवाज़। निष्पक्ष पत्रकारिता, ग्राउंड रिपोर्ट्स और सामयिक विश्लेषण का आधिकारिक डिजिटल प्रकाशन।",
                         fontFamily = InterFamily,
                         fontSize = 13.5.sp,
                         lineHeight = 20.sp,
@@ -629,9 +638,10 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "संस्करण: 2.0 (Chai Editorial)\nमुख्यालय: गोरखपुर, उत्तर प्रदेश",
+                        text = "• आधिकारिक वेबसाइट: chaipanchayat.com\n• संपादकीय संपर्क: chaipanchayat@gmail.com\n• तकनीकी/डेवलपर: kvashudev934@gmail.com\n• मुख्यालय: गोरखपुर, उत्तर प्रदेश (273001)\n• संस्करण: 2.1 (Chai Editorial)",
                         fontFamily = InterFamily,
                         fontSize = 12.sp,
+                        lineHeight = 18.sp,
                         color = ChaiTheme.extended.muted
                     )
                 }
@@ -640,7 +650,24 @@ fun SettingsScreen(
                 TextButton(onClick = { showAboutDialog = false }) {
                     Text("ठीक है", color = ChaiSaffron, fontWeight = FontWeight.Bold)
                 }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAboutDialog = false
+                        showContactDialog = true
+                    }
+                ) {
+                    Text("संपर्क विवरण (Contact Us)", color = ChaiTheme.extended.brandText, fontWeight = FontWeight.SemiBold)
+                }
             }
+        )
+    }
+
+    // Google Play News & Magazine Policy Compliant Contact Us Dialog
+    if (showContactDialog) {
+        ContactUsDialog(
+            onDismiss = { showContactDialog = false }
         )
     }
 

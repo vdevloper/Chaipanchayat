@@ -2,6 +2,7 @@ package com.chaipanchayat.app.ui.navigation
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -275,10 +276,27 @@ fun MainTabsScaffold(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 2.dp
                 ) {
+                    val pulseTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "video_tab_pulse")
+                    val videoBadgeAlpha by pulseTransition.animateFloat(
+                        initialValue = 0.45f,
+                        targetValue = 1.0f,
+                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                            animation = tween(850, easing = FastOutSlowInEasing),
+                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                        ),
+                        label = "video_badge_alpha"
+                    )
+
                     tabs.forEach { item ->
                         val isSelected = selectedTab == item.tab
                         val activeColor = ChaiTheme.extended.brandText
                         val indicatorBg = ChaiSaffron.copy(alpha = 0.14f)
+
+                        val iconScale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.15f else 1.0f,
+                            animationSpec = spring(dampingRatio = 0.5f, stiffness = 550f),
+                            label = "tab_icon_scale_${item.tab.name}"
+                        )
 
                         NavigationBarItem(
                             selected = isSelected,
@@ -289,18 +307,20 @@ fun MainTabsScaffold(
                                 }
                             },
                             icon = {
-                                Box {
+                                Box(
+                                    modifier = Modifier.scale(iconScale)
+                                ) {
                                     Icon(
                                         imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                                         contentDescription = item.tab.title,
                                         modifier = Modifier.size(23.dp)
                                     )
-                                    // Live red badge indicator on VIDEOS tab
+                                    // Live red badge indicator on VIDEOS tab with breathing pulse
                                     if (item.tab == MainTab.VIDEOS) {
                                         Box(
                                             modifier = Modifier
                                                 .size(6.dp)
-                                                .background(ChaiCrimson, CircleShape)
+                                                .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
                                                 .align(Alignment.TopEnd)
                                                 .offset(x = 3.dp, y = (-2).dp)
                                         )
@@ -336,12 +356,12 @@ fun MainTabsScaffold(
                 val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
                 (slideInHorizontally(
                     initialOffsetX = { direction * it / 5 },
-                    animationSpec = tween(260, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(240))) togetherWith
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f)
+                ) + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))) togetherWith
                         (slideOutHorizontally(
                             targetOffsetX = { -direction * it / 5 },
-                            animationSpec = tween(220, easing = FastOutSlowInEasing)
-                        ) + fadeOut(animationSpec = tween(200)))
+                            animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f)
+                        ) + fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)))
             },
             label = "tab_content_transition"
         ) { targetTab ->

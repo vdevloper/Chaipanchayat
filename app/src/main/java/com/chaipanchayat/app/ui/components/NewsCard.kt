@@ -66,8 +66,8 @@ fun NewsCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardShape = RoundedCornerShape(16.dp)
-    val thumbShape = RoundedCornerShape(12.dp)
+    val cardShape = RoundedCornerShape(10.dp)
+    val thumbShape = RoundedCornerShape(8.dp)
     val context = LocalContext.current
     val haptics = rememberChaiHaptics()
     val bookmarkRepo = remember { BookmarkRepository.getInstance(context) }
@@ -82,31 +82,19 @@ fun NewsCard(
         label = "card_scale"
     )
 
-    val isLiquid = ChaiTheme.extended.isLiquidGlass
-
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 3.dp else 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = modifier
             .testTag("news-card-${post.id}")
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 5.dp)
             .scale(scale)
-            .then(
-                if (isLiquid) {
-                    Modifier.border(
-                        width = 1.dp,
-                        brush = ChaiTheme.extended.glassBorderBrush,
-                        shape = cardShape
-                    )
-                } else {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = ChaiTheme.extended.border.copy(alpha = 0.7f),
-                        shape = cardShape
-                    )
-                }
+            .border(
+                width = 1.dp,
+                color = ChaiTheme.extended.border.copy(alpha = 0.6f),
+                shape = cardShape
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -196,22 +184,19 @@ fun NewsCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Quick Bookmark
-                        IconButton(
-                            onClick = {
-                                haptics.medium()
+                        ChaiBookmarkButton(
+                            isBookmarked = isBookmarked,
+                            onToggle = {
                                 coroutineScope.launch {
                                     bookmarkRepo.toggleBookmark(post)
                                 }
                             },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = "Save story",
-                                tint = if (isBookmarked) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                            size = 28.dp,
+                            iconSize = 18.dp,
+                            activeColor = ChaiTheme.extended.brandText,
+                            inactiveColor = ChaiTheme.extended.textSecondary,
+                            testTag = "card-bookmark-${post.id}"
+                        )
 
                         Spacer(modifier = Modifier.width(4.dp))
 

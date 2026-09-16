@@ -157,10 +157,11 @@ fun SavedScreen(
                             coroutineScope.launch {
                                 bookmarkRepo.removeBookmark(item.id)
                             }
-                        }
+                        },
+                        modifier = Modifier.animateItem()
                     )
                 }
-                item {
+                item(key = "saved_bottom_spacer") {
                     Spacer(modifier = Modifier.height(28.dp))
                 }
             }
@@ -172,7 +173,8 @@ fun SavedScreen(
 fun SavedArticleCard(
     bookmark: BookmarkEntity,
     onClick: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -191,7 +193,7 @@ fun SavedArticleCard(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 3.dp else 1.dp),
-        modifier = Modifier
+        modifier = modifier
             .testTag("saved-card-${bookmark.id}")
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)

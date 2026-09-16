@@ -71,7 +71,7 @@ fun HeroCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardShape = RoundedCornerShape(18.dp)
+    val cardShape = RoundedCornerShape(10.dp)
     val haptics = rememberChaiHaptics()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -86,31 +86,19 @@ fun HeroCard(
     val isBookmarked by bookmarkRepo.isBookmarked(post.id).collectAsState(initial = false)
     val coroutineScope = rememberCoroutineScope()
 
-    val isLiquid = ChaiTheme.extended.isLiquidGlass
-
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 4.dp else 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         modifier = modifier
             .testTag("hero-card-${post.id}")
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .scale(scale)
-            .then(
-                if (isLiquid) {
-                    Modifier.border(
-                        width = 1.dp,
-                        brush = ChaiTheme.extended.glassBorderBrush,
-                        shape = cardShape
-                    )
-                } else {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = ChaiTheme.extended.border.copy(alpha = 0.8f),
-                        shape = cardShape
-                    )
-                }
+            .border(
+                width = 1.dp,
+                color = ChaiTheme.extended.border.copy(alpha = 0.65f),
+                shape = cardShape
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -121,149 +109,139 @@ fun HeroCard(
                 }
             )
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 11f)
-                .background(ChaiTheme.extended.skeleton)
-        ) {
-            // High-resolution Hero Image
-            if (!post.featuredImageUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(post.featuredImageUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = post.cleanTitle,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            // Deep cinematic gradient overlay
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // High-resolution Lead Story Image
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(ChaiHeroOverlayGradient)
-            )
-
-            // Top Badges Row: "Top Story" badge + Bookmark button
-            Row(
-                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp)
-                    .align(Alignment.TopStart),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .aspectRatio(16f / 9.5f)
+                    .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                    .background(ChaiTheme.extended.skeleton)
             ) {
-                // Frosted Glass "Top Story" badge
+                if (!post.featuredImageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(post.featuredImageUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = post.cleanTitle,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // Top Story Kicker Badge
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.Black.copy(alpha = 0.65f),
-                    border = androidx.compose.foundation.BorderStroke(0.8.dp, ChaiGold.copy(alpha = 0.6f))
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color.Black.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .align(Alignment.TopStart)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = ChaiGold,
-                            modifier = Modifier.size(13.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(5.dp)
+                                .background(ChaiGold, CircleShape)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "खास खबर • TOP STORY",
+                            text = "खास खबर • LEAD STORY",
                             color = Color.White,
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             letterSpacing = 0.5.sp
                         )
                     }
                 }
+            }
 
-                // Quick Bookmark Pill
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.6f),
-                    modifier = Modifier.size(36.dp)
+            // Editorial Content Section (High contrast, quiet whitespace)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                // Category & Quick Bookmark Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = {
-                            haptics.medium()
+                    Text(
+                        text = (post.primaryCategory ?: "प्रमुख समाचार").uppercase(),
+                        color = ChaiSaffron,
+                        fontFamily = InterFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        letterSpacing = 0.6.sp
+                    )
+
+                    ChaiBookmarkButton(
+                        isBookmarked = isBookmarked,
+                        onToggle = {
                             coroutineScope.launch {
                                 bookmarkRepo.toggleBookmark(post)
                             }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                            contentDescription = "Save story",
-                            tint = if (isBookmarked) ChaiSaffron else Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            // Bottom Content Section
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-            ) {
-                // Category Pill with Brand Gradient
-                if (!post.primaryCategory.isNullOrBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(ChaiBrandGradient)
-                            .padding(horizontal = 9.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = post.primaryCategory.uppercase(),
-                            color = Color.White,
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 10.5.sp,
-                            letterSpacing = 0.8.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
+                        },
+                        size = 32.dp,
+                        iconSize = 19.dp,
+                        activeColor = ChaiSaffron,
+                        inactiveColor = ChaiTheme.extended.muted,
+                        testTag = "hero-bookmark-${post.id}"
+                    )
                 }
 
-                // Big Impactful Title
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Prestigious Editorial Devanagari Title
                 Text(
                     text = post.cleanTitle,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = NotoSerifFamily,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 21.sp,
-                    lineHeight = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    lineHeight = 25.sp,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Metadata Info Row (Time Ago + Reading Estimate)
+                // Byline & Timestamp
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Text(
+                        text = "चाय पंचायत ब्यूरो",
+                        color = ChaiTheme.extended.textSecondary,
+                        fontFamily = InterFamily,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp
+                    )
+
+                    Text(
+                        text = "•",
+                        color = ChaiTheme.extended.border,
+                        fontSize = 12.sp
+                    )
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Outlined.Schedule,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.8f),
-                            modifier = Modifier.size(13.dp)
+                            tint = ChaiTheme.extended.muted,
+                            modifier = Modifier.size(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = DateUtils.timeAgo(post.date),
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = ChaiTheme.extended.textSecondary,
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Medium,
                             fontSize = 12.sp
@@ -272,16 +250,15 @@ fun HeroCard(
 
                     Text(
                         text = "•",
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = ChaiTheme.extended.border,
                         fontSize = 12.sp
                     )
 
                     Text(
                         text = "2 मिनट पठन",
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = ChaiTheme.extended.muted,
                         fontFamily = InterFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.sp
+                        fontSize = 11.5.sp
                     )
                 }
             }

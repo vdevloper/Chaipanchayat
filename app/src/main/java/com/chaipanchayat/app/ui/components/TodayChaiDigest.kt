@@ -67,24 +67,17 @@ fun TodayChaiDigest(
     if (posts.isEmpty()) return
 
     val digestStories = posts.take(5)
-    val cardShape = RoundedCornerShape(18.dp)
-    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = RoundedCornerShape(10.dp)
 
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 4.dp else 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = modifier
             .testTag("today-chai-digest")
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .then(
-                if (isLiquid) {
-                    Modifier.border(1.dp, ChaiTheme.extended.glassBorderBrush, cardShape)
-                } else {
-                    Modifier.border(1.dp, ChaiTheme.extended.border.copy(alpha = 0.8f), cardShape)
-                }
-            )
+            .border(1.dp, ChaiTheme.extended.border.copy(alpha = 0.6f), cardShape)
     ) {
         Column(
             modifier = Modifier

@@ -3,6 +3,7 @@ package com.chaipanchayat.app.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -44,8 +45,11 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FormatSize
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Verified
+import com.chaipanchayat.app.ui.components.ContactUsDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -127,6 +131,7 @@ fun ArticleScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    var showContactDialog by remember { mutableStateOf(false) }
 
     // Scroll progress calculation
     val scrollProgress by remember {
@@ -536,6 +541,124 @@ fun ArticleScreen(
                         multiplier = textSize.multiplier
                     )
 
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Google Play News Policy Compliance: Source & Publisher Attribution Card
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = ChaiTheme.extended.surfaceSecondary,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Verified,
+                                    contentDescription = null,
+                                    tint = ChaiSaffron,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "स्रोत एवं प्रकाशक विवरण • Source & Publisher",
+                                    fontFamily = InterFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = ChaiSaffron
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = "प्रकाशन: चाय पंचायत (Chai Panchayat Digital Media)",
+                                fontFamily = NotoSerifFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "ब्यूरो/लेखक: ${if (!currentPost.authorName.isNullOrBlank()) currentPost.authorName else "चाय पंचायत संपादकीय डेस्क"}\nआधिकारिक वेबसाइट: chaipanchayat.com\nसंपादकीय संपर्क: chaipanchayat@gmail.com",
+                                fontFamily = InterFamily,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp,
+                                color = ChaiTheme.extended.textSecondary
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = ChaiSaffron.copy(alpha = 0.12f),
+                                    modifier = Modifier
+                                        .clickable {
+                                            if (currentPost.link.isNotBlank()) {
+                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(currentPost.link))
+                                                context.startActivity(intent)
+                                            }
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "वेबसाइट पर देखें",
+                                            fontFamily = InterFamily,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 11.5.sp,
+                                            color = ChaiSaffron
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                                            contentDescription = null,
+                                            tint = ChaiSaffron,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = ChaiTheme.extended.surfaceSecondary,
+                                    border = androidx.compose.foundation.BorderStroke(0.8.dp, ChaiTheme.extended.border),
+                                    modifier = Modifier
+                                        .clickable { showContactDialog = true }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Info,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "संपर्क एवं प्रकाशक",
+                                            fontFamily = InterFamily,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 11.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(36.dp))
                 }
             }
@@ -587,16 +710,26 @@ fun ArticleScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Bookmark Toggle with spring bounce
+                    // Bookmark Toggle with spring bounce and smooth color morphing
                     val bookmarkScale by animateFloatAsState(
-                        targetValue = if (isBookmarked) 1.2f else 1.0f,
-                        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+                        targetValue = if (isBookmarked) 1.25f else 1.0f,
+                        animationSpec = spring(dampingRatio = 0.45f, stiffness = 500f),
                         label = "bm_scale"
+                    )
+                    val bookmarkBgColor by animateColorAsState(
+                        targetValue = if (isBookmarked) ChaiTheme.extended.brandTertiary else Color.Transparent,
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        label = "bm_bg_color"
+                    )
+                    val bookmarkTextColor by animateColorAsState(
+                        targetValue = if (isBookmarked) ChaiSaffron else MaterialTheme.colorScheme.onSurface,
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        label = "bm_text_color"
                     )
 
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isBookmarked) ChaiTheme.extended.brandTertiary else Color.Transparent,
+                        color = bookmarkBgColor,
                         modifier = Modifier
                             .clickable {
                                 haptics.success()
@@ -611,7 +744,7 @@ fun ArticleScreen(
                             Icon(
                                 imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
                                 contentDescription = if (isBookmarked) "Saved" else "Save",
-                                tint = if (isBookmarked) ChaiSaffron else MaterialTheme.colorScheme.onSurface,
+                                tint = bookmarkTextColor,
                                 modifier = Modifier
                                     .size(20.dp)
                                     .scale(bookmarkScale)
@@ -622,7 +755,7 @@ fun ArticleScreen(
                                 fontFamily = InterFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = if (isBookmarked) ChaiSaffron else MaterialTheme.colorScheme.onSurface
+                                color = bookmarkTextColor
                             )
                         }
                     }
@@ -696,5 +829,11 @@ fun ArticleScreen(
                 }
             }
         }
+    }
+
+    if (showContactDialog) {
+        ContactUsDialog(
+            onDismiss = { showContactDialog = false }
+        )
     }
 }

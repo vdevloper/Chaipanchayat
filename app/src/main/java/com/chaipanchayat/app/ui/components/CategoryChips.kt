@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -71,12 +73,22 @@ fun CategoryChips(
 ) {
     val scrollState = rememberScrollState()
     val haptics = rememberChaiHaptics()
+    val chipShape = RoundedCornerShape(8.dp)
+
+    LaunchedEffect(selectedId) {
+        val index = chips.indexOfFirst { it.id == selectedId }
+        if (index > 0) {
+            scrollState.animateScrollTo((index * 85).coerceAtMost(scrollState.maxValue))
+        } else if (index == 0) {
+            scrollState.animateScrollTo(0)
+        }
+    }
 
     Row(
         modifier = modifier
             .testTag("category-chip-row")
             .horizontalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 9.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isLoading) {
@@ -84,12 +96,12 @@ fun CategoryChips(
             repeat(5) {
                 Box(
                     modifier = Modifier
-                        .height(38.dp)
-                        .width(82.dp)
-                        .clip(CircleShape)
+                        .height(34.dp)
+                        .width(78.dp)
+                        .clip(chipShape)
                         .background(shimmerBrush)
                 )
-                Spacer(modifier = Modifier.width(9.dp))
+                Spacer(modifier = Modifier.width(8.dp))
             }
         } else {
             chips.forEach { chip ->
@@ -97,27 +109,41 @@ fun CategoryChips(
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
                 val scale by animateFloatAsState(
-                    targetValue = if (isPressed) 0.94f else 1.0f,
+                    targetValue = if (isPressed) 0.95f else 1.0f,
                     animationSpec = spring(dampingRatio = 0.7f, stiffness = 500f),
                     label = "chip_scale"
                 )
 
+                val animatedBgColor by animateColorAsState(
+                    targetValue = if (isSelected) ChaiSaffron else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.7f),
+                    animationSpec = tween(durationMillis = 220, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                    label = "chip_bg"
+                )
+
+                val animatedBorderColor by animateColorAsState(
+                    targetValue = if (isSelected) ChaiSaffron else ChaiTheme.extended.border.copy(alpha = 0.6f),
+                    animationSpec = tween(durationMillis = 220, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                    label = "chip_border"
+                )
+
+                val animatedTextColor by animateColorAsState(
+                    targetValue = if (isSelected) Color.White else ChaiTheme.extended.textSecondary,
+                    animationSpec = tween(durationMillis = 200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                    label = "chip_text"
+                )
+
                 Surface(
-                    shape = CircleShape,
-                    color = if (isSelected) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
+                    shape = chipShape,
+                    color = animatedBgColor,
                     border = BorderStroke(
                         width = 1.dp,
-                        color = if (isSelected) ChaiSaffron else ChaiTheme.extended.border
+                        color = animatedBorderColor
                     ),
-                    shadowElevation = if (isSelected) 3.dp else 0.dp,
                     modifier = Modifier
                         .testTag("chip-${chip.id}")
-                        .height(38.dp)
+                        .height(34.dp)
                         .scale(scale)
-                        .clip(CircleShape)
-                        .then(
-                            if (isSelected) Modifier.background(ChaiBrandGradient) else Modifier
-                        )
+                        .clip(chipShape)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = null,
@@ -129,22 +155,17 @@ fun CategoryChips(
                             }
                         )
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = getCategoryEmoji(chip.name),
-                            fontSize = 13.5.sp
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
                             text = chip.name,
-                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                            color = animatedTextColor,
                             fontFamily = InterFamily,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            fontSize = 13.5.sp,
-                            letterSpacing = 0.2.sp
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.sp,
+                            letterSpacing = 0.15.sp
                         )
                     }
                 }

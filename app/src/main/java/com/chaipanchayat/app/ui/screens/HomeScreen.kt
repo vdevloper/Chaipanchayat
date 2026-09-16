@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -154,25 +155,15 @@ fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
     ) {
-        // Subtle top gradient ribbon (Brand Accent)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .background(ChaiBrandGradient)
-        )
-
-        // Editorial App Header
-        val isLiquid = ChaiTheme.extended.isLiquidGlass
-
+        // Editorial Masthead Header
         Surface(
-            color = if (isLiquid) com.chaipanchayat.app.ui.theme.LiquidGlassSurface else MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .height(58.dp)
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -181,17 +172,17 @@ fun HomeScreen(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Search Action Button
                     Surface(
                         shape = CircleShape,
-                        color = ChaiTheme.extended.surfaceSecondary,
+                        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isLiquid) Color(0x4038BDF8) else ChaiTheme.extended.border.copy(alpha = 0.8f)
+                            ChaiTheme.extended.border.copy(alpha = 0.5f)
                         ),
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(38.dp)
                     ) {
                         IconButton(
                             onClick = onNavigateToSearch,
@@ -201,7 +192,7 @@ fun HomeScreen(
                                 imageVector = Icons.Outlined.Search,
                                 contentDescription = "Search",
                                 tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }
@@ -209,12 +200,12 @@ fun HomeScreen(
                     // Refresh Button with Spin Effect
                     Surface(
                         shape = CircleShape,
-                        color = ChaiTheme.extended.surfaceSecondary,
+                        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isLiquid) Color(0x4038BDF8) else ChaiTheme.extended.border.copy(alpha = 0.8f)
+                            ChaiTheme.extended.border.copy(alpha = 0.5f)
                         ),
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(38.dp)
                     ) {
                         IconButton(
                             onClick = {
@@ -232,7 +223,7 @@ fun HomeScreen(
                                 contentDescription = "Refresh",
                                 tint = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier
-                                    .size(20.dp)
+                                    .size(19.dp)
                                     .rotate(animatedRotation)
                             )
                         }
@@ -241,15 +232,7 @@ fun HomeScreen(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(0.8.dp)
-                .background(
-                    if (isLiquid) ChaiTheme.extended.glassBorderBrush
-                    else androidx.compose.ui.graphics.SolidColor(ChaiTheme.extended.border.copy(alpha = 0.7f))
-                )
-        )
+        HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
 
         // Animated Breaking News Ticker (Live Headline updates)
         if (posts.isNotEmpty()) {
@@ -257,6 +240,7 @@ fun HomeScreen(
                 posts = posts.take(6),
                 onPostClick = onNavigateToArticle
             )
+            HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
         }
 
         // Offline notice
@@ -270,7 +254,7 @@ fun HomeScreen(
             isLoading = categories.isEmpty() && isLoading
         )
 
-        HorizontalDivider(thickness = 0.8.dp, color = ChaiTheme.extended.border.copy(alpha = 0.7f))
+        HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
 
         // Main Feed with Pull to Refresh
         Box(modifier = Modifier.fillMaxSize()) {
@@ -286,99 +270,131 @@ fun HomeScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             ) {
-                if (isLoading) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = false
-                    ) {
-                        item { HeroSkeleton() }
-                        items(4) { NewsCardSkeleton() }
-                    }
-                } else if (posts.isEmpty()) {
-                    EmptyState(
-                        title = "No stories found",
-                        message = if (isOffline) "Please check your internet connection." else "No articles published in this category yet.",
-                        actionLabel = "Retry",
-                        onAction = {
-                            coroutineScope.launch { loadFeed(showLoader = true) }
+                androidx.compose.animation.Crossfade(
+                    targetState = isLoading,
+                    animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                    label = "feed_loading_crossfade"
+                ) { loading ->
+                    if (loading) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            userScrollEnabled = false
+                        ) {
+                            item { HeroSkeleton() }
+                            items(4) { NewsCardSkeleton() }
                         }
-                    )
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // Hero Item (Featured Post)
-                        item {
-                            val heroPost = posts.first()
-                            HeroCard(
-                                post = heroPost,
-                                onClick = { onNavigateToArticle(heroPost.id) }
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                        }
-
-                        // Signature Chai Panchayat Feature: ☕ आज की चाय (Section 08)
-                        if (selectedCategoryId == 0L && posts.size >= 3) {
-                            item {
-                                TodayChaiDigest(
-                                    posts = posts.drop(1).take(5),
-                                    onPostClick = onNavigateToArticle
+                    } else if (posts.isEmpty()) {
+                        EmptyState(
+                            title = "No stories found",
+                            message = if (isOffline) "Please check your internet connection." else "No articles published in this category yet.",
+                            actionLabel = "Retry",
+                            onAction = {
+                                coroutineScope.launch { loadFeed(showLoader = true) }
+                            }
+                        )
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            // 1. Hero Item (Lead Story)
+                            item(key = "hero_${posts.first().id}") {
+                                val heroPost = posts.first()
+                                HeroCard(
+                                    post = heroPost,
+                                    onClick = { onNavigateToArticle(heroPost.id) },
+                                    modifier = Modifier.animateItem()
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
                             }
-                        }
 
-                        // Section Header with stylized badge
-                        item {
-                            val sectionTitle = if (selectedCategoryId == 0L) "ताज़ा खबरें • LATEST STORIES" else {
-                                categories.find { it.id == selectedCategoryId }?.name?.uppercase() ?: "STORIES"
-                            }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(4.dp)
-                                            .height(18.dp)
-                                            .background(ChaiBrandGradient, RoundedCornerShape(2.dp))
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
+                            // 2. Section Header
+                            item(key = "section_header_$selectedCategoryId") {
+                                val sectionTitle = if (selectedCategoryId == 0L) "ताज़ा समाचार • LATEST STORIES" else {
+                                    categories.find { it.id == selectedCategoryId }?.name?.uppercase() ?: "STORIES"
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        .animateItem(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(3.5.dp)
+                                                .height(16.dp)
+                                                .background(ChaiSaffron, RoundedCornerShape(2.dp))
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = sectionTitle,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontFamily = InterFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.5.sp,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                    }
+
                                     Text(
-                                        text = sectionTitle,
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        text = "${posts.size} लेख",
+                                        color = ChaiTheme.extended.muted,
                                         fontFamily = InterFamily,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 13.sp,
-                                        letterSpacing = 0.8.sp
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.5.sp
+                                    )
+                                }
+                            }
+
+                            // 3. Editorial Flow: Immediate access to news feed
+                            if (selectedCategoryId == 0L && posts.size >= 3) {
+                                // First 2 standard news feed items directly beneath the header
+                                val topStories = posts.subList(1, minOf(3, posts.size))
+                                items(topStories, key = { it.id }) { post ->
+                                    NewsCard(
+                                        post = post,
+                                        onClick = { onNavigateToArticle(post.id) },
+                                        modifier = Modifier.animateItem()
                                     )
                                 }
 
-                                Text(
-                                    text = "${posts.size} लेख",
-                                    color = ChaiTheme.extended.textSecondary,
-                                    fontFamily = InterFamily,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 12.sp
-                                )
+                                // Mid-feed signature feature: ☕ आज की चाय (Today's Tea Digest)
+                                item(key = "chai_digest") {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    TodayChaiDigest(
+                                        posts = posts.take(5),
+                                        onPostClick = onNavigateToArticle,
+                                        modifier = Modifier.animateItem()
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                }
+
+                                // Remaining Feed Stories
+                                val remainingStories = posts.drop(3)
+                                items(remainingStories, key = { it.id }) { post ->
+                                    NewsCard(
+                                        post = post,
+                                        onClick = { onNavigateToArticle(post.id) },
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
+                            } else {
+                                // Category view or short list
+                                items(posts.drop(1), key = { it.id }) { post ->
+                                    NewsCard(
+                                        post = post,
+                                        onClick = { onNavigateToArticle(post.id) },
+                                        modifier = Modifier.animateItem()
+                                    )
+                                }
                             }
-                        }
 
-                        // Remaining Posts
-                        itemsIndexed(posts.drop(1), key = { _, post -> post.id }) { _, post ->
-                            NewsCard(
-                                post = post,
-                                onClick = { onNavigateToArticle(post.id) }
-                            )
-                        }
-
-                        item {
-                            Spacer(modifier = Modifier.height(36.dp))
+                            item(key = "feed_bottom_spacer") {
+                                Spacer(modifier = Modifier.height(36.dp))
+                            }
                         }
                     }
                 }

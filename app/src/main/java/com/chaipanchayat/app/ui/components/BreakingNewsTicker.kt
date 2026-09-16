@@ -92,22 +92,15 @@ fun BreakingNewsTicker(
     )
 
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = ChaiTheme.extended.surfaceSecondary,
+        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.65f),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .border(
-                width = 1.dp,
-                color = ChaiTheme.extended.border,
-                shape = RoundedCornerShape(10.dp)
-            )
             .clickable { onPostClick(currentPost.id) }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Calm Live Indicator Pill
@@ -115,7 +108,7 @@ fun BreakingNewsTicker(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
                     .background(ChaiCrimson)
-                    .padding(horizontal = 6.dp, vertical = 2.5.dp),
+                    .padding(horizontal = 5.5.dp, vertical = 2.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
@@ -127,26 +120,32 @@ fun BreakingNewsTicker(
                             .size(5.dp)
                             .background(Color.White.copy(alpha = pulseAlpha), CircleShape)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.5.dp))
                     Text(
                         text = "LIVE",
                         color = Color.White,
                         fontFamily = InterFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 9.5.sp,
+                        fontSize = 9.sp,
                         letterSpacing = 0.5.sp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             // Smooth crossfade headline animation (smooth, no jarring slides)
             AnimatedContent(
                 targetState = currentPost,
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(500, easing = FastOutSlowInEasing)) togetherWith
-                            fadeOut(animationSpec = tween(350, easing = FastOutSlowInEasing))
+                    (slideInVertically(
+                        initialOffsetY = { it / 2 },
+                        animationSpec = tween(420, easing = FastOutSlowInEasing)
+                    ) + fadeIn(tween(380))) togetherWith
+                    (slideOutVertically(
+                        targetOffsetY = { -it / 2 },
+                        animationSpec = tween(350, easing = FastOutSlowInEasing)
+                    ) + fadeOut(tween(280)))
                 },
                 modifier = Modifier.weight(1f),
                 label = "ticker_headline"
@@ -155,7 +154,7 @@ fun BreakingNewsTicker(
                     text = targetPost.cleanTitle,
                     fontFamily = InterFamily,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 13.sp,
+                    fontSize = 12.5.sp,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -167,8 +166,8 @@ fun BreakingNewsTicker(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = ChaiTheme.extended.muted,
-                modifier = Modifier.size(11.dp)
+                tint = ChaiTheme.extended.muted.copy(alpha = 0.7f),
+                modifier = Modifier.size(10.dp)
             )
         }
     }
