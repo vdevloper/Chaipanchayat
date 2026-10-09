@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.CircularProgressIndicator
+import com.chaipanchayat.app.ui.components.ChaiBrewLoadingIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -189,7 +190,11 @@ fun SearchScreen(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = ChaiSaffron)
+                ChaiBrewLoadingIndicator(
+                    size = 64.dp,
+                    tintColor = ChaiSaffron,
+                    showAura = true
+                )
             }
         } else if (!hasSearched && query.isBlank()) {
             Column(

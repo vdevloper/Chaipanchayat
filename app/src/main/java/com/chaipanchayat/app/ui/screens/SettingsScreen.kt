@@ -36,7 +36,10 @@ import com.chaipanchayat.app.ui.components.ContactUsDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
+import com.chaipanchayat.app.ui.components.ChaiBrewSpinner
+import com.chaipanchayat.app.data.repository.NewsRepository
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -92,6 +95,8 @@ fun SettingsScreen(
     val saveArticles by settingsRepo.saveArticles.collectAsState()
     val language by settingsRepo.language.collectAsState()
     val cacheSize by settingsRepo.cacheSizeFormatted.collectAsState()
+    val offlineQuickPack by settingsRepo.offlineQuickPack.collectAsState()
+    val offlineQuickPackCount by settingsRepo.offlineQuickPackCount.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     var isCheckingNow by remember { mutableStateOf(false) }
@@ -248,6 +253,21 @@ fun SettingsScreen(
                 onCheckedChange = { settingsRepo.setSaveArticles(it) },
                 testTag = "settings-savearticles-switch"
             )
+            SettingsToggleRow(
+                title = "Offline Quick-Pack (शीर्ष 10 ख़बरें)",
+                subtitle = if (offlineQuickPack) "सक्रिय ($offlineQuickPackCount/10 ख़बरें कैश्ड)" else "बिना इंटरनेट पढ़ने हेतु प्री-कैश करें",
+                checked = offlineQuickPack,
+                onCheckedChange = { checked ->
+                    settingsRepo.setOfflineQuickPack(checked, if (checked) 10 else 0)
+                    if (checked) {
+                        coroutineScope.launch {
+                            NewsRepository.getInstance().prefetchLeadStories(10)
+                            Toast.makeText(context, "शीर्ष 10 ख़बरें ऑफ़लाइन सुरक्षित की गईं!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                testTag = "settings-offline-quickpack-switch"
+            )
             SettingsNavRow(
                 icon = Icons.Outlined.CleaningServices,
                 title = "Clear cache",
@@ -375,13 +395,26 @@ fun SettingsScreen(
                         onCheckedChange = { settingsRepo.setBreakingAlerts(it) }
                     )
                     SettingsToggleRow(
-                        title = "आज की चाय डाइजेस्ट",
-                        subtitle = "सुबह का दैनिक बुलेटिन",
+                        title = "सुबह 8:00 बजे 'चाय टाइम' डाइजेस्ट",
+                        subtitle = "हर सुबह ताज़ा चाय के साथ दिन की 5 मुख्य सुर्खियां",
                         checked = dailyDigest,
                         onCheckedChange = { settingsRepo.setDailyDigest(it) }
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            ChaiNewsNotificationWorker.sendMorningDigestPreviewNotification(context)
+                            Toast.makeText(context, "सुबह के डाइजेस्ट का नोटिफिकेशन भेजा गया!", Toast.LENGTH_SHORT).show()
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("☕ 8:00 AM डाइजेस्ट प्रीव्यू देखें", fontFamily = InterFamily, fontWeight = FontWeight.SemiBold, color = ChaiSaffron)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Button(
                         onClick = {
@@ -398,7 +431,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (isCheckingNow) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            ChaiBrewSpinner(modifier = Modifier.size(16.dp), tintColor = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
                         } else {
                             Icon(Icons.Outlined.Sync, contentDescription = null, modifier = Modifier.size(16.dp))

@@ -42,6 +42,8 @@ import androidx.compose.material.icons.outlined.Theaters
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.CircularProgressIndicator
+import com.chaipanchayat.app.ui.components.ChaiBrewLoadingIndicator
+import com.chaipanchayat.app.ui.components.ChaiBrewSpinner
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -210,10 +212,9 @@ fun CategoriesScreen(
                         modifier = Modifier.size(36.dp)
                     ) {
                         if (isSyncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = ChaiSaffron,
-                                strokeWidth = 2.dp
+                            ChaiBrewSpinner(
+                                modifier = Modifier.size(20.dp),
+                                tintColor = ChaiSaffron
                             )
                         } else {
                             Icon(
@@ -354,9 +355,10 @@ fun CategoriesScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    color = ChaiSaffron,
-                    modifier = Modifier.size(36.dp)
+                ChaiBrewLoadingIndicator(
+                    size = 72.dp,
+                    tintColor = ChaiSaffron,
+                    showAura = true
                 )
             }
         } else if (isError && categories.isEmpty() && tags.isEmpty()) {

@@ -460,6 +460,43 @@ class NewsRepository private constructor(private val cacheDao: PostCacheDao?) {
         return post
     }
 
+    /**
+     * Offline Reading Quick-Pack:
+     * Pre-caches the top [count] lead stories (including full text content)
+     * into Room local storage for reading anytime without internet connectivity.
+     */
+    suspend fun prefetchLeadStories(
+        count: Int = 10,
+        onProgress: ((completed: Int, total: Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val leadPosts = getPosts(categoryId = null, forceRefresh = true).take(count)
+            if (leadPosts.isEmpty()) {
+                return@withContext Result.failure(IllegalStateException("No posts available to cache"))
+            }
+
+            var successCount = 0
+            val total = leadPosts.size
+
+            leadPosts.forEachIndexed { index, post ->
+                try {
+                    val fullPost = getPost(post.id, forceRefresh = false)
+                    if (cacheDao != null) {
+                        cacheDao.insertPosts(listOf(postToEntity("article_detail", fullPost, 0)))
+                    }
+                    successCount++
+                } catch (_: Exception) {
+                    successCount++
+                }
+                onProgress?.invoke(index + 1, total)
+            }
+
+            Result.success(successCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: NewsRepository? = null

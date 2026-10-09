@@ -58,6 +58,8 @@ import com.chaipanchayat.app.ui.components.BreakingNewsTicker
 import com.chaipanchayat.app.ui.components.CategoryChipItem
 import com.chaipanchayat.app.ui.components.CategoryChips
 import com.chaipanchayat.app.ui.components.EmptyState
+import com.chaipanchayat.app.ui.components.ChaiBrewLoadingScreen
+import com.chaipanchayat.app.ui.components.ChaiBrewLoadingIndicator
 import com.chaipanchayat.app.ui.components.HeroCard
 import com.chaipanchayat.app.ui.components.HeroSkeleton
 import com.chaipanchayat.app.ui.components.Logo
@@ -275,7 +277,9 @@ fun HomeScreen(
                     animationSpec = tween(300, easing = androidx.compose.animation.core.FastOutSlowInEasing),
                     label = "feed_loading_crossfade"
                 ) { loading ->
-                    if (loading) {
+                    if (loading && posts.isEmpty()) {
+                        ChaiBrewLoadingScreen()
+                    } else if (loading) {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             userScrollEnabled = false

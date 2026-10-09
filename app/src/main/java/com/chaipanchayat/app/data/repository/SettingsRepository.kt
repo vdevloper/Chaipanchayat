@@ -158,6 +158,17 @@ class SettingsRepository(private val context: Context) {
     )
     val onboardingCompleted: StateFlow<Boolean> = _onboardingCompleted.asStateFlow()
 
+    // Offline Quick-Pack (Pre-cache top 10 lead stories)
+    private val _offlineQuickPack = MutableStateFlow(
+        prefs.getBoolean(KEY_OFFLINE_QUICK_PACK, false)
+    )
+    val offlineQuickPack: StateFlow<Boolean> = _offlineQuickPack.asStateFlow()
+
+    private val _offlineQuickPackCount = MutableStateFlow(
+        prefs.getInt(KEY_OFFLINE_QUICK_PACK_COUNT, 0)
+    )
+    val offlineQuickPackCount: StateFlow<Int> = _offlineQuickPackCount.asStateFlow()
+
     // Cache Size string
     private val _cacheSizeFormatted = MutableStateFlow(getCacheSizeFormatted())
     val cacheSizeFormatted: StateFlow<String> = _cacheSizeFormatted.asStateFlow()
@@ -233,6 +244,20 @@ class SettingsRepository(private val context: Context) {
     fun setDailyDigest(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_DAILY_DIGEST, enabled).apply()
         _dailyDigest.value = enabled
+        if (enabled) {
+            com.chaipanchayat.app.worker.ChaiNewsNotificationWorker.scheduleDailyDigest(context)
+        } else {
+            com.chaipanchayat.app.worker.ChaiNewsNotificationWorker.cancelDailyDigest(context)
+        }
+    }
+
+    fun setOfflineQuickPack(enabled: Boolean, count: Int = 10) {
+        prefs.edit()
+            .putBoolean(KEY_OFFLINE_QUICK_PACK, enabled)
+            .putInt(KEY_OFFLINE_QUICK_PACK_COUNT, if (enabled) count else 0)
+            .apply()
+        _offlineQuickPack.value = enabled
+        _offlineQuickPackCount.value = if (enabled) count else 0
     }
 
     fun setDataSaver(enabled: Boolean) {
@@ -330,6 +355,8 @@ class SettingsRepository(private val context: Context) {
         private const val KEY_SAVE_ARTICLES = "save_articles_pref"
         private const val KEY_LANGUAGE = "language_pref"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed_pref"
+        private const val KEY_OFFLINE_QUICK_PACK = "offline_quick_pack_enabled"
+        private const val KEY_OFFLINE_QUICK_PACK_COUNT = "offline_quick_pack_count"
 
         private const val KEY_GLASS_TINT = "glass_tint_flavor"
         private const val KEY_GLASS_BLUR = "glass_blur_depth"

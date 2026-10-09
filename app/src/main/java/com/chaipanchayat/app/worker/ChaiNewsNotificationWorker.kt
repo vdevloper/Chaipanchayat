@@ -26,6 +26,7 @@ import com.chaipanchayat.app.MainActivity
 import com.chaipanchayat.app.R
 import com.chaipanchayat.app.data.api.WordPressApiClient
 import com.chaipanchayat.app.data.repository.SettingsRepository
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 /**
@@ -226,6 +227,104 @@ class ChaiNewsNotificationWorker(
 
         fun checkOnceNow(context: Context) {
             triggerImmediateCheck(context)
+        }
+
+        private const val UNIQUE_DAILY_DIGEST_WORK_NAME = "chai_daily_digest_8am"
+
+        /**
+         * Schedules the Morning "Chai Time" Daily Digest for 8:00 AM every morning.
+         */
+        fun scheduleDailyDigest(context: Context) {
+            val now = Calendar.getInstance()
+            val target = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 8)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                if (before(now)) {
+                    add(Calendar.DAY_OF_YEAR, 1)
+                }
+            }
+            val initialDelayMs = target.timeInMillis - now.timeInMillis
+
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val dailyRequest = PeriodicWorkRequestBuilder<ChaiNewsNotificationWorker>(
+                24, TimeUnit.HOURS,
+                15, TimeUnit.MINUTES
+            )
+                .setInitialDelay(initialDelayMs, TimeUnit.MILLISECONDS)
+                .setConstraints(constraints)
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                UNIQUE_DAILY_DIGEST_WORK_NAME,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                dailyRequest
+            )
+            Log.i(TAG, "Scheduled morning 8:00 AM Chai Time daily digest worker (delay: ${initialDelayMs / 1000}s).")
+        }
+
+        fun cancelDailyDigest(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_DAILY_DIGEST_WORK_NAME)
+            Log.i(TAG, "Cancelled morning daily digest worker.")
+        }
+
+        /**
+         * Sends an immediate sample preview of the Morning "Chai Time" Digest notification
+         * when the user opts in during onboarding or tests it in settings.
+         */
+        fun sendMorningDigestPreviewNotification(context: Context) {
+            createNotificationChannel(context)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    Log.w(TAG, "POST_NOTIFICATIONS not granted. Cannot send preview.")
+                    return
+                }
+            }
+
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                8888,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val title = "☕ चाय पंचायत • सुबह का 'चाय टाइम' डाइजेस्ट (8:00 AM)"
+            val content = "सुप्रभात! आज की 5 बड़ी राष्ट्रीय एवं संपादकीय सुर्खियां तैयार हैं। ताज़ा चुस्की के साथ पढ़ें।"
+
+            val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(content)
+                .setStyle(
+                    NotificationCompat.BigTextStyle()
+                        .bigText(content)
+                        .setSummaryText("दैनिक चाय डाइजेस्ट")
+                )
+                .setColor(Color.parseColor("#FF5A00"))
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setContentIntent(pendingIntent)
+
+            try {
+                val notificationManager = NotificationManagerCompat.from(context)
+                notificationManager.notify(8008, notificationBuilder.build())
+                Log.i(TAG, "Morning digest preview notification sent successfully.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error displaying morning digest preview", e)
+            }
         }
     }
 }

@@ -51,6 +51,8 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Verified
 import com.chaipanchayat.app.ui.components.ContactUsDialog
 import androidx.compose.material3.FloatingActionButton
+import com.chaipanchayat.app.ui.components.ChaiBrewSpinner
+import com.chaipanchayat.app.ui.components.ChaiBrewLoadingIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -663,7 +665,7 @@ fun ArticleScreen(
                 }
             }
 
-            // Back to Top Floating Button
+            // Back to Top Floating Button & Chai Steeping Reading Progress Pill
             androidx.compose.animation.AnimatedVisibility(
                 visible = showBackToTop,
                 enter = fadeIn() + scaleIn(),
@@ -672,23 +674,50 @@ fun ArticleScreen(
                     .align(Alignment.BottomEnd)
                     .padding(end = 20.dp, bottom = 20.dp)
             ) {
-                FloatingActionButton(
-                    onClick = {
-                        haptics.click()
-                        coroutineScope.launch {
-                            scrollState.animateScrollTo(0)
-                        }
-                    },
-                    containerColor = ChaiSaffron,
-                    contentColor = Color.White,
-                    shape = CircleShape,
-                    modifier = Modifier.size(46.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Back to top",
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ChaiSaffron.copy(alpha = 0.45f)),
+                        shadowElevation = 6.dp
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            ChaiBrewSpinner(modifier = Modifier.size(16.dp), tintColor = ChaiSaffron)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "${(animatedProgress * 100).toInt()}% पठन",
+                                fontFamily = InterFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                color = ChaiSaffron
+                            )
+                        }
+                    }
+
+                    FloatingActionButton(
+                        onClick = {
+                            haptics.click()
+                            coroutineScope.launch {
+                                scrollState.animateScrollTo(0)
+                            }
+                        },
+                        containerColor = ChaiSaffron,
+                        contentColor = Color.White,
+                        shape = CircleShape,
+                        modifier = Modifier.size(46.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowUp,
+                            contentDescription = "Back to top",
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
