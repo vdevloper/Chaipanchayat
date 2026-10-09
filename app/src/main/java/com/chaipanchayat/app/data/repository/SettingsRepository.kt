@@ -152,6 +152,12 @@ class SettingsRepository(private val context: Context) {
     )
     val language: StateFlow<String> = _language.asStateFlow()
 
+    // Onboarding completion state
+    private val _onboardingCompleted = MutableStateFlow(
+        prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+    )
+    val onboardingCompleted: StateFlow<Boolean> = _onboardingCompleted.asStateFlow()
+
     // Cache Size string
     private val _cacheSizeFormatted = MutableStateFlow(getCacheSizeFormatted())
     val cacheSizeFormatted: StateFlow<String> = _cacheSizeFormatted.asStateFlow()
@@ -254,6 +260,11 @@ class SettingsRepository(private val context: Context) {
         _language.value = lang
     }
 
+    fun setOnboardingCompleted(completed: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, completed).apply()
+        _onboardingCompleted.value = completed
+    }
+
     fun refreshCacheSize() {
         _cacheSizeFormatted.value = getCacheSizeFormatted()
     }
@@ -318,6 +329,7 @@ class SettingsRepository(private val context: Context) {
         private const val KEY_AUTO_PLAY_VIDEOS = "auto_play_videos_pref"
         private const val KEY_SAVE_ARTICLES = "save_articles_pref"
         private const val KEY_LANGUAGE = "language_pref"
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed_pref"
 
         private const val KEY_GLASS_TINT = "glass_tint_flavor"
         private const val KEY_GLASS_BLUR = "glass_blur_depth"

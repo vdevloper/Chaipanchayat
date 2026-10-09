@@ -44,8 +44,10 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,10 +64,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.chaipanchayat.app.data.repository.SettingsRepository
 import com.chaipanchayat.app.ui.screens.ArticleScreen
 import com.chaipanchayat.app.ui.screens.CategoriesScreen
 import com.chaipanchayat.app.ui.screens.CategoryFeedScreen
 import com.chaipanchayat.app.ui.screens.HomeScreen
+import com.chaipanchayat.app.ui.screens.OnboardingScreen
 import com.chaipanchayat.app.ui.screens.SavedScreen
 import com.chaipanchayat.app.ui.screens.SearchScreen
 import com.chaipanchayat.app.ui.screens.SettingsScreen
@@ -87,6 +91,10 @@ private data class TabBarItem(
 fun MainAppNavigation(
     initialArticleId: Long? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsRepo = remember { SettingsRepository.getInstance(context) }
+    val isOnboardingDone by settingsRepo.onboardingCompleted.collectAsState()
+
     val rootNavController = rememberNavController()
 
     androidx.compose.runtime.LaunchedEffect(initialArticleId) {
@@ -97,7 +105,7 @@ fun MainAppNavigation(
 
     NavHost(
         navController = rootNavController,
-        startDestination = NavRoutes.MAIN,
+        startDestination = if (isOnboardingDone) NavRoutes.MAIN else NavRoutes.ONBOARDING,
         modifier = Modifier.fillMaxSize(),
         enterTransition = {
             slideInHorizontally(
@@ -124,6 +132,36 @@ fun MainAppNavigation(
             ) + fadeOut(animationSpec = tween(240))
         }
     ) {
+        composable(
+            route = NavRoutes.ONBOARDING,
+            enterTransition = {
+                slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(380, easing = FastOutSlowInEasing)
+                ) + fadeIn(tween(320))
+            },
+            exitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { -it / 4 },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(260))
+            },
+            popExitTransition = {
+                slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) + fadeOut(tween(260))
+            }
+        ) {
+            OnboardingScreen(
+                onFinishOnboarding = {
+                    rootNavController.navigate(NavRoutes.MAIN) {
+                        popUpTo(NavRoutes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable(NavRoutes.MAIN) {
             MainTabsScaffold(
                 onNavigateToArticle = { id ->
@@ -134,6 +172,9 @@ fun MainAppNavigation(
                 },
                 onNavigateToSearch = {
                     rootNavController.navigate(NavRoutes.SEARCH)
+                },
+                onNavigateToOnboarding = {
+                    rootNavController.navigate(NavRoutes.ONBOARDING)
                 }
             )
         }
@@ -246,7 +287,8 @@ fun MainAppNavigation(
 fun MainTabsScaffold(
     onNavigateToArticle: (Long) -> Unit,
     onNavigateToCategory: (Long, String) -> Unit,
-    onNavigateToSearch: () -> Unit
+    onNavigateToSearch: () -> Unit,
+    onNavigateToOnboarding: () -> Unit = {}
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     val haptics = rememberChaiHaptics()
@@ -388,6 +430,7 @@ fun MainTabsScaffold(
                 )
 
                 MainTab.SETTINGS -> SettingsScreen(
+                    onNavigateToOnboarding = onNavigateToOnboarding,
                     modifier = Modifier.padding(innerPadding)
                 )
             }

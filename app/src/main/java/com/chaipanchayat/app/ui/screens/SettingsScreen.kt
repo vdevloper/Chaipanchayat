@@ -77,6 +77,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
+    onNavigateToOnboarding: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -262,6 +263,13 @@ fun SettingsScreen(
         // ==========================================
         item {
             SettingsSectionHeader(title = "ABOUT & PUBLISHER")
+            SettingsNavRow(
+                icon = Icons.Outlined.Info,
+                title = "App Guide & Tour (स्वागत टूर)",
+                trailingValue = "शुरू करें",
+                onClick = onNavigateToOnboarding,
+                testTag = "settings-onboarding-row"
+            )
             SettingsNavRow(
                 icon = Icons.Outlined.Info,
                 title = "About Chai Panchayat (हमारे बारे में)",

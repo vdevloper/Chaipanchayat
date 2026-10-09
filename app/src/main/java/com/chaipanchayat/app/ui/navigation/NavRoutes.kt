@@ -2,6 +2,7 @@ package com.chaipanchayat.app.ui.navigation
 
 object NavRoutes {
     const val MAIN = "main"
+    const val ONBOARDING = "onboarding"
     const val SEARCH = "search"
     const val ARTICLE = "article/{id}"
     const val CATEGORY_FEED = "category/{id}/{name}"
