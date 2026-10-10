@@ -26,12 +26,20 @@
 
 # AndroidX Room
 -keep class androidx.room.RoomDatabase { *; }
--keep class * extends androidx.room.RoomDatabase
+-keep class * extends androidx.room.RoomDatabase {
+    public <init>();
+    *;
+}
 -keep @androidx.room.Dao interface * { *; }
 -keep @androidx.room.Entity class * { *; }
 -dontwarn androidx.room.paging.**
 
-# WorkManager Workers
+# WorkManager & WorkDatabase
+-keep class androidx.work.impl.WorkDatabase_Impl {
+    public <init>();
+    *;
+}
+-keep class androidx.work.impl.** { *; }
 -keep class * extends androidx.work.ListenableWorker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
