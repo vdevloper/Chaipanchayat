@@ -3,8 +3,10 @@ package com.chaipanchayat.app.ui.screens
 import android.Manifest
 import android.os.Build
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -240,6 +242,7 @@ fun OnboardingScreen(
             .background(MaterialTheme.colorScheme.surface)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .displayCutoutPadding()
             .testTag("onboarding_screen")
     ) {
         // Ambient background glowing orbs
@@ -249,7 +252,9 @@ fun OnboardingScreen(
         )
 
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 6.dp)
         ) {
             // Top Bar with Brand and Skip Button
             Row(
@@ -535,25 +540,67 @@ private fun WhimsicalChaiCupHero(accentColor: Color) {
 /**
  * Whimsical One-Tap Audio Greeting Snippet
  * Demonstrates speech feature by pronouncing a 5s Hindi welcome line
+ * Lazily initialized on tap and fully resilient against missing/failed TTS engines.
  */
 @Composable
 private fun WhimsicalAudioGreetingPreview() {
     val context = LocalContext.current
     val haptics = rememberChaiHaptics()
     var isSpeaking by remember { mutableStateOf(false) }
+    var isInitializing by remember { mutableStateOf(false) }
+    var ttsAvailable by remember { mutableStateOf(true) }
     var ttsInstance by remember { mutableStateOf<TextToSpeech?>(null) }
 
-    DisposableEffect(Unit) {
-        var tts: TextToSpeech? = null
-        tts = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale("hi", "IN")
-            }
+    fun stopSpeaking() {
+        runCatching {
+            ttsInstance?.stop()
         }
-        ttsInstance = tts
+        isSpeaking = false
+    }
+
+    fun startSpeaking(tts: TextToSpeech) {
+        runCatching {
+            val hindi = Locale("hi", "IN")
+            val res = tts.setLanguage(hindi)
+            if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                tts.setLanguage(Locale.getDefault())
+            }
+            tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {
+                    isSpeaking = true
+                }
+                override fun onDone(utteranceId: String?) {
+                    isSpeaking = false
+                }
+                override fun onError(utteranceId: String?) {
+                    isSpeaking = false
+                }
+            })
+            val speakRes = tts.speak(
+                "चाय पंचायत में आपका स्वागत है। निष्पक्ष और निर्भीक पत्रकारिता का नया दौर।",
+                TextToSpeech.QUEUE_FLUSH,
+                null,
+                "welcome_intro"
+            )
+            if (speakRes == TextToSpeech.SUCCESS) {
+                isSpeaking = true
+            } else {
+                isSpeaking = false
+            }
+        }.onFailure {
+            isSpeaking = false
+            ttsAvailable = false
+        }
+    }
+
+    DisposableEffect(Unit) {
         onDispose {
-            tts?.stop()
-            tts?.shutdown()
+            runCatching {
+                ttsInstance?.stop()
+                ttsInstance?.shutdown()
+            }
+            ttsInstance = null
+            isSpeaking = false
         }
     }
 
@@ -597,7 +644,12 @@ private fun WhimsicalAudioGreetingPreview() {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = if (isSpeaking) "ऑडियो बज रहा है..." else "शुद्ध हिन्दी में 5 सेकंड ऑडियो सार",
+                        text = when {
+                            isSpeaking -> "ऑडियो बज रहा है..."
+                            isInitializing -> "ऑडियो लोड हो रहा है..."
+                            !ttsAvailable -> "ऑडियो इंजन अनुपलब्ध (वैकल्पिक)"
+                            else -> "शुद्ध हिन्दी में 5 सेकंड ऑडियो सार"
+                        },
                         fontFamily = InterFamily,
                         fontSize = 11.sp,
                         color = ChaiTheme.extended.brandText
@@ -609,24 +661,50 @@ private fun WhimsicalAudioGreetingPreview() {
                 onClick = {
                     haptics.click()
                     if (isSpeaking) {
-                        ttsInstance?.stop()
-                        isSpeaking = false
+                        stopSpeaking()
                     } else {
-                        ttsInstance?.speak(
-                            "चाय पंचायत में आपका स्वागत है। निष्पक्ष और निर्भीक पत्रकारिता का नया दौर।",
-                            TextToSpeech.QUEUE_FLUSH,
-                            null,
-                            "welcome_intro"
-                        )
-                        isSpeaking = true
+                        val currentTts = ttsInstance
+                        if (currentTts != null) {
+                            startSpeaking(currentTts)
+                        } else {
+                            isInitializing = true
+                            runCatching {
+                                var newTts: TextToSpeech? = null
+                                newTts = TextToSpeech(context.applicationContext) { status ->
+                                    isInitializing = false
+                                if (status == TextToSpeech.SUCCESS) {
+                                    val readyTts = newTts
+                                    if (readyTts != null) {
+                                        ttsInstance = readyTts
+                                        startSpeaking(readyTts)
+                                    } else {
+                                        ttsAvailable = false
+                                        isSpeaking = false
+                                    }
+                                } else {
+                                    ttsAvailable = false
+                                    isSpeaking = false
+                                }
+                                }
+                            }.onFailure {
+                                isInitializing = false
+                                ttsAvailable = false
+                                isSpeaking = false
+                            }
+                        }
                     }
                 },
+                enabled = ttsAvailable,
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ChaiAmber),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = if (isSpeaking) "रोकें" else "सुनें",
+                    text = when {
+                        isSpeaking -> "रोकें"
+                        isInitializing -> "..."
+                        else -> "सुनें"
+                    },
                     fontSize = 12.sp,
                     fontFamily = InterFamily,
                     fontWeight = FontWeight.Bold
@@ -1534,6 +1612,7 @@ private fun WhimsicalAtmosphereBackdrop(
     ) {
         val w = size.width
         val h = size.height
+        if (w <= 0f || h <= 0f) return@Canvas
 
         val particleColors = listOf(
             ChaiSaffron.copy(alpha = 0.08f),

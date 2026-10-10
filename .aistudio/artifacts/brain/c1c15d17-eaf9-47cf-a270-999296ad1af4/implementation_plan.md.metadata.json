@@ -1,0 +1,6 @@
+{
+  "summary":  "Emergency hotfix and adaptive display plan for Chai Panchayat v2.2.2 (Build 6). Resolves fresh-install onboarding launch crashes via resilient lazy TextToSpeech initialization, implements adaptive curved and waterfall display safe gutters, cleans up deprecated edge-to-edge/orientation parameters for Android 15 and 16, and bumps release versioning.",
+  "updatedAt":  "2026-10-10T15:25:59.995372659Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

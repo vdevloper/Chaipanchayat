@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -729,7 +730,9 @@ fun ArticleScreen(
             Surface(
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 8.dp,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
             ) {
                 Row(
                     modifier = Modifier

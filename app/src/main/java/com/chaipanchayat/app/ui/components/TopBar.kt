@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -39,24 +41,29 @@ fun TopBar(
     title: String? = null,
     rightActions: @Composable RowScope.() -> Unit = {}
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Gradient ribbon on top
-        Box(
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(3.dp)
-                .background(ChaiBrandGradient)
-        )
-
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth()
+                .statusBarsPadding()
+                .displayCutoutPadding()
         ) {
+            // Gradient ribbon on top
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(ChaiBrandGradient)
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(58.dp)
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(

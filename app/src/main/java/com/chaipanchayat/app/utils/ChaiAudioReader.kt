@@ -34,25 +34,33 @@ class ChaiAudioReader(context: Context) {
     private var currentSentenceIndex = 0
 
     init {
-        tts = TextToSpeech(appContext) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                isTtsInitialized = true
-                val hindiLocale = Locale("hi", "IN")
-                val langResult = tts?.setLanguage(hindiLocale)
-                if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    tts?.setLanguage(Locale.getDefault())
-                }
-                tts?.setSpeechRate(0.95f) // Natural pacing for Hindi news reading
-                tts?.setPitch(1.0f)
-                setupUtteranceListener()
+        try {
+            tts = TextToSpeech(appContext) { status ->
+                try {
+                    if (status == TextToSpeech.SUCCESS) {
+                        isTtsInitialized = true
+                        val hindiLocale = Locale("hi", "IN")
+                        val langResult = tts?.setLanguage(hindiLocale)
+                        if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                            tts?.setLanguage(Locale.getDefault())
+                        }
+                        tts?.setSpeechRate(0.95f) // Natural pacing for Hindi news reading
+                        tts?.setPitch(1.0f)
+                        setupUtteranceListener()
 
-                if (pendingPlayWhenReady) {
-                    pendingPlayWhenReady = false
-                    startSpeakingFromCurrent()
+                        if (pendingPlayWhenReady) {
+                            pendingPlayWhenReady = false
+                            startSpeakingFromCurrent()
+                        }
+                    } else {
+                        _playState.value = PlayState.ERROR
+                    }
+                } catch (_: Exception) {
+                    _playState.value = PlayState.ERROR
                 }
-            } else {
-                _playState.value = PlayState.ERROR
             }
+        } catch (_: Exception) {
+            _playState.value = PlayState.ERROR
         }
     }
 
