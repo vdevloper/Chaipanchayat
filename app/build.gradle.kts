@@ -13,8 +13,8 @@ android {
         applicationId = "com.chaipanchayat.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "2.2.0"
+        versionCode = 5
+        versionName = "2.2.1"
     }
 
     signingConfigs {
@@ -31,7 +31,8 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
