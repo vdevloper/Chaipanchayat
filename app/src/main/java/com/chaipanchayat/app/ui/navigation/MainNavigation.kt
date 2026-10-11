@@ -91,7 +91,8 @@ private data class TabBarItem(
 
 @Composable
 fun MainAppNavigation(
-    initialArticleId: Long? = null
+    initialArticleId: Long? = null,
+    onArticleOpened: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val settingsRepo = remember { SettingsRepository.getInstance(context) }
@@ -102,6 +103,7 @@ fun MainAppNavigation(
     androidx.compose.runtime.LaunchedEffect(initialArticleId) {
         if (initialArticleId != null && initialArticleId > 0L) {
             rootNavController.navigate(NavRoutes.articleRoute(initialArticleId))
+            onArticleOpened()
         }
     }
 

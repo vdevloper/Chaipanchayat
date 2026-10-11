@@ -204,15 +204,11 @@ fun NewsCard(
                         IconButton(
                             onClick = {
                                 haptics.click()
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(
-                                        Intent.EXTRA_TEXT,
-                                        "${post.cleanTitle}\n\nपूरी खबर पढ़ें: ${post.link}\n\nचाय पंचायत - www.chaipanchayat.com"
-                                    )
-                                    type = "text/plain"
-                                }
-                                context.startActivity(Intent.createChooser(sendIntent, "खबर शेयर करें"))
+                                val sendIntent = com.chaipanchayat.app.utils.DeepLinkManager.createShareIntent(
+                                    postId = post.id,
+                                    cleanTitle = post.cleanTitle
+                                )
+                                context.startActivity(Intent.createChooser(sendIntent, "चाय पंचायत खबर शेयर करें"))
                             },
                             modifier = Modifier.size(28.dp)
                         ) {

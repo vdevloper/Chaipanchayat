@@ -829,13 +829,11 @@ fun ArticleScreen(
                         modifier = Modifier
                             .clickable {
                                 haptics.click()
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, "${currentPost.cleanTitle}\n\nपूरी खबर: ${currentPost.link}\n\nचाय पंचायत")
-                                    putExtra(Intent.EXTRA_SUBJECT, currentPost.cleanTitle)
-                                    type = "text/plain"
-                                }
-                                val shareIntent = Intent.createChooser(sendIntent, "खबर शेयर करें")
+                                val sendIntent = com.chaipanchayat.app.utils.DeepLinkManager.createShareIntent(
+                                    postId = currentPost.id,
+                                    cleanTitle = currentPost.cleanTitle
+                                )
+                                val shareIntent = Intent.createChooser(sendIntent, "चाय पंचायत खबर शेयर करें")
                                 context.startActivity(shareIntent)
                             }
                             .padding(horizontal = 10.dp, vertical = 6.dp)

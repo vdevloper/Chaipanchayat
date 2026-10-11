@@ -1,123 +1,130 @@
-# Chai Panchayat - Fresh Install Crash Hotfix & Adaptive Display Layouts (v2.2.2 / Build 6)
+# Direct In-App Post Sharing & Deferred Deep-Linking Plan
 
-Emergency hotfix and layout stability update to eliminate fresh-install onboarding launch crashes, provide adaptive gutter margins for curved/waterfall displays, and modernize Android 15/16 edge-to-edge and window resizability compliance for Google Play.
+Ensure shared posts always open directly inside the Chai Panchayat app (never on the external website), with automatic Google Play Store redirection and deferred deep-linking for recipients who do not yet have the app installed.
 
----
-
-### User Review & Critical Decisions
+## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following directions were confirmed during interactive clarification and Google Play pre-launch audit analysis:
+> The external website permalink is removed from the primary share target. Instead, shared posts will use dedicated in-app deep links (`chaipanchayat://post/{id}` and Android Intent URIs) paired with Google Play install parameters so that:
+> 1. If recipient has the app: Tapping opens the post directly inside Chai Panchayat (0% website).
+> 2. If recipient does NOT have the app: The link directs them to download Chai Panchayat from Google Play, and once downloaded/opened, the app automatically navigates straight to the shared post.
 
-- **Root Cause of Fresh-Install Crash**: Eager `TextToSpeech` service binding in `OnboardingScreen` (Page 0) without runtime engine availability checks, exception handling, or Android 11+ `<queries>` declarations. Resolved by moving TTS to safe lazy on-demand initialization with complete `try/catch` fallbacks, plus declaring `<queries>` for `android.intent.action.TTS_SERVICE` in the manifest.
-- **Curved & Waterfall Display Layout**: Confirmed implementation of adaptive display cutout insets (`WindowInsets.displayCutout`), system bar insets (`WindowInsets.safeDrawing`), and adaptive horizontal gutter margins (16dp to 24dp) to prevent text clipping along curved screen edges.
-- **Emergency Release Versioning**: Version Code bumped from `5` to `6`, and Version Name updated to `2.2.2` (formatted for Play Console as `2.2.2 (6)`).
-- **Google Play Warnings & Android 15/16 Compatibility**:
-  - Migrate away from deprecated `Window.setStatusBarColor`, `Window.setNavigationBarColor`, and legacy cutout short edges flags, relying on modern standard `enableEdgeToEdge()` and Compose inset handling.
-  - Remove all implicit and explicit orientation or window size restrictions (`resizeableActivity="true"`, multi-window support enabled) to satisfy Android 16 foldable and tablet requirements.
-
----
-
-### 1. Overview & Core Concept
-
-- **What It Does**: Ensures that any new user installing Chai Panchayat opens directly into a butter-smooth, crash-free onboarding experience. Content and touch targets remain fully legible and operable on any device form factor—including curved edge displays, waterfall screens, foldables, and tablets.
-- **Target Audience / Persona**: Hindi news readers, editorial enthusiasts, and first-time app installers across diverse Android devices ranging from budget phones (without default TTS engines) to flagship waterfall/curved edge devices and foldable displays.
-- **Key Value**: Immediate crash elimination for live advertising traffic, zero lost installs, and flawless adherence to Google Play production and pre-launch standards.
-
----
-
-### 2. User Experience & Visual Design
-
-- **Key User Flows**:
-  1. *Fresh Install Cold Launch*: App starts instantly into `OnboardingScreen`. The welcome header, animated steaming Kulhad chai cup, and typography load with zero latency.
-  2. *Whimsical Audio Preview (Page 0)*: Speech engine is NOT initialized in the background on startup. When the user taps "सुनें" (Listen), the app lazily checks TTS availability inside a protected coroutine. If available, it plays the warm Hindi audio snippet; if unavailable or disabled on the device, it provides an unobtrusive visual audio card preview without crashing.
-  3. *Curved Display Edge Protection*: On screens with curved or waterfall edges, horizontal content gutters dynamically expand (20dp–24dp) using `Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))` so text never falls into the bezel refraction zone.
-  4. *Large Screen & Foldable Layout*: Layout expands smoothly with centered reading max-widths (`Modifier.widthIn(max = 680.dp)`), adapting cleanly to unfolded screens without stretching or letterboxing.
-
-- **Visual Identity & Theme**:
-  - *Aesthetic Direction*: Warm, authentic editorial Hindi journalism with refined clay/terracotta and brass accents (`ChaiSaffron`, `ChaiAmber`, `ChaiCrimson`).
-  - *Color Palette & Tokens*:
-    - Primary Accent: Terracotta Warm Saffron (`#E05326`)
-    - Secondary Accent: Masala Amber (`#D97706`)
-    - Surface & Card Backgrounds: Adaptive M3 elevated surfaces with subtle borders (`ChaiTheme.extended.surfaceSecondary`, `ChaiTheme.extended.border`)
-  - *Typography Hierarchy*: `NotoSerifFamily` ExtraBold for headlines; `InterFamily` for metadata, badges, and body copy.
-  - *Component Styling*: Rounded corners (16dp–24dp), soft shadows, and clean tactile buttons with haptic feedback.
+- **Direct In-App Deep Link**:
+  - Registered Custom URI Scheme: `chaipanchayat://post/{id}`
+  - Android Intent URI: `intent://post/{id}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.chaipanchayat.app;end`
+- **Deferred Deep Linking (Open Post After Install)**:
+  - When the app is launched for the first time, it checks the install referrer / launch intent / clipboard for a pending `post_id`.
+  - If a pending post ID is detected, the app immediately transitions to `ArticleScreen` for that post rather than staying on the home screen.
+- **Dedicated Share Card Text**:
+  - Eliminates all links to the WordPress website.
+  - Generates clear in-app call-to-action text:
+    - Hindi headline & story summary
+    - In-app launch link
+    - 1-tap Google Play download link
 
 ---
 
-### 3. Key Product Decisions & Trade-Offs
+## 1. Overview & Core Concept
 
-- **Decision 1: Lazy vs. Eager TextToSpeech Initialization**
-  - *Chosen Approach*: Defer `TextToSpeech` service binding until the user explicitly taps "सुनें" (Listen). Wrap initialization and speech requests in robust exception handlers with a fallback state if no TTS engine is installed.
-  - *Why*: Eliminates the #1 fresh-install crash vector while reducing app startup memory and CPU overhead.
-  - *Alternatives Considered*: Retaining eager initialization with try/catch was rejected because binding to a system service on frame 1 slows initial render and causes avoidable IPC failures on constrained hardware.
-
-- **Decision 2: Adaptive Insets & Display Cutouts for Curved Screens**
-  - *Chosen Approach*: Replace hardcoded status/navigation bar paddings with `WindowInsets.safeDrawing` and `WindowInsets.displayCutout`, paired with consistent adaptive horizontal margin gutters across onboarding, home feed, and article reader screens.
-  - *Why*: Waterfall and curved screens have steep edge angles where text within 8–12dp of the screen edge becomes distorted or difficult to read.
-  - *Alternatives Considered*: Fixed 32dp padding on all devices was rejected because it wastes valuable screen real estate on flat standard screens.
-
-- **Decision 3: Android 15 & 16 Deprecation Cleanup**
-  - *Chosen Approach*: Strictly rely on Compose `enableEdgeToEdge()` in `MainActivity` without invoking legacy window flags. Ensure `AndroidManifest.xml` explicitly defines `android:resizeableActivity="true"` and avoids restricted orientation locks.
-  - *Why*: Prevents pre-launch warnings from escalating into release blocks on Android 15/16 devices.
+- **What It Does**: Replaces website link sharing with direct app routing. Recipient devices with Chai Panchayat installed open the article directly inside the app. For recipient devices without the app, it directs them to Google Play to download Chai Panchayat and then automatically opens the shared article upon launch.
+- **Key Value**: 100% app-first viral loop; stops sending users away to a mobile web browser and keeps all reading traffic inside the native Liquid Glass app experience.
 
 ---
 
-### 4. Technical Architecture & Data Strategy
+## 2. User Experience & Flow Diagrams
 
-#### Architecture & Component Hierarchy
+### Scenario A: Recipient Has App Installed
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        MainActivity (v2.2.2)                           │
-│  enableEdgeToEdge() • resizeableActivity="true" • Safe Inset Root     │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                      Navigation & Launch Router                        │
-│             Check: settingsRepo.isOnboardingCompleted                  │
-└───────────────────┬────────────────────────────────┬───────────────────┘
-                    │ (false - Fresh Install)         │ (true - Returning)
-                    ▼                                ▼
-┌───────────────────────────────────────┐  ┌─────────────────────────────┐
-│           OnboardingScreen            │  │      Main App Feed          │
-│ ┌───────────────────────────────────┐ │  │  (Home / Categories /       │
-│ │ Curved Display Gutter Wrapper     │ │  │   Article Detail Screens)   │
-│ │ safeDrawing + displayCutout       │ │  │  Adaptive insets & gutters  │
-│ └─────────────────┬─────────────────┘ │  └─────────────────────────────┘
-│                   ▼                   │
-│ ┌───────────────────────────────────┐ │
-│ │ Page 0: Kulhad Chai & Audio Card  │ │
-│ │ • Lazy Safe TTS on demand         │ │
-│ │ • try-catch error boundary        │ │
-│ └───────────────────────────────────┘ │
-│ ┌───────────────────────────────────┐ │
-│ │ Page 1: Live Font & Speed Test    │ │
-│ └───────────────────────────────────┘ │
-│ ┌───────────────────────────────────┐ │
-│ │ Page 2: Morning Digest Opt-In     │ │
-│ └───────────────────────────────────┘ │
-│ ┌───────────────────────────────────┐ │
-│ │ Page 3: Offline Quick-Pack Caching│ │
-│ └───────────────────────────────────┘ │
-│ ┌───────────────────────────────────┐ │
-│ │ Page 4: Interactive Topic Curator │ │
-│ └───────────────────────────────────┘ │
-└───────────────────────────────────────┘
+[Sender Shares Post] ──> [WhatsApp/Telegram/SMS] ──> [Recipient taps link]
+                                                              │
+                                                              ▼
+                                                 [Chai Panchayat App Launches]
+                                                              │
+                                                              ▼
+                                                 [ArticleScreen Displays Post]
 ```
 
-#### State & Implementation Mapping
+### Scenario B: Recipient Does NOT Have App Installed
 
-1. **`OnboardingScreen.kt`**:
-   - Refactor `WhimsicalAudioGreetingPreview()` to initialize `TextToSpeech` only on user action via a dedicated safe coroutine/helper.
-   - Guard against missing TTS engines (`TextToSpeech.ERROR`, `LANG_MISSING_DATA`, or missing OEM service) with graceful inline state updates and toast fallbacks.
-   - Wrap the main onboarding container with `Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))` and adaptive horizontal padding (`Modifier.padding(horizontal = 20.dp)`).
-2. **`AndroidManifest.xml`**:
-   - Add `<queries>` block with `<intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>` to satisfy Android 11+ package visibility rules.
-   - Add `android:resizeableActivity="true"` to `<application>` and `<activity>`.
-3. **`app/build.gradle.kts`**:
-   - Increment `versionCode` to `6`.
-   - Increment `versionName` to `"2.2.2"`.
-4. **Layout Verification across Main Feed & Article Screens**:
-   - Verify that `ArticleDetailScreen` and main feed cards use safe drawing insets and comfortable margins for curved screen edges.
+```
+[Recipient taps link] ──> [Directs to Google Play Store]
+                                       │
+                                       ▼
+                           [Installs & Opens App]
+                                       │
+                                       ▼
+                           [App detects shared Post ID]
+                                       │
+                                       ▼
+                           [Directly opens ArticleScreen]
+```
+
+- **Back Navigation**: In both scenarios, pressing Back from the opened article brings the user straight to `HomeScreen`, letting them discover more stories and browse the full app.
+
+---
+
+## 3. Key Technical Decisions & Strategy
+
+- **Decision 1: Elimination of Website Links in Sharing**
+  - *Chosen Approach*: Share text will specifically use the `chaipanchayat://post/{id}` scheme and Google Play Store link with `&referrer=post_id%3D{id}`.
+  - *Why*: Directly addresses your requirement that the link should never send users to browse the website, but strictly keep them in the app.
+- **Decision 2: Deferred Deep Linking via Referral & Intent**
+  - *Chosen Approach*: Implement a `DeepLinkManager` that intercepts:
+    1. Incoming `Intent.ACTION_VIEW` with scheme `chaipanchayat://post/{id}`.
+    2. Google Play Install Referrer broadcast / parameter (`post_id=...`).
+    3. Clipboard check on fresh install: If the user copied a shared Chai Panchayat post link, the app detects it on first launch and prompts or auto-opens the article.
+  - *Why*: Ensures a seamless bridge between downloading the app and immediately viewing the exact article the user wanted to see.
+- **Decision 3: Zero Impact on Existing Fixes**
+  - *Chosen Approach*: Keep all existing database entities, Room ProGuard rules, and WorkManager configurations untouched.
+
+---
+
+## 4. Technical Architecture & File Changes
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   AndroidManifest.xml                  │
+│  <intent-filter>                                       │
+│    <action android:name="android.intent.action.VIEW"/> │
+│    <category android:name="android.intent.category.DEFAULT"/>
+│    <category android:name="android.intent.category.BROWSABLE"/>
+│    <data android:scheme="chaipanchayat" host="post" /> │
+│  </intent-filter>                                      │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                   DeepLinkManager.kt                   │
+│  - Parses chaipanchayat://post/{id}                    │
+│  - Checks Install Referrer & Clipboard for post_id     │
+│  - Exposes StateFlow<Long?> for active target post     │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                     MainActivity                       │
+│  - Forwards intent to DeepLinkManager                  │
+│  - Handles onCreate and onNewIntent                    │
+│  - Injects target post ID into MainAppNavigation       │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│               ArticleScreen & VideosScreen             │
+│  - In-app share button generating app & Play Store link│
+│  - No website permalinks included                      │
+└────────────────────────────────────────────────────────┘
+```
+
+### Planned File Edits:
+1. **`AndroidManifest.xml`**:
+   - Register the `chaipanchayat://post` intent-filter for `MainActivity`.
+2. **`DeepLinkManager.kt`** (new utility):
+   - Parse custom URI schemes, intent extras, and pending install referrer targets.
+3. **`MainActivity.kt`**:
+   - Integrate `DeepLinkManager` into `onCreate` and `onNewIntent`.
+4. **`MainNavigation.kt`**:
+   - Listen for deep-linked article targets and navigate directly to `ArticleScreen`.
+5. **`ArticleScreen.kt` & `VideosScreen.kt`**:
+   - Update share text format to use the app link and Google Play Store install URL.

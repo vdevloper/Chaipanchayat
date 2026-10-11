@@ -316,7 +316,7 @@ fun SettingsScreen(
             )
             SettingsInfoRow(
                 title = "App Version",
-                value = "2.1 (Chai Editorial)"
+                value = "2.2.3 (v8)"
             )
         }
     }

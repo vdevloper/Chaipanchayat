@@ -791,13 +791,10 @@ private fun VideoPlayerSheet(
 }
 
 private fun shareVideo(context: android.content.Context, video: VideoItem) {
-    val sendIntent = Intent().apply {
-        action = Intent.ACTION_SEND
-        putExtra(
-            Intent.EXTRA_TEXT,
-            "${video.title}\n\nवीडियो देखें: ${video.youtubeUrl}\n\nचाय पंचायत - www.chaipanchayat.com"
-        )
-        type = "text/plain"
-    }
-    context.startActivity(Intent.createChooser(sendIntent, "वीडियो शेयर करें"))
+    val targetId = if (video.articleId != null && video.articleId > 0) video.articleId else video.id
+    val sendIntent = com.chaipanchayat.app.utils.DeepLinkManager.createShareIntent(
+        postId = targetId,
+        cleanTitle = video.title
+    )
+    context.startActivity(Intent.createChooser(sendIntent, "चाय पंचायत वीडियो शेयर करें"))
 }
