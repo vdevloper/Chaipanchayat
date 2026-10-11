@@ -203,20 +203,27 @@ object DeepLinkManager {
 
     /**
      * Builds a clean, fully clickable share message for WhatsApp, Telegram, SMS, etc.
-     * Uses the Firebase Hosting smart link https://gen-lang-client-0700030242.web.app/post/$postId
-     * which renders as a 100% clickable hyperlink everywhere and induces the native Android intent directly.
+     * Includes:
+     * 1) Smart In-App Link (Firebase Hosting intent redirector): https://gen-lang-client-0700030242.web.app/post/$postId
+     * 2) Official Website Article Link: https://chaipanchayat.com/?p=$postId (or post permalink)
+     * 3) App Download Link (Google Play Store)
      */
     fun buildShareMessage(postId: Long, cleanTitle: String, permalink: String? = null): String {
         val firebaseSmartLink = "https://gen-lang-client-0700030242.web.app/post/$postId"
+        val websiteLink = if (!permalink.isNullOrBlank()) permalink.trim() else "https://chaipanchayat.com/?p=$postId"
         val playStoreUrl = "https://play.google.com/store/apps/details?id=$APP_PACKAGE"
 
         return buildString {
             append("🔥 ")
             append(cleanTitle.trim())
             append("\n\n")
-            append("📲 ऐप में सीधे पढ़ें (Tap to Open):")
+            append("📲 ऐप में सीधे पढ़ें (Open in App):")
             append("\n")
             append(firebaseSmartLink)
+            append("\n\n")
+            append("🌐 वेबसाइट पर पढ़ें (Read on Web):")
+            append("\n")
+            append(websiteLink)
             append("\n\n")
             append("📥 चाय पंचायत ऐप डाउनलोड करें:")
             append("\n")
@@ -231,13 +238,16 @@ object DeepLinkManager {
      */
     fun buildHtmlShareMessage(postId: Long, cleanTitle: String, permalink: String? = null): String {
         val firebaseSmartLink = "https://gen-lang-client-0700030242.web.app/post/$postId"
+        val websiteLink = if (!permalink.isNullOrBlank()) permalink.trim() else "https://chaipanchayat.com/?p=$postId"
         val playStoreUrl = "https://play.google.com/store/apps/details?id=$APP_PACKAGE"
         val safeTitle = cleanTitle.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").trim()
 
         return """
             <p>🔥 <b>$safeTitle</b></p>
-            <p>📲 <b>ऐप में सीधे पढ़ें (Tap to Open):</b><br/>
+            <p>📲 <b>ऐप में सीधे पढ़ें (Open in App):</b><br/>
             <a href="$firebaseSmartLink">$firebaseSmartLink</a></p>
+            <p>🌐 <b>वेबसाइट पर पढ़ें (Read on Web):</b><br/>
+            <a href="$websiteLink">$websiteLink</a></p>
             <p>📥 <b>चाय पंचायत ऐप डाउनलोड करें:</b><br/>
             <a href="$playStoreUrl">$playStoreUrl</a></p>
             <p><i>(चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)</i></p>

@@ -154,6 +154,10 @@
       📲 ऐप में सीधे पढ़ें (Open in App)
     </button>
 
+    <a id="webSiteBtn" class="btn btn-secondary" href="https://chaipanchayat.com" target="_blank" rel="noopener" style="margin-bottom: 12px;">
+      🌐 वेबसाइट पर पढ़ें (Read on Web)
+    </a>
+
     <a id="playStoreBtn" class="btn btn-secondary" href="https://play.google.com/store/apps/details?id=com.chaipanchayat.app" target="_blank" rel="noopener">
       📥 Google Play से ऐप डाउनलोड करें
     </a>
@@ -221,6 +225,10 @@
     window.addEventListener('DOMContentLoaded', function() {
       if (postId) {
         document.getElementById('statusMsg').innerText = `पोस्ट #${postId} ऐप में खोली जा रही है...`;
+        const webBtn = document.getElementById('webSiteBtn');
+        if (webBtn) {
+          webBtn.href = `https://chaipanchayat.com/?p=${postId}`;
+        }
       }
       setTimeout(launchApp, 250);
     });
