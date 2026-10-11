@@ -61,7 +61,8 @@ import kotlinx.coroutines.delay
 fun BreakingNewsTicker(
     posts: List<WPPost>,
     onPostClick: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    translatedTitles: Map<Long, String> = emptyMap()
 ) {
     if (posts.isEmpty()) return
 
@@ -151,7 +152,7 @@ fun BreakingNewsTicker(
                 label = "ticker_headline"
             ) { targetPost ->
                 Text(
-                    text = targetPost.cleanTitle,
+                    text = translatedTitles[targetPost.id] ?: targetPost.cleanTitle,
                     fontFamily = InterFamily,
                     fontWeight = FontWeight.Medium,
                     fontSize = 12.5.sp,

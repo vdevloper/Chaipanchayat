@@ -93,14 +93,24 @@ class ChaiAudioReader(context: Context) {
         })
     }
 
-    fun prepareAndPlay(title: String, contentHtml: String) {
+    fun prepareAndPlay(title: String, contentHtml: String, locale: Locale? = null) {
+        val targetLocale = locale ?: Locale("hi", "IN")
+        try {
+            val result = tts?.setLanguage(targetLocale)
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                tts?.setLanguage(Locale.ENGLISH)
+            }
+        } catch (_: Exception) {}
+
         val plainContent = HtmlUtils.stripHtml(contentHtml)
             .replace(Regex("https?://\\S+"), "")
             .replace(Regex("[\\[\\](){}]"), "")
             .replace(Regex("\\s+"), " ")
             .trim()
 
-        val fullText = "चाय पंचायत समाचार। $title। $plainContent"
+        val isEnglish = targetLocale.language == "en"
+        val prefix = if (isEnglish) "Chai Panchayat News. " else "चाय पंचायत समाचार। "
+        val fullText = "$prefix$title। $plainContent"
 
         // Split by Hindi and English sentence terminators
         val rawSentences = fullText.split(Regex("[।\n.!?]+"))
@@ -150,11 +160,11 @@ class ChaiAudioReader(context: Context) {
         }
     }
 
-    fun togglePlayPause(title: String, contentHtml: String) {
+    fun togglePlayPause(title: String, contentHtml: String, locale: Locale? = null) {
         when (_playState.value) {
             PlayState.PLAYING -> pause()
             PlayState.PAUSED -> resume()
-            PlayState.COMPLETED, PlayState.IDLE, PlayState.ERROR -> prepareAndPlay(title, contentHtml)
+            PlayState.COMPLETED, PlayState.IDLE, PlayState.ERROR -> prepareAndPlay(title, contentHtml, locale)
             PlayState.PREPARING -> {}
         }
     }

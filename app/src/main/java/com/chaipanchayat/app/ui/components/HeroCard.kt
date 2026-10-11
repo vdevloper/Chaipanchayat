@@ -69,7 +69,8 @@ import kotlinx.coroutines.launch
 fun HeroCard(
     post: WPPost,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    displayTitle: String? = null
 ) {
     val cardShape = RoundedCornerShape(10.dp)
     val haptics = rememberChaiHaptics()
@@ -198,9 +199,9 @@ fun HeroCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Prestigious Editorial Devanagari Title
+                // Prestigious Editorial Title
                 Text(
-                    text = post.cleanTitle,
+                    text = displayTitle ?: post.cleanTitle,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = NotoSerifFamily,
                     fontWeight = FontWeight.Bold,

@@ -23,9 +23,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,9 +55,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.model.WPPost
 import com.chaipanchayat.app.data.repository.NewsRepository
+import com.chaipanchayat.app.data.repository.SettingsRepository
 import com.chaipanchayat.app.ui.components.BreakingNewsTicker
 import com.chaipanchayat.app.ui.components.CategoryChipItem
 import com.chaipanchayat.app.ui.components.CategoryChips
@@ -67,11 +73,15 @@ import com.chaipanchayat.app.ui.components.NewStoriesPill
 import com.chaipanchayat.app.ui.components.NewsCard
 import com.chaipanchayat.app.ui.components.NewsCardSkeleton
 import com.chaipanchayat.app.ui.components.OfflineBanner
+import androidx.compose.ui.text.style.TextOverflow
+import com.chaipanchayat.app.data.api.TranslationService
 import com.chaipanchayat.app.ui.components.TodayChaiDigest
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
+import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
+import com.chaipanchayat.app.ui.theme.LocalChaiStrings
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,7 +91,17 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { NewsRepository.getInstance() }
+    val settingsRepo = remember { SettingsRepository.getInstance(context) }
+    val currentAppLang by settingsRepo.appLanguage.collectAsState()
+    val showOriginalHindi by settingsRepo.showOriginalHindi.collectAsState()
+    val strings = LocalChaiStrings.current
+    var showLanguagePicker by remember { mutableStateOf(false) }
+
+    var translatedTitles by remember { mutableStateOf<Map<Long, String>>(emptyMap()) }
+    var isTranslatingFeed by remember { mutableStateOf(false) }
+
     val initialCachedPosts = remember { repository.getCachedPosts(null).orEmpty() }
     val initialCachedCats = remember { repository.getCachedCategories().orEmpty() }
 
@@ -103,6 +123,27 @@ fun HomeScreen(
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // Auto-translate feed headlines when global language is not Hindi
+    LaunchedEffect(posts, currentAppLang, showOriginalHindi) {
+        if (currentAppLang != com.chaipanchayat.app.data.model.AppLanguage.HINDI && !showOriginalHindi && posts.isNotEmpty()) {
+            isTranslatingFeed = true
+            try {
+                val batch = TranslationService.translatePostsTitles(posts, currentAppLang)
+                translatedTitles = batch
+            } catch (_: Exception) {
+            } finally {
+                isTranslatingFeed = false
+            }
+        } else {
+            translatedTitles = emptyMap()
+            isTranslatingFeed = false
+        }
+    }
+
+    fun getHeadline(post: WPPost): String {
+        return if (showOriginalHindi) post.cleanTitle else (translatedTitles[post.id] ?: post.cleanTitle)
+    }
 
     suspend fun loadFeed(showLoader: Boolean = true) {
         val catId = if (selectedCategoryId == 0L) null else selectedCategoryId
@@ -176,6 +217,50 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Universal Language Switcher Pill (accessible to speakers of any language)
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.9f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            ChaiTheme.extended.border.copy(alpha = 0.6f)
+                        ),
+                        modifier = Modifier
+                            .height(36.dp)
+                            .clickable { showLanguagePicker = true }
+                            .testTag("header-language-button")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Language,
+                                contentDescription = "Language",
+                                tint = ChaiSaffron,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = currentAppLang.flag,
+                                fontSize = 13.5.sp
+                            )
+                            Text(
+                                text = currentAppLang.englishName,
+                                fontFamily = InterFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+
                     // Search Action Button
                     Surface(
                         shape = CircleShape,
@@ -240,9 +325,83 @@ fun HomeScreen(
         if (posts.isNotEmpty()) {
             BreakingNewsTicker(
                 posts = posts.take(6),
-                onPostClick = onNavigateToArticle
+                onPostClick = onNavigateToArticle,
+                translatedTitles = if (showOriginalHindi) emptyMap() else translatedTitles
             )
             HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
+        }
+
+        // Global Feed Translation Status & 1-Tap Original Hindi Toggle
+        if (currentAppLang != com.chaipanchayat.app.data.model.AppLanguage.HINDI) {
+            Surface(
+                color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.95f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(8.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (showOriginalHindi) ChaiCrimson.copy(alpha = 0.35f) else ChaiSaffron.copy(alpha = 0.4f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            imageVector = if (showOriginalHindi) Icons.Outlined.Language else Icons.Outlined.Translate,
+                            contentDescription = null,
+                            tint = if (showOriginalHindi) ChaiCrimson else ChaiSaffron,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = if (showOriginalHindi) {
+                                "🇮🇳 Showing Original Hindi"
+                            } else if (isTranslatingFeed) {
+                                "Translating feed to ${currentAppLang.englishName}..."
+                            } else {
+                                "Translated to ${currentAppLang.englishName}"
+                            },
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // 1-Tap Toggle Pill (localized so non-Hindi speakers understand)
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (showOriginalHindi) ChaiSaffron.copy(alpha = 0.15f) else ChaiCrimson.copy(alpha = 0.12f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (showOriginalHindi) ChaiSaffron.copy(alpha = 0.5f) else ChaiCrimson.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier
+                            .clickable { settingsRepo.toggleShowOriginalHindi() }
+                            .testTag("toggle-original-feed-button")
+                    ) {
+                        Text(
+                            text = if (showOriginalHindi) "🌐 ${strings.translate}" else "🇮🇳 ${strings.original}",
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            color = if (showOriginalHindi) ChaiSaffron else ChaiCrimson,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
         }
 
         // Offline notice
@@ -307,6 +466,7 @@ fun HomeScreen(
                                 HeroCard(
                                     post = heroPost,
                                     onClick = { onNavigateToArticle(heroPost.id) },
+                                    displayTitle = getHeadline(heroPost),
                                     modifier = Modifier.animateItem()
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -361,6 +521,7 @@ fun HomeScreen(
                                     NewsCard(
                                         post = post,
                                         onClick = { onNavigateToArticle(post.id) },
+                                        displayTitle = getHeadline(post),
                                         modifier = Modifier.animateItem()
                                     )
                                 }
@@ -371,6 +532,7 @@ fun HomeScreen(
                                     TodayChaiDigest(
                                         posts = posts.take(5),
                                         onPostClick = onNavigateToArticle,
+                                        translatedTitles = if (showOriginalHindi) emptyMap() else translatedTitles,
                                         modifier = Modifier.animateItem()
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -382,6 +544,7 @@ fun HomeScreen(
                                     NewsCard(
                                         post = post,
                                         onClick = { onNavigateToArticle(post.id) },
+                                        displayTitle = getHeadline(post),
                                         modifier = Modifier.animateItem()
                                     )
                                 }
@@ -391,6 +554,7 @@ fun HomeScreen(
                                     NewsCard(
                                         post = post,
                                         onClick = { onNavigateToArticle(post.id) },
+                                        displayTitle = getHeadline(post),
                                         modifier = Modifier.animateItem()
                                     )
                                 }
@@ -416,6 +580,16 @@ fun HomeScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 16.dp)
+            )
+        }
+
+        if (showLanguagePicker) {
+            com.chaipanchayat.app.ui.components.LanguagePickerSheet(
+                currentLanguage = currentAppLang,
+                onLanguageSelected = { lang ->
+                    settingsRepo.setAppLanguage(lang)
+                },
+                onDismiss = { showLanguagePicker = false }
             )
         }
     }

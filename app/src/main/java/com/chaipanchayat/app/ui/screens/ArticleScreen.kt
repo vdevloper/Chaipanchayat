@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -47,6 +48,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Verified
@@ -98,6 +100,7 @@ import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
+import com.chaipanchayat.app.ui.theme.LocalChaiStrings
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.utils.ChaiAudioReader
 import com.chaipanchayat.app.utils.ChaiHaptics
@@ -105,6 +108,7 @@ import com.chaipanchayat.app.utils.DateUtils
 import com.chaipanchayat.app.utils.rememberChaiHaptics
 import kotlinx.coroutines.launch
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ArticleScreen(
     postId: Long,
@@ -123,6 +127,45 @@ fun ArticleScreen(
     var isLoading by remember { mutableStateOf(true) }
     var isError by remember { mutableStateOf(false) }
 
+    val appLanguage by settingsRepo.appLanguage.collectAsState()
+    val showOriginalHindi by settingsRepo.showOriginalHindi.collectAsState()
+    val strings = LocalChaiStrings.current
+    var targetLanguage by remember(appLanguage) {
+        mutableStateOf(if (appLanguage != com.chaipanchayat.app.data.model.AppLanguage.HINDI) appLanguage else com.chaipanchayat.app.data.model.AppLanguage.ENGLISH)
+    }
+    var isTranslated by remember { mutableStateOf(false) }
+    var isTranslating by remember { mutableStateOf(false) }
+    var translatedArticle by remember { mutableStateOf<com.chaipanchayat.app.data.api.TranslatedArticle?>(null) }
+    var showLanguagePickerSheet by remember { mutableStateOf(false) }
+
+    // Auto-translate article when global language is non-Hindi and user hasn't toggled original Hindi
+    LaunchedEffect(post, appLanguage, showOriginalHindi) {
+        val p = post
+        if (p != null && appLanguage != com.chaipanchayat.app.data.model.AppLanguage.HINDI && !showOriginalHindi) {
+            targetLanguage = appLanguage
+            isTranslating = true
+            try {
+                val cached = com.chaipanchayat.app.data.api.TranslationService.getCachedArticle(p.id, appLanguage)
+                val result = cached ?: com.chaipanchayat.app.data.api.TranslationService.translateArticle(
+                    postId = p.id,
+                    title = p.cleanTitle,
+                    excerpt = p.cleanExcerpt,
+                    content = p.rawContent,
+                    targetLang = appLanguage
+                )
+                translatedArticle = result
+                isTranslated = true
+            } catch (_: Exception) {
+                isTranslated = false
+            } finally {
+                isTranslating = false
+            }
+        } else if (showOriginalHindi || appLanguage == com.chaipanchayat.app.data.model.AppLanguage.HINDI) {
+            isTranslated = false
+            isTranslating = false
+        }
+    }
+
     val audioReader = remember { ChaiAudioReader(context) }
     DisposableEffect(Unit) {
         onDispose {
@@ -135,6 +178,41 @@ fun ArticleScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     var showContactDialog by remember { mutableStateOf(false) }
+
+    fun toggleTranslation(target: com.chaipanchayat.app.data.model.AppLanguage = targetLanguage) {
+        if (isTranslating || post == null) return
+        haptics.click()
+        if (isTranslated && target == targetLanguage) {
+            settingsRepo.setShowOriginalHindi(true)
+            isTranslated = false
+        } else {
+            settingsRepo.setShowOriginalHindi(false)
+            if (target != appLanguage) {
+                settingsRepo.setAppLanguage(target)
+            }
+            coroutineScope.launch {
+                isTranslating = true
+                targetLanguage = target
+                try {
+                    val p = post!!
+                    val cached = com.chaipanchayat.app.data.api.TranslationService.getCachedArticle(p.id, target)
+                    val result = cached ?: com.chaipanchayat.app.data.api.TranslationService.translateArticle(
+                        postId = p.id,
+                        title = p.cleanTitle,
+                        excerpt = p.cleanExcerpt,
+                        content = p.rawContent,
+                        targetLang = target
+                    )
+                    translatedArticle = result
+                    isTranslated = true
+                } catch (_: Exception) {
+                    isTranslated = false
+                } finally {
+                    isTranslating = false
+                }
+            }
+        }
+    }
 
     // Scroll progress calculation
     val scrollProgress by remember {
@@ -202,6 +280,91 @@ fun ArticleScreen(
             title = post?.primaryCategory,
             rightActions = {
                 post?.let { p ->
+                    // 1. Language Picker Pill (Universal: globe + flag + name + dropdown)
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.9f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            ChaiTheme.extended.border.copy(alpha = 0.7f)
+                        ),
+                        modifier = Modifier
+                            .clickable { showLanguagePickerSheet = true }
+                            .padding(end = 6.dp)
+                            .testTag("article-language-picker-button")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Language,
+                                contentDescription = "Language",
+                                tint = ChaiSaffron,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = targetLanguage.flag,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                text = targetLanguage.englishName,
+                                fontFamily = InterFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+
+                    // 2. 1-Tap Quick Toggle Pill (Localized for non-Hindi readers)
+                    if (targetLanguage != com.chaipanchayat.app.data.model.AppLanguage.HINDI) {
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isTranslated) ChaiCrimson.copy(alpha = 0.12f) else ChaiSaffron.copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isTranslated) ChaiCrimson.copy(alpha = 0.5f) else ChaiSaffron.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .clickable {
+                                    if (isTranslated) {
+                                        settingsRepo.setShowOriginalHindi(true)
+                                        isTranslated = false
+                                    } else {
+                                        settingsRepo.setShowOriginalHindi(false)
+                                        toggleTranslation(targetLanguage)
+                                    }
+                                }
+                                .padding(end = 4.dp)
+                                .testTag("article-toggle-original-button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isTranslating) {
+                                    ChaiBrewSpinner(modifier = Modifier.size(13.dp))
+                                } else {
+                                    Text(
+                                        text = if (isTranslated) "🇮🇳 ${strings.original}" else "🌐 ${strings.translate}",
+                                        fontFamily = InterFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = if (isTranslated) ChaiCrimson else ChaiSaffron
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     IconButton(
                         onClick = {
                             haptics.click()
@@ -289,9 +452,127 @@ fun ArticleScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                     }
 
+                    // Translation Status Banner (Fully Localized for non-Hindi users)
+                    if (isTranslating || isTranslated) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = ChaiSaffron.copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ChaiSaffron.copy(alpha = 0.45f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (isTranslating) {
+                                        ChaiBrewSpinner(modifier = Modifier.size(15.dp))
+                                    } else {
+                                        Text(text = targetLanguage.flag, fontSize = 16.sp)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (isTranslating) {
+                                            "Translating to ${targetLanguage.englishName}..."
+                                        } else {
+                                            "🌐 Translated to ${targetLanguage.englishName}"
+                                        },
+                                        fontFamily = InterFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp,
+                                        color = ChaiSaffron
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "🇮🇳 ${strings.showOriginal}",
+                                        fontFamily = InterFamily,
+                                        fontSize = 11.5.sp,
+                                        color = ChaiCrimson,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.clickable {
+                                            settingsRepo.setShowOriginalHindi(true)
+                                            isTranslated = false
+                                        }
+                                    )
+                                    Text(
+                                        text = "•",
+                                        color = ChaiTheme.extended.border
+                                    )
+                                    Text(
+                                        text = "${targetLanguage.englishName} ▾",
+                                        fontFamily = InterFamily,
+                                        fontSize = 11.5.sp,
+                                        color = ChaiSaffron,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.clickable { showLanguagePickerSheet = true }
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    } else if (showOriginalHindi && targetLanguage != com.chaipanchayat.app.data.model.AppLanguage.HINDI) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = ChaiCrimson.copy(alpha = 0.1f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, ChaiCrimson.copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(text = "🇮🇳", fontSize = 16.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Showing Original Hindi",
+                                        fontFamily = InterFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp,
+                                        color = ChaiCrimson
+                                    )
+                                }
+                                Text(
+                                    text = "🌐 ${strings.translate} (${targetLanguage.englishName})",
+                                    fontFamily = InterFamily,
+                                    fontSize = 11.5.sp,
+                                    color = ChaiSaffron,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable {
+                                        settingsRepo.setShowOriginalHindi(false)
+                                        toggleTranslation(targetLanguage)
+                                    }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
                     // Bold Editorial Headline
+                    val displayHeadline = if (isTranslated && translatedArticle != null) {
+                        translatedArticle!!.translatedTitle
+                    } else {
+                        currentPost.cleanTitle
+                    }
+
                     Text(
-                        text = currentPost.cleanTitle,
+                        text = displayHeadline,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontFamily = NotoSerifFamily,
                         fontWeight = FontWeight.ExtraBold,
@@ -365,7 +646,10 @@ fun ArticleScreen(
                             .padding(horizontal = 16.dp)
                             .clickable {
                                 haptics.medium()
-                                audioReader.togglePlayPause(currentPost.cleanTitle, currentPost.rawContent)
+                                val audioTitle = if (isTranslated && translatedArticle != null) translatedArticle!!.translatedTitle else currentPost.cleanTitle
+                                val audioBody = if (isTranslated && translatedArticle != null) translatedArticle!!.translatedContent else currentPost.rawContent
+                                val audioLocale = if (isTranslated) targetLanguage.locale else java.util.Locale("hi", "IN")
+                                audioReader.togglePlayPause(audioTitle, audioBody, audioLocale)
                             }
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -539,8 +823,14 @@ fun ArticleScreen(
                     }
 
                     // Native Parsed Article Body HTML
+                    val displayContent = if (isTranslated && translatedArticle != null) {
+                        translatedArticle!!.translatedContent
+                    } else {
+                        currentPost.rawContent
+                    }
+
                     ArticleHtmlView(
-                        html = currentPost.rawContent,
+                        html = displayContent,
                         multiplier = textSize.multiplier
                     )
 
@@ -848,7 +1138,7 @@ fun ArticleScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "शेयर",
+                                text = strings.share,
                                 fontFamily = InterFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
@@ -864,6 +1154,19 @@ fun ArticleScreen(
     if (showContactDialog) {
         ContactUsDialog(
             onDismiss = { showContactDialog = false }
+        )
+    }
+
+    if (showLanguagePickerSheet) {
+        com.chaipanchayat.app.ui.components.LanguagePickerSheet(
+            currentLanguage = targetLanguage,
+            onLanguageSelected = { selectedLang ->
+                showLanguagePickerSheet = false
+                settingsRepo.setAppLanguage(selectedLang)
+                targetLanguage = selectedLang
+                toggleTranslation(selectedLang)
+            },
+            onDismiss = { showLanguagePickerSheet = false }
         )
     }
 }

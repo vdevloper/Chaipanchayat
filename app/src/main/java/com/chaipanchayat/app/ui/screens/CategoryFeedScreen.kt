@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,15 +58,30 @@ fun CategoryFeedScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember { NewsRepository.getInstance() }
+    val settingsRepo = remember { com.chaipanchayat.app.data.repository.SettingsRepository.getInstance(context) }
+    val appLanguage by settingsRepo.appLanguage.collectAsState()
+    val showOriginalHindi by settingsRepo.showOriginalHindi.collectAsState()
     val initialCached = remember { repository.getCachedPosts(categoryId).orEmpty() }
 
     var posts by remember { mutableStateOf(initialCached) }
+    var translatedTitles by remember { mutableStateOf<Map<Long, String>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(initialCached.isEmpty()) }
     var isRefreshing by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(posts, appLanguage, showOriginalHindi) {
+        if (appLanguage != com.chaipanchayat.app.data.model.AppLanguage.HINDI && !showOriginalHindi && posts.isNotEmpty()) {
+            try {
+                translatedTitles = com.chaipanchayat.app.data.api.TranslationService.translatePostsTitles(posts, appLanguage)
+            } catch (_: Exception) {}
+        } else {
+            translatedTitles = emptyMap()
+        }
+    }
 
     suspend fun loadFeed(showLoader: Boolean = true) {
         val cached = repository.getCachedPosts(categoryId)
@@ -182,7 +198,8 @@ fun CategoryFeedScreen(
                             val hero = posts.first()
                             HeroCard(
                                 post = hero,
-                                onClick = { onNavigateToArticle(hero.id) }
+                                onClick = { onNavigateToArticle(hero.id) },
+                                displayTitle = if (showOriginalHindi) hero.cleanTitle else (translatedTitles[hero.id] ?: hero.cleanTitle)
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                         }
@@ -190,7 +207,8 @@ fun CategoryFeedScreen(
                         itemsIndexed(posts.drop(1), key = { _, post -> post.id }) { _, post ->
                             NewsCard(
                                 post = post,
-                                onClick = { onNavigateToArticle(post.id) }
+                                onClick = { onNavigateToArticle(post.id) },
+                                displayTitle = if (showOriginalHindi) post.cleanTitle else (translatedTitles[post.id] ?: post.cleanTitle)
                             )
                         }
 

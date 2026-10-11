@@ -62,7 +62,8 @@ import com.chaipanchayat.app.utils.DateUtils
 fun TodayChaiDigest(
     posts: List<WPPost>,
     onPostClick: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    translatedTitles: Map<Long, String> = emptyMap()
 ) {
     if (posts.isEmpty()) return
 
@@ -153,6 +154,7 @@ fun TodayChaiDigest(
                 DigestItemRow(
                     number = numberStr,
                     post = post,
+                    displayTitle = translatedTitles[post.id],
                     onClick = { onPostClick(post.id) }
                 )
                 if (index < digestStories.size - 1) {
@@ -171,7 +173,8 @@ fun TodayChaiDigest(
 private fun DigestItemRow(
     number: String,
     post: WPPost,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    displayTitle: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -211,7 +214,7 @@ private fun DigestItemRow(
                 .padding(end = 8.dp)
         ) {
             Text(
-                text = post.cleanTitle,
+                text = displayTitle ?: post.cleanTitle,
                 fontFamily = NotoSerifFamily,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,

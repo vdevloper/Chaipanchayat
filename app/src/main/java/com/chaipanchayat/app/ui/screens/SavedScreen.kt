@@ -33,10 +33,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,8 +71,27 @@ fun SavedScreen(
 ) {
     val context = LocalContext.current
     val bookmarkRepo = BookmarkRepository.getInstance(context)
+    val settingsRepo = remember { com.chaipanchayat.app.data.repository.SettingsRepository.getInstance(context) }
+    val appLanguage by settingsRepo.appLanguage.collectAsState()
+    val showOriginalHindi by settingsRepo.showOriginalHindi.collectAsState()
     val bookmarks by bookmarkRepo.allBookmarks.collectAsState(initial = emptyList())
+    var translatedTitles by remember { mutableStateOf<Map<Long, String>>(emptyMap()) }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(bookmarks, appLanguage, showOriginalHindi) {
+        if (appLanguage != com.chaipanchayat.app.data.model.AppLanguage.HINDI && !showOriginalHindi && bookmarks.isNotEmpty()) {
+            try {
+                val map = mutableMapOf<Long, String>()
+                bookmarks.forEach { b ->
+                    val t = com.chaipanchayat.app.data.api.TranslationService.translateTitle(b.id, b.title, appLanguage)
+                    map[b.id] = t
+                }
+                translatedTitles = map
+            } catch (_: Exception) {}
+        } else {
+            translatedTitles = emptyMap()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -140,9 +162,10 @@ fun SavedScreen(
         }
 
         if (bookmarks.isEmpty()) {
+            val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
             EmptyState(
-                title = "अभी कुछ सेव नहीं किया",
-                message = "किसी खबर पर 🔖 दबाएँ और वह बाद में यहाँ दिखाई देगी।",
+                title = strings.noSavedStories,
+                message = strings.noSavedStoriesSub,
                 icon = Icons.Outlined.BookmarkBorder
             )
         } else {
@@ -153,6 +176,7 @@ fun SavedScreen(
                     SavedArticleCard(
                         bookmark = item,
                         onClick = { onNavigateToArticle(item.id) },
+                        displayTitle = if (showOriginalHindi) item.title else (translatedTitles[item.id] ?: item.title),
                         onRemove = {
                             coroutineScope.launch {
                                 bookmarkRepo.removeBookmark(item.id)
@@ -174,7 +198,8 @@ fun SavedArticleCard(
     bookmark: BookmarkEntity,
     onClick: () -> Unit,
     onRemove: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    displayTitle: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -264,7 +289,7 @@ fun SavedArticleCard(
                 }
 
                 Text(
-                    text = bookmark.title,
+                    text = displayTitle ?: bookmark.title,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = NotoSerifFamily,
                     fontWeight = FontWeight.SemiBold,

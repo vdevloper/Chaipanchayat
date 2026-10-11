@@ -64,7 +64,8 @@ import kotlinx.coroutines.launch
 fun NewsCard(
     post: WPPost,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    displayTitle: String? = null
 ) {
     val cardShape = RoundedCornerShape(10.dp)
     val thumbShape = RoundedCornerShape(8.dp)
@@ -155,7 +156,7 @@ fun NewsCard(
 
                 // Headline
                 Text(
-                    text = post.cleanTitle,
+                    text = displayTitle ?: post.cleanTitle,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = NotoSerifFamily,
                     fontWeight = FontWeight.Bold,

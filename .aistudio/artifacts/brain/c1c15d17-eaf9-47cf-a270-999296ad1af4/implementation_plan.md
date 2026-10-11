@@ -1,130 +1,143 @@
-# Direct In-App Post Sharing & Deferred Deep-Linking Plan
+# Unified Global Language & Content Translation Plan (Revised)
 
-Ensure shared posts always open directly inside the Chai Panchayat app (never on the external website), with automatic Google Play Store redirection and deferred deep-linking for recipients who do not yet have the app installed.
+Unify homepage and article translation into a single, seamless global experience where setting a language from the homepage automatically translates all feed headlines and articles. Crucially, all language switchers, buttons, and toggles are fully localized and universally recognizable so readers who do not know Hindi can effortlessly navigate, switch between English/Spanish/etc., and toggle back and forth.
 
-## User Review & Critical Decisions
+## User Feedback Addressed: Non-Hindi Speaker Accessibility
 
 > [!IMPORTANT]
-> The external website permalink is removed from the primary share target. Instead, shared posts will use dedicated in-app deep links (`chaipanchayat://post/{id}` and Android Intent URIs) paired with Google Play install parameters so that:
-> 1. If recipient has the app: Tapping opens the post directly inside Chai Panchayat (0% website).
-> 2. If recipient does NOT have the app: The link directs them to download Chai Panchayat from Google Play, and once downloaded/opened, the app automatically navigates straight to the shared post.
-
-- **Direct In-App Deep Link**:
-  - Registered Custom URI Scheme: `chaipanchayat://post/{id}`
-  - Android Intent URI: `intent://post/{id}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.chaipanchayat.app;end`
-- **Deferred Deep Linking (Open Post After Install)**:
-  - When the app is launched for the first time, it checks the install referrer / launch intent / clipboard for a pending `post_id`.
-  - If a pending post ID is detected, the app immediately transitions to `ArticleScreen` for that post rather than staying on the home screen.
-- **Dedicated Share Card Text**:
-  - Eliminates all links to the WordPress website.
-  - Generates clear in-app call-to-action text:
-    - Hindi headline & story summary
-    - In-app launch link
-    - 1-tap Google Play download link
-
----
-
-## 1. Overview & Core Concept
-
-- **What It Does**: Replaces website link sharing with direct app routing. Recipient devices with Chai Panchayat installed open the article directly inside the app. For recipient devices without the app, it directs them to Google Play to download Chai Panchayat and then automatically opens the shared article upon launch.
-- **Key Value**: 100% app-first viral loop; stops sending users away to a mobile web browser and keeps all reading traffic inside the native Liquid Glass app experience.
-
----
-
-## 2. User Experience & Flow Diagrams
-
-### Scenario A: Recipient Has App Installed
-
-```
-[Sender Shares Post] ──> [WhatsApp/Telegram/SMS] ──> [Recipient taps link]
-                                                              │
-                                                              ▼
-                                                 [Chai Panchayat App Launches]
-                                                              │
-                                                              ▼
-                                                 [ArticleScreen Displays Post]
-```
-
-### Scenario B: Recipient Does NOT Have App Installed
-
-```
-[Recipient taps link] ──> [Directs to Google Play Store]
-                                       │
-                                       ▼
-                           [Installs & Opens App]
-                                       │
-                                       ▼
-                           [App detects shared Post ID]
-                                       │
-                                       ▼
-                           [Directly opens ArticleScreen]
-```
-
-- **Back Navigation**: In both scenarios, pressing Back from the opened article brings the user straight to `HomeScreen`, letting them discover more stories and browse the full app.
+> **Issue Identified**: If language controls or toggle buttons stay in Hindi after translating, a user who does not speak Hindi will get trapped or confused when trying to switch from English to Spanish, French, or another language.
+>
+> **The Solution**:
+> 1. **Universal Globe & Flag Indicator (`🌐 🇬🇧 English ▾`)**:
+>    - The language switcher button on the Homepage and Article reader always displays the universal international globe icon (`🌐`), the active language's flag, and the language name in its own script/English (e.g., `🌐 🇬🇧 English ▾` or `🌐 🇪🇸 Español ▾`).
+>    - It is instantly recognizable to anyone from any country, regardless of language proficiency.
+> 2. **Fully Localized Quick-Toggles**:
+>    - The quick toggle to view original Hindi is localized to the active language:
+>      - In English: `[ 🇮🇳 View Original (Hindi) ]`
+>      - In Spanish: `[ 🇮🇳 Ver original (Hindi) ]`
+>      - In French: `[ 🇮🇳 Voir l'original (Hindi) ]`
+>    - When switched to original Hindi, the restore button clearly says:
+>      - `[ 🌐 Show Translation (English) ]`
+> 3. **Dual-Script Language Picker (`LanguagePickerSheet`)**:
+>    - Every language in the bottom sheet displays both its native name and English name:
+>      - `🇮🇳 हिन्दी • Hindi`
+>      - `🇬🇧 English`
+>      - `🇪🇸 Español • Spanish`
+>      - `🇫🇷 Français • French`
+>      - `🇩🇪 Deutsch • German`
+>      - `🇷🇺 Русский • Russian`
+>      - `🇸🇦 العربية • Arabic`
+>      - `🇮🇳 বাংলা • Bengali`
+>      - `🇮🇳 मराठी • Marathi`
+>      - `🇮🇳 ગુજરાતી • Gujarati`
+>    - Header and helper text adapt dynamically to the currently selected language using `ChaiLocalization`.
+> 4. **Single Source of Truth**:
+>    - Changing the language anywhere (Homepage header, Article reader, or Settings) updates `SettingsRepository.appLanguage`, which synchronously updates all feed cards, article reader, audio reader, and UI strings.
+> 5. **Version Bump**:
+>    - Incrementing `versionCode = 9` and `versionName = "2.2.4"` in `app/build.gradle.kts` and `SettingsScreen.kt`.
 
 ---
 
-## 3. Key Technical Decisions & Strategy
+## 1. UX & Visual Architecture
 
-- **Decision 1: Elimination of Website Links in Sharing**
-  - *Chosen Approach*: Share text will specifically use the `chaipanchayat://post/{id}` scheme and Google Play Store link with `&referrer=post_id%3D{id}`.
-  - *Why*: Directly addresses your requirement that the link should never send users to browse the website, but strictly keep them in the app.
-- **Decision 2: Deferred Deep Linking via Referral & Intent**
-  - *Chosen Approach*: Implement a `DeepLinkManager` that intercepts:
-    1. Incoming `Intent.ACTION_VIEW` with scheme `chaipanchayat://post/{id}`.
-    2. Google Play Install Referrer broadcast / parameter (`post_id=...`).
-    3. Clipboard check on fresh install: If the user copied a shared Chai Panchayat post link, the app detects it on first launch and prompts or auto-opens the article.
-  - *Why*: Ensures a seamless bridge between downloading the app and immediately viewing the exact article the user wanted to see.
-- **Decision 3: Zero Impact on Existing Fixes**
-  - *Chosen Approach*: Keep all existing database entities, Room ProGuard rules, and WorkManager configurations untouched.
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Homepage Header                                             │
+│  [ Chai Panchayat Logo ]          [ 🌐 🇬🇧 English ▾ ] [ 🔍 ] │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ Tapping opens Language Picker
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Language Picker Bottom Sheet (Fully Accessible)             │
+│  "Select Language / भाषा चुनें"                               │
+│  • 🇬🇧 English                             [ Selected ✓ ]     │
+│  • 🇪🇸 Español • Spanish                                      │
+│  • 🇮🇳 हिन्दी • Hindi                                          │
+│  • 🇫🇷 Français • French                                       │
+│  • 🇩🇪 Deutsch • German                                       │
+└──────────────────────────────┬───────────────────────────────┘
+                               │ Switching to Español
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Homepage Header Updates Automatically:                      │
+│  [ 🌐 🇪🇸 Español ▾ ]                                         │
+│                                                              │
+│  Feed Banner:                                                │
+│  [ 🌐 Traducido al español ]   [ 🇮🇳 Ver original (Hindi) ]   │
+│                                                              │
+│  Feed Headlines translated dynamically into Spanish          │
+└──────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 4. Technical Architecture & File Changes
+## 2. Technical Implementation Details
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   AndroidManifest.xml                  │
-│  <intent-filter>                                       │
-│    <action android:name="android.intent.action.VIEW"/> │
-│    <category android:name="android.intent.category.DEFAULT"/>
-│    <category android:name="android.intent.category.BROWSABLE"/>
-│    <data android:scheme="chaipanchayat" host="post" /> │
-│  </intent-filter>                                      │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                   DeepLinkManager.kt                   │
-│  - Parses chaipanchayat://post/{id}                    │
-│  - Checks Install Referrer & Clipboard for post_id     │
-│  - Exposes StateFlow<Long?> for active target post     │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                     MainActivity                       │
-│  - Forwards intent to DeepLinkManager                  │
-│  - Handles onCreate and onNewIntent                    │
-│  - Injects target post ID into MainAppNavigation       │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│               ArticleScreen & VideosScreen             │
-│  - In-app share button generating app & Play Store link│
-│  - No website permalinks included                      │
-└────────────────────────────────────────────────────────┘
-```
+### A. Localized Strings (`ChaiLocalization.kt`)
+Add localized phrases across all supported languages for the translation actions:
+- `viewOriginalHindi`:
+  - English: `"View Original (Hindi)"`
+  - Spanish: `"Ver original (Hindi)"`
+  - French: `"Voir l'original (Hindi)"`
+  - German: `"Original anzeigen (Hindi)"`
+  - Hindi: `"मूल हिंदी देखें"`
+  - Gujarati: `"મૂળ હિન્દી જુઓ"`
+  - Marathi: `"मूळ हिंदी पहा"`
+  - Bengali: `"মূল হিন্দি দেখুন"`
+- `showTranslation`:
+  - English: `"Show Translation"`
+  - Spanish: `"Mostrar traducción"`
+  - French: `"Afficher la traduction"`
+  - German: `"Übersetzung anzeigen"`
+  - Hindi: `"अनुवाद दिखाएं"`
+- `translatedToLanguage(langName)`:
+  - English: `"Translated into %s"`
+  - Spanish: `"Traducido al %s"`
+  - French: `"Traduit en %s"`
+  - Hindi: `"%s में अनुवादित"`
 
-### Planned File Edits:
-1. **`AndroidManifest.xml`**:
-   - Register the `chaipanchayat://post` intent-filter for `MainActivity`.
-2. **`DeepLinkManager.kt`** (new utility):
-   - Parse custom URI schemes, intent extras, and pending install referrer targets.
-3. **`MainActivity.kt`**:
-   - Integrate `DeepLinkManager` into `onCreate` and `onNewIntent`.
-4. **`MainNavigation.kt`**:
-   - Listen for deep-linked article targets and navigate directly to `ArticleScreen`.
-5. **`ArticleScreen.kt` & `VideosScreen.kt`**:
-   - Update share text format to use the app link and Google Play Store install URL.
+### B. High-Performance Feed Translation Engine (`TranslationService.kt`)
+- `translateBatchTitles(posts: List<WPPost>, targetLang: AppLanguage): Map<Long, String>`
+- Uses in-memory LRU cache (`titleCache`) keyed by `"${postId}_${targetLang.code}"`.
+- Translates feed headlines concurrently using Kotlin coroutines without freezing scrolling or user input.
+
+### C. Homepage Feed Integration (`HomeScreen.kt`)
+- Prominent top bar button: `[ 🌐 ${currentAppLang.flag} ${currentAppLang.englishName} ▾ ]`
+- When `currentAppLang != AppLanguage.HINDI`:
+  - A clean translation bar appears above the feed:
+    - `"🌐 " + localizedStrings.translatedToLanguage(currentAppLang.nativeName) + " • "`
+    - Action button: `[ 🇮🇳 ${localizedStrings.viewOriginalHindi} ]`
+  - Tapping this toggles `showOriginalHindi` in `SettingsRepository`.
+  - When in original mode, the button toggles to `[ 🌐 ${localizedStrings.showTranslation} ]`.
+- Passes the active title (`translated` or `original`) into `HeroCard`, `NewsCard`, `BreakingNewsTicker`, and `TodayChaiDigest`.
+
+### D. Article Screen Integration (`ArticleScreen.kt`)
+- When opened:
+  - If `currentAppLang != AppLanguage.HINDI` and `!showOriginalHindi`, **automatically loads and displays the translated article**.
+  - No need to hunt for a separate translation button.
+- Header Action Pill:
+  - When viewing translated: `[ 🇮🇳 ${localizedStrings.viewOriginalHindi} ]`
+  - When viewing original: `[ 🌐 ${localizedStrings.showTranslation} ]`
+  - Language picker chip: `[ 🌐 ${currentAppLang.flag} ${currentAppLang.englishName} ▾ ]` allows changing the target language directly from the article reader, syncing globally back to the home feed.
+- Audio Reader (`ChaiAudioReader`):
+  - Uses the TTS voice matching the active language (English voice when reading English, Hindi voice when reading Hindi).
+
+### E. Other Feed Screens (`CategoryFeedScreen.kt`, `SearchScreen.kt`, `SavedScreen.kt`)
+- Observe `SettingsRepository.appLanguage` and `showOriginalHindi` so all headlines across the app stay in sync.
+
+### F. Version Bump
+- Increment `versionCode = 9` and `versionName = "2.2.4"` in `app/build.gradle.kts` and `SettingsScreen.kt`.
+
+---
+
+## 3. Verification Checklist
+
+- [ ] Header button displays `🌐 🇬🇧 English ▾` when English is active, and `🌐 🇪🇸 Español ▾` when Spanish is active.
+- [ ] A non-Hindi user can tap the globe/flag button at any time to open the language picker.
+- [ ] Language picker displays English names alongside native names (`Español • Spanish`, `हिन्दी • Hindi`).
+- [ ] On English mode, the toggle button says `View Original (Hindi)` in English (never untranslated Hindi).
+- [ ] Tapping `View Original (Hindi)` toggles all feed headlines to Hindi; button updates to `Show Translation (English)`.
+- [ ] Opening any post opens directly in the selected language.
+- [ ] Article screen top controls show `View Original (Hindi)` and allow switching to Spanish/French/etc. seamlessly.
+- [ ] Version code bumped to 9 and version name to 2.2.4.
+- [ ] `compile_applet` runs with 0 errors.

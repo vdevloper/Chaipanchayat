@@ -97,6 +97,7 @@ fun MainAppNavigation(
     val context = androidx.compose.ui.platform.LocalContext.current
     val settingsRepo = remember { SettingsRepository.getInstance(context) }
     val isOnboardingDone by settingsRepo.onboardingCompleted.collectAsState()
+    val appLang by settingsRepo.appLanguage.collectAsState()
 
     val rootNavController = rememberNavController()
 
@@ -107,7 +108,10 @@ fun MainAppNavigation(
         }
     }
 
-    NavHost(
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.chaipanchayat.app.ui.theme.LocalChaiStrings provides com.chaipanchayat.app.ui.theme.getChaiStrings(appLang)
+    ) {
+        NavHost(
         navController = rootNavController,
         startDestination = if (isOnboardingDone) NavRoutes.MAIN else NavRoutes.ONBOARDING,
         modifier = Modifier.fillMaxSize(),
@@ -286,6 +290,7 @@ fun MainAppNavigation(
         }
     }
 }
+}
 
 @Composable
 fun MainTabsScaffold(
@@ -375,8 +380,16 @@ fun MainTabsScaffold(
                                 }
                             },
                             label = {
+                                val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
+                                val tabTitle = when (item.tab) {
+                                    MainTab.HOME -> strings.home
+                                    MainTab.VIDEOS -> strings.videos
+                                    MainTab.CATEGORIES -> strings.categories
+                                    MainTab.SAVED -> strings.saved
+                                    MainTab.SETTINGS -> strings.settings
+                                }
                                 Text(
-                                    text = item.tab.title,
+                                    text = tabTitle,
                                     fontFamily = InterFamily,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                     fontSize = 11.sp,

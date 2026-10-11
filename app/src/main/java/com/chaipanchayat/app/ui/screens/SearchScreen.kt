@@ -38,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,10 +66,26 @@ fun SearchScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsRepo = remember { com.chaipanchayat.app.data.repository.SettingsRepository.getInstance(context) }
+    val appLanguage by settingsRepo.appLanguage.collectAsState()
+    val showOriginalHindi by settingsRepo.showOriginalHindi.collectAsState()
+
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<WPPost>>(emptyList()) }
+    var translatedTitles by remember { mutableStateOf<Map<Long, String>>(emptyMap()) }
     var isSearching by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
+
+    LaunchedEffect(results, appLanguage, showOriginalHindi) {
+        if (appLanguage != com.chaipanchayat.app.data.model.AppLanguage.HINDI && !showOriginalHindi && results.isNotEmpty()) {
+            try {
+                translatedTitles = com.chaipanchayat.app.data.api.TranslationService.translatePostsTitles(results, appLanguage)
+            } catch (_: Exception) {}
+        } else {
+            translatedTitles = emptyMap()
+        }
+    }
 
     val trendingTopics = listOf(
         "राजनीति (Politics)",
@@ -149,7 +166,7 @@ fun SearchScreen(
                     onValueChange = { query = it },
                     placeholder = {
                         Text(
-                            text = "खबर, मुद्दा या व्यक्ति खोजें...",
+                            text = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current.searchPlaceholder,
                             color = ChaiTheme.extended.muted,
                             fontFamily = InterFamily,
                             fontSize = 14.sp
@@ -309,7 +326,8 @@ fun SearchScreen(
                 items(results, key = { it.id }) { post ->
                     NewsCard(
                         post = post,
-                        onClick = { onNavigateToArticle(post.id) }
+                        onClick = { onNavigateToArticle(post.id) },
+                        displayTitle = if (showOriginalHindi) post.cleanTitle else (translatedTitles[post.id] ?: post.cleanTitle)
                     )
                 }
 

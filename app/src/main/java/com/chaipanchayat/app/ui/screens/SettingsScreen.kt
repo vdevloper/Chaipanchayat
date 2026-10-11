@@ -78,6 +78,7 @@ import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.worker.ChaiNewsNotificationWorker
 import kotlinx.coroutines.launch
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateToOnboarding: () -> Unit = {},
@@ -94,6 +95,7 @@ fun SettingsScreen(
     val autoPlayVideos by settingsRepo.autoPlayVideos.collectAsState()
     val saveArticles by settingsRepo.saveArticles.collectAsState()
     val language by settingsRepo.language.collectAsState()
+    val appLanguage by settingsRepo.appLanguage.collectAsState()
     val cacheSize by settingsRepo.cacheSizeFormatted.collectAsState()
     val offlineQuickPack by settingsRepo.offlineQuickPack.collectAsState()
     val offlineQuickPackCount by settingsRepo.offlineQuickPackCount.collectAsState()
@@ -194,8 +196,8 @@ fun SettingsScreen(
             SettingsSectionHeader(title = "READING")
             SettingsNavRow(
                 icon = Icons.Outlined.Language,
-                title = "Language",
-                trailingValue = language,
+                title = "Language (भाषा एवं अनुवाद)",
+                trailingValue = "${appLanguage.flag} ${appLanguage.nativeName}",
                 onClick = { showLanguageDialog = true },
                 testTag = "settings-language-row"
             )
@@ -316,7 +318,7 @@ fun SettingsScreen(
             )
             SettingsInfoRow(
                 title = "App Version",
-                value = "2.2.3 (v8)"
+                value = "2.3.0 (v9)"
             )
         }
     }
@@ -449,54 +451,15 @@ fun SettingsScreen(
         )
     }
 
-    // Language Dialog
+    // Language Picker Bottom Sheet
     if (showLanguageDialog) {
-        AlertDialog(
-            onDismissRequest = { showLanguageDialog = false },
-            title = {
-                Text(
-                    text = "भाषा चुनें",
-                    fontFamily = NotoSerifFamily,
-                    fontWeight = FontWeight.Bold
-                )
+        com.chaipanchayat.app.ui.components.LanguagePickerSheet(
+            currentLanguage = appLanguage,
+            onLanguageSelected = { selectedLang ->
+                settingsRepo.setAppLanguage(selectedLang)
+                showLanguageDialog = false
             },
-            text = {
-                Column {
-                    listOf("हिन्दी", "English").forEach { lang ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    settingsRepo.setLanguage(lang)
-                                    showLanguageDialog = false
-                                }
-                                .padding(vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = language == lang,
-                                onClick = {
-                                    settingsRepo.setLanguage(lang)
-                                    showLanguageDialog = false
-                                },
-                                colors = RadioButtonDefaults.colors(selectedColor = ChaiSaffron)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = lang,
-                                fontFamily = InterFamily,
-                                fontWeight = if (language == lang) FontWeight.Bold else FontWeight.Normal,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLanguageDialog = false }) {
-                    Text("रद्द करें", color = ChaiTheme.extended.muted)
-                }
-            }
+            onDismiss = { showLanguageDialog = false }
         )
     }
 

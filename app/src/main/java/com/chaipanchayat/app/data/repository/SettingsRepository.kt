@@ -147,10 +147,44 @@ class SettingsRepository(private val context: Context) {
     )
     val saveArticles: StateFlow<Boolean> = _saveArticles.asStateFlow()
 
+    private val _appLanguage = MutableStateFlow(
+        com.chaipanchayat.app.data.model.AppLanguage.fromCode(
+            prefs.getString(KEY_APP_LANGUAGE_CODE, com.chaipanchayat.app.data.model.AppLanguage.HINDI.code)
+        )
+    )
+    val appLanguage: StateFlow<com.chaipanchayat.app.data.model.AppLanguage> = _appLanguage.asStateFlow()
+
     private val _language = MutableStateFlow(
-        prefs.getString(KEY_LANGUAGE, "हिन्दी") ?: "हिन्दी"
+        _appLanguage.value.nativeName
     )
     val language: StateFlow<String> = _language.asStateFlow()
+
+    fun setAppLanguage(language: com.chaipanchayat.app.data.model.AppLanguage) {
+        prefs.edit()
+            .putString(KEY_APP_LANGUAGE_CODE, language.code)
+            .putString(KEY_LANGUAGE, language.nativeName)
+            .putBoolean(KEY_SHOW_ORIGINAL_HINDI, false)
+            .apply()
+        _appLanguage.value = language
+        _language.value = language.nativeName
+        _showOriginalHindi.value = false
+    }
+
+    private val _showOriginalHindi = MutableStateFlow(
+        prefs.getBoolean(KEY_SHOW_ORIGINAL_HINDI, false)
+    )
+    val showOriginalHindi: StateFlow<Boolean> = _showOriginalHindi.asStateFlow()
+
+    fun setShowOriginalHindi(show: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_ORIGINAL_HINDI, show).apply()
+        _showOriginalHindi.value = show
+    }
+
+    fun toggleShowOriginalHindi(): Boolean {
+        val next = !_showOriginalHindi.value
+        setShowOriginalHindi(next)
+        return next
+    }
 
     // Onboarding completion state
     private val _onboardingCompleted = MutableStateFlow(
@@ -354,6 +388,8 @@ class SettingsRepository(private val context: Context) {
         private const val KEY_AUTO_PLAY_VIDEOS = "auto_play_videos_pref"
         private const val KEY_SAVE_ARTICLES = "save_articles_pref"
         private const val KEY_LANGUAGE = "language_pref"
+        private const val KEY_APP_LANGUAGE_CODE = "app_language_code_pref"
+        private const val KEY_SHOW_ORIGINAL_HINDI = "show_original_hindi_pref"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed_pref"
         private const val KEY_OFFLINE_QUICK_PACK = "offline_quick_pack_enabled"
         private const val KEY_OFFLINE_QUICK_PACK_COUNT = "offline_quick_pack_count"
