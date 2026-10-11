@@ -792,9 +792,12 @@ private fun VideoPlayerSheet(
 
 private fun shareVideo(context: android.content.Context, video: VideoItem) {
     val targetId = if (video.articleId != null && video.articleId > 0) video.articleId else video.id
-    val sendIntent = com.chaipanchayat.app.utils.DeepLinkManager.createShareIntent(
-        postId = targetId,
-        cleanTitle = video.title
-    )
-    context.startActivity(Intent.createChooser(sendIntent, "चाय पंचायत वीडियो शेयर करें"))
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        com.chaipanchayat.app.utils.DeepLinkManager.shareArticle(
+            context = context,
+            postId = targetId,
+            cleanTitle = video.title,
+            imageUrl = video.thumbnail.takeIf { it.isNotBlank() }
+        )
+    }
 }

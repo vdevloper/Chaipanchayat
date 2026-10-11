@@ -368,6 +368,34 @@ fun ArticleScreen(
                     IconButton(
                         onClick = {
                             haptics.click()
+                            coroutineScope.launch {
+                                val shareTitle = if (isTranslated && translatedArticle != null) {
+                                    translatedArticle!!.translatedTitle
+                                } else {
+                                    p.cleanTitle
+                                }
+                                com.chaipanchayat.app.utils.DeepLinkManager.shareArticle(
+                                    context = context,
+                                    postId = p.id,
+                                    cleanTitle = shareTitle,
+                                    imageUrl = p.featuredImageUrl,
+                                    permalink = p.link.takeIf { it.isNotBlank() }
+                                )
+                            }
+                        },
+                        modifier = Modifier.testTag("article-topbar-share")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Share,
+                            contentDescription = "Share article",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            haptics.click()
                             if (p.link.isNotBlank()) {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(p.link))
                                 context.startActivity(intent)
@@ -1119,12 +1147,20 @@ fun ArticleScreen(
                         modifier = Modifier
                             .clickable {
                                 haptics.click()
-                                val sendIntent = com.chaipanchayat.app.utils.DeepLinkManager.createShareIntent(
-                                    postId = currentPost.id,
-                                    cleanTitle = currentPost.cleanTitle
-                                )
-                                val shareIntent = Intent.createChooser(sendIntent, "चाय पंचायत खबर शेयर करें")
-                                context.startActivity(shareIntent)
+                                coroutineScope.launch {
+                                    val shareTitle = if (isTranslated && translatedArticle != null) {
+                                        translatedArticle!!.translatedTitle
+                                    } else {
+                                        currentPost.cleanTitle
+                                    }
+                                    com.chaipanchayat.app.utils.DeepLinkManager.shareArticle(
+                                        context = context,
+                                        postId = currentPost.id,
+                                        cleanTitle = shareTitle,
+                                        imageUrl = currentPost.featuredImageUrl,
+                                        permalink = currentPost.link.takeIf { it.isNotBlank() }
+                                    )
+                                }
                             }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                             .testTag("article-share-button")

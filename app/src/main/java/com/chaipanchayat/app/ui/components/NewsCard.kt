@@ -205,11 +205,15 @@ fun NewsCard(
                         IconButton(
                             onClick = {
                                 haptics.click()
-                                val sendIntent = com.chaipanchayat.app.utils.DeepLinkManager.createShareIntent(
-                                    postId = post.id,
-                                    cleanTitle = post.cleanTitle
-                                )
-                                context.startActivity(Intent.createChooser(sendIntent, "चाय पंचायत खबर शेयर करें"))
+                                coroutineScope.launch {
+                                    com.chaipanchayat.app.utils.DeepLinkManager.shareArticle(
+                                        context = context,
+                                        postId = post.id,
+                                        cleanTitle = displayTitle ?: post.cleanTitle,
+                                        imageUrl = post.featuredImageUrl,
+                                        permalink = post.link.takeIf { it.isNotBlank() }
+                                    )
+                                }
                             },
                             modifier = Modifier.size(28.dp)
                         ) {

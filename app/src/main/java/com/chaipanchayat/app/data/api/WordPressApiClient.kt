@@ -34,6 +34,11 @@ object WordPressApiClient {
         Pattern.CASE_INSENSITIVE
     )
 
+    private val IMG_SRC_REGEX = Pattern.compile(
+        "<img[^>]+src=[\"']([^\"']+)[\"']",
+        Pattern.CASE_INSENSITIVE
+    )
+
     private var client: OkHttpClient = buildClient(null)
 
     fun init(context: Context) {
@@ -405,6 +410,16 @@ object WordPressApiClient {
             val authorArr = embedded.optJSONArray("author")
             if (authorArr != null && authorArr.length() > 0) {
                 authorName = authorArr.optJSONObject(0)?.optString("name")
+            }
+        }
+        if (featuredImage.isNullOrBlank()) {
+            featuredImage = obj.optString("jetpack_featured_media_url").takeIf { it.isNotBlank() }
+                ?: obj.optString("featured_media_src_url").takeIf { it.isNotBlank() }
+        }
+        if (featuredImage.isNullOrBlank()) {
+            val imgMatcher = IMG_SRC_REGEX.matcher(rawContent)
+            if (imgMatcher.find()) {
+                featuredImage = imgMatcher.group(1)
             }
         }
 

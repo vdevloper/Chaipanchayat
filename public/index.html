@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>चाय पंचायत | Chai Panchayat News</title>
+  
+  <meta name="description" content="चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें। ऐप में सीधे पढ़ें।">
+  <meta property="og:title" content="चाय पंचायत | बेबाक, सटीक, निष्पक्ष खबरें">
+  <meta property="og:description" content="यह खबर चाय पंचायत ऐप में सीधे पढ़ने के लिए लिंक पर टैप करें।">
+  <meta property="og:site_name" content="Chai Panchayat">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#BF360C">
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 50%, #FFE082 100%);
+      color: #212121;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: #FFFFFF;
+      border-radius: 24px;
+      padding: 32px 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 12px 32px rgba(191, 54, 12, 0.15);
+      border: 1px solid rgba(230, 81, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .logo-container {
+      width: 84px;
+      height: 84px;
+      background: linear-gradient(135deg, #FF6F00, #BF360C);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 18px rgba(191, 54, 12, 0.3);
+    }
+    .logo-container span {
+      font-size: 42px;
+    }
+    h1 {
+      font-size: 26px;
+      color: #BF360C;
+      font-weight: 800;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+    .tagline {
+      font-size: 14px;
+      color: #E65100;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .status-box {
+      background: #FFF3E0;
+      border: 1px dashed #FF9800;
+      border-radius: 14px;
+      padding: 12px 16px;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    .status-text {
+      font-size: 15px;
+      color: #E65100;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #FF9800;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .btn {
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.15s ease, background 0.15s ease;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #FF6F00, #BF360C);
+      color: #FFFFFF;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 14px rgba(191, 54, 12, 0.35);
+    }
+    .btn-secondary {
+      background: #F5F5F5;
+      color: #424242;
+      border: 1px solid #E0E0E0;
+    }
+    .footer {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #757575;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="logo-container">
+      <span>☕</span>
+    </div>
+    <h1>चाय पंचायत</h1>
+    <div class="tagline">बेबाक, सटीक, निष्पक्ष खबरें</div>
+
+    <div class="status-box">
+      <div class="status-text">
+        <div class="spinner" id="spinner"></div>
+        <span id="statusMsg">खबर ऐप में खोली जा रही है...</span>
+      </div>
+    </div>
+
+    <button id="openAppBtn" class="btn btn-primary" onclick="launchApp()">
+      📲 ऐप में सीधे पढ़ें (Open in App)
+    </button>
+
+    <a id="playStoreBtn" class="btn btn-secondary" href="https://play.google.com/store/apps/details?id=com.chaipanchayat.app" target="_blank" rel="noopener">
+      📥 Google Play से ऐप डाउनलोड करें
+    </a>
+  </div>
+
+  <div class="footer">
+    © Chai Panchayat • Android App
+  </div>
+
+  <script>
+    function getPostId() {
+      // 1. Path format: /post/12345 or /post/12345/
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      for (let i = 0; i < pathParts.length; i++) {
+        if (pathParts[i] === 'post' && pathParts[i + 1]) {
+          const num = parseInt(pathParts[i + 1], 10);
+          if (!isNaN(num) && num > 0) return num;
+        }
+        const directNum = parseInt(pathParts[i], 10);
+        if (!isNaN(directNum) && directNum > 0) return directNum;
+      }
+
+      // 2. Query param format: ?p=12345 or ?id=12345
+      const params = new URLSearchParams(window.location.search);
+      const queryId = params.get('p') || params.get('id') || params.get('post_id') || params.get('article_id');
+      if (queryId) {
+        const num = parseInt(queryId, 10);
+        if (!isNaN(num) && num > 0) return num;
+      }
+
+      return null;
+    }
+
+    const postId = getPostId();
+    const pkg = "com.chaipanchayat.app";
+    const playStoreFallback = "https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3D" + pkg;
+    
+    // Construct the Android intent URI that induces the native app
+    const intentUri = postId 
+      ? `intent://post/${postId}#Intent;scheme=chaipanchayat;package=${pkg};S.browser_fallback_url=${playStoreFallback};end`
+      : `intent://post#Intent;scheme=chaipanchayat;package=${pkg};S.browser_fallback_url=${playStoreFallback};end`;
+    
+    const customSchemeUri = postId
+      ? `chaipanchayat://post/${postId}`
+      : `chaipanchayat://post`;
+
+    function launchApp() {
+      const isAndroid = /android/i.test(navigator.userAgent);
+      if (isAndroid) {
+        // Induce intent on Android
+        window.location.href = intentUri;
+        setTimeout(function() {
+          window.location.href = customSchemeUri;
+        }, 500);
+      } else {
+        // Fallback for iOS/Desktop
+        window.location.href = customSchemeUri;
+        setTimeout(function() {
+          window.location.href = "https://play.google.com/store/apps/details?id=" + pkg;
+        }, 1200);
+      }
+    }
+
+    // Auto-launch immediately on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      if (postId) {
+        document.getElementById('statusMsg').innerText = `पोस्ट #${postId} ऐप में खोली जा रही है...`;
+      }
+      setTimeout(launchApp, 250);
+    });
+  </script>
+</body>
+</html>

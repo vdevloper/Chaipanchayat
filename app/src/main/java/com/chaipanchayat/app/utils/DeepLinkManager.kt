@@ -1,18 +1,38 @@
 package com.chaipanchayat.app.utils
 
+import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
+import androidx.core.content.FileProvider
+import androidx.core.graphics.drawable.toBitmap
+import coil.Coil
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.FileOutputStream
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.TimeUnit
 
 object DeepLinkManager {
 
     private const val PREFS_NAME = "chai_deeplink_prefs"
     private const val KEY_LAST_HANDLED_ID = "last_handled_post_id"
     private const val APP_PACKAGE = "com.chaipanchayat.app"
+
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
 
     /**
      * Extracts an article ID from an incoming Intent (deep link URI or extras).
@@ -57,8 +77,8 @@ object DeepLinkManager {
      * Parses article ID from Uri like:
      * - chaipanchayat://post/1234
      * - chaipanchayat://post?id=1234
-     * - chaipanchayat://article/1234
-     * - intent://post/1234#Intent;scheme=chaipanchayat;...
+     * - https://chaipanchayat.com/?p=1234
+     * - https://chaipanchayat.com/post/1234
      */
     fun parseArticleIdFromUri(uri: Uri): Long? {
         val scheme = uri.scheme?.lowercase()
@@ -66,26 +86,40 @@ object DeepLinkManager {
 
         // Handle chaipanchayat scheme
         if (scheme == "chaipanchayat") {
-            // Check query parameters first (?id=123, ?post_id=123, ?p=123)
             val queryId = uri.getQueryParameter("id")?.toLongOrNull()
                 ?: uri.getQueryParameter("post_id")?.toLongOrNull()
                 ?: uri.getQueryParameter("p")?.toLongOrNull()
                 ?: uri.getQueryParameter("article_id")?.toLongOrNull()
             if (queryId != null && queryId > 0) return queryId
 
-            // Check path segments: e.g. /1234 or /post/1234
             val segments = uri.pathSegments
             if (segments.isNotEmpty()) {
                 val lastSegment = segments.lastOrNull()?.toLongOrNull()
                 if (lastSegment != null && lastSegment > 0) return lastSegment
             }
 
-            // Check if host itself is a number (e.g. chaipanchayat://1234)
             val hostAsNum = host?.toLongOrNull()
             if (hostAsNum != null && hostAsNum > 0) return hostAsNum
         }
 
-        // Also check if URI query has referrer
+        // Handle standard http/https web links (clickable in WhatsApp, Telegram, etc.)
+        if (scheme == "http" || scheme == "https") {
+            val queryId = uri.getQueryParameter("p")?.toLongOrNull()
+                ?: uri.getQueryParameter("id")?.toLongOrNull()
+                ?: uri.getQueryParameter("post_id")?.toLongOrNull()
+                ?: uri.getQueryParameter("article_id")?.toLongOrNull()
+            if (queryId != null && queryId > 0) return queryId
+
+            val segments = uri.pathSegments
+            if (segments.isNotEmpty()) {
+                val lastSegment = segments.lastOrNull()?.toLongOrNull()
+                if (lastSegment != null && lastSegment > 0) return lastSegment
+                val anyNumSegment = segments.firstOrNull { it.toLongOrNull() != null && it.toLong() > 0 }?.toLongOrNull()
+                if (anyNumSegment != null) return anyNumSegment
+            }
+        }
+
+        // Check if URI query has referrer
         val referrerParam = uri.getQueryParameter("referrer")
         if (!referrerParam.isNullOrBlank()) {
             val fromReferrer = parseArticleIdFromReferrer(referrerParam)
@@ -123,15 +157,15 @@ object DeepLinkManager {
             return storedReferrerId
         }
 
-        // 2. Check Clipboard for Chai Panchayat shared links (when user copied link and then installed app)
+        // 2. Check Clipboard for Chai Panchayat shared links
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             if (clipboard != null && clipboard.hasPrimaryClip()) {
                 val clipData = clipboard.primaryClip
                 if (clipData != null && clipData.itemCount > 0) {
                     val clipText = clipData.getItemAt(0)?.text?.toString().orEmpty()
-                    if (clipText.contains("chaipanchayat://post/") || clipText.contains("post_id=")) {
-                        val customMatch = Regex("""chaipanchayat://post/(\d+)""").find(clipText)
+                    if (clipText.contains("chaipanchayat") || clipText.contains("post_id=") || clipText.contains("web.app") || clipText.contains("firebaseapp")) {
+                        val customMatch = Regex("""(?:chaipanchayat://post/|\?p=|/post/)(\d+)""").find(clipText)
                         val candidateId = customMatch?.groupValues?.getOrNull(1)?.toLongOrNull()
                             ?: parseArticleIdFromReferrer(clipText)
 
@@ -146,7 +180,6 @@ object DeepLinkManager {
                 }
             }
         } catch (_: Exception) {
-            // Ignore clipboard security exceptions on background threads or restricted OEMs
         }
 
         return null
@@ -169,29 +202,224 @@ object DeepLinkManager {
     }
 
     /**
-     * Generates a direct in-app share intent without sending users to the external website.
+     * Builds a clean, fully clickable share message for WhatsApp, Telegram, SMS, etc.
+     * Uses the Firebase Hosting smart link https://gen-lang-client-0700030242.web.app/post/$postId
+     * which renders as a 100% clickable hyperlink everywhere and induces the native Android intent directly.
      */
-    fun createShareIntent(postId: Long, cleanTitle: String): Intent {
-        val appSchemeUrl = "chaipanchayat://post/$postId"
-        val playStoreUrl = "https://play.google.com/store/apps/details?id=$APP_PACKAGE&referrer=post_id%3D$postId"
+    fun buildShareMessage(postId: Long, cleanTitle: String, permalink: String? = null): String {
+        val firebaseSmartLink = "https://gen-lang-client-0700030242.web.app/post/$postId"
+        val playStoreUrl = "https://play.google.com/store/apps/details?id=$APP_PACKAGE"
 
-        val shareMessage = buildString {
+        return buildString {
             append("🔥 ")
-            append(cleanTitle)
+            append(cleanTitle.trim())
             append("\n\n")
-            append("📲 चाय पंचायत ऐप में सीधे खोलें व पढ़ें:\n")
-            append(appSchemeUrl)
+            append("📲 ऐप में सीधे पढ़ें (Tap to Open):")
+            append("\n")
+            append(firebaseSmartLink)
             append("\n\n")
-            append("📥 यदि आपके पास ऐप नहीं है, तो यहाँ से तुरंत डाउनलोड करें:\n")
+            append("📥 चाय पंचायत ऐप डाउनलोड करें:")
+            append("\n")
             append(playStoreUrl)
             append("\n\n")
             append("(चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)")
         }
+    }
 
+    /**
+     * Builds rich HTML content with clickable hyperlinks for apps that support HTML (Gmail, Outlook, Keep, Notes).
+     */
+    fun buildHtmlShareMessage(postId: Long, cleanTitle: String, permalink: String? = null): String {
+        val firebaseSmartLink = "https://gen-lang-client-0700030242.web.app/post/$postId"
+        val playStoreUrl = "https://play.google.com/store/apps/details?id=$APP_PACKAGE"
+        val safeTitle = cleanTitle.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").trim()
+
+        return """
+            <p>🔥 <b>$safeTitle</b></p>
+            <p>📲 <b>ऐप में सीधे पढ़ें (Tap to Open):</b><br/>
+            <a href="$firebaseSmartLink">$firebaseSmartLink</a></p>
+            <p>📥 <b>चाय पंचायत ऐप डाउनलोड करें:</b><br/>
+            <a href="$playStoreUrl">$playStoreUrl</a></p>
+            <p><i>(चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)</i></p>
+        """.trimIndent()
+    }
+
+    /**
+     * Shares article with featured image attached and clickable links in caption.
+     * Uses Coil cache first, then OkHttp, with fallback to the high-res app logo.
+     * Explicitly grants URI read permissions to target apps and the chooser.
+     */
+    suspend fun shareArticle(
+        context: Context,
+        postId: Long,
+        cleanTitle: String,
+        imageUrl: String? = null,
+        permalink: String? = null
+    ) = withContext(Dispatchers.IO) {
+        val shareMessage = buildShareMessage(postId, cleanTitle, permalink)
+        val htmlShareMessage = buildHtmlShareMessage(postId, cleanTitle, permalink)
+        var imageContentUri: Uri? = null
+
+        val imagesDir = File(context.cacheDir, "shared_images").apply { mkdirs() }
+        var imageFile = File(imagesDir, "share_${postId}.jpg")
+
+        // 1. Try preparing image if imageUrl is present and not cached
+        if (!imageUrl.isNullOrBlank()) {
+            if (!imageFile.exists() || imageFile.length() < 500L) {
+                // A. Fast path: load from Coil (disk/memory cache)
+                try {
+                    val imageLoader = Coil.imageLoader(context)
+                    val req = ImageRequest.Builder(context)
+                        .data(imageUrl)
+                        .allowHardware(false)
+                        .build()
+                    val result = imageLoader.execute(req)
+                    if (result is SuccessResult) {
+                        val bitmap = result.drawable.toBitmap()
+                        val tempFile = File(imagesDir, "share_${postId}_tmp.jpg")
+                        FileOutputStream(tempFile).use { out ->
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                        }
+                        if (tempFile.length() > 500L) {
+                            if (imageFile.exists()) imageFile.delete()
+                            tempFile.renameTo(imageFile)
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                // B. Fallback: direct OkHttp download
+                if (!imageFile.exists() || imageFile.length() < 500L) {
+                    try {
+                        val safeUrl = when {
+                            imageUrl.startsWith("//") -> "https:$imageUrl"
+                            !imageUrl.startsWith("http") -> "https://$imageUrl"
+                            else -> imageUrl
+                        }.replace(" ", "%20")
+
+                        val request = Request.Builder()
+                            .url(safeUrl)
+                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                            .header("Accept", "image/webp,image/jpeg,image/png,image/*,*/*;q=0.8")
+                            .build()
+                        val response = httpClient.newCall(request).execute()
+                        if (response.isSuccessful) {
+                            val bytes = response.body?.bytes()
+                            if (bytes != null && bytes.isNotEmpty()) {
+                                val tempFile = File(imagesDir, "share_${postId}_tmp.jpg")
+                                FileOutputStream(tempFile).use { fos ->
+                                    fos.write(bytes)
+                                }
+                                if (tempFile.length() > 500L) {
+                                    if (imageFile.exists()) imageFile.delete()
+                                    tempFile.renameTo(imageFile)
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+
+        // 2. Fallback: if no image exists yet, copy app logo as high-res branded share card
+        if (!imageFile.exists() || imageFile.length() < 500L) {
+            try {
+                val logoFile = File(imagesDir, "chai_logo_share.png")
+                if (!logoFile.exists() || logoFile.length() < 500L) {
+                    context.resources.openRawResource(com.chaipanchayat.app.R.drawable.ic_logo).use { input ->
+                        FileOutputStream(logoFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+                if (logoFile.exists() && logoFile.length() > 500L) {
+                    imageFile = logoFile
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 3. Obtain FileProvider Content Uri
+        if (imageFile.exists() && imageFile.length() > 0L) {
+            try {
+                imageContentUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    imageFile
+                )
+            } catch (_: Exception) {}
+        }
+
+        // 4. Build Send Intent with rich extras and ClipData
+        val sendIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_SUBJECT, cleanTitle)
+            putExtra(Intent.EXTRA_TITLE, cleanTitle)
+            putExtra(Intent.EXTRA_TEXT, shareMessage)
+            putExtra(Intent.EXTRA_HTML_TEXT, htmlShareMessage)
+
+            if (imageContentUri != null) {
+                type = "image/jpeg"
+                putExtra(Intent.EXTRA_STREAM, imageContentUri)
+                val clipItem = ClipData.Item(shareMessage, htmlShareMessage, null, imageContentUri)
+                clipData = ClipData(
+                    ClipDescription(cleanTitle, arrayOf("image/jpeg", "image/*", "text/plain", "text/html")),
+                    clipItem
+                )
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } else {
+                type = "text/plain"
+                val clipItem = ClipData.Item(shareMessage, htmlShareMessage, null, null)
+                clipData = ClipData(
+                    ClipDescription(cleanTitle, arrayOf("text/plain", "text/html")),
+                    clipItem
+                )
+            }
+        }
+
+        // 5. Build Chooser and grant URI permissions to all matching target apps
+        val chooser = Intent.createChooser(sendIntent, cleanTitle).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (imageContentUri != null) {
+                clipData = sendIntent.clipData
+            }
+        }
+
+        if (imageContentUri != null) {
+            try {
+                val resInfoList = context.packageManager.queryIntentActivities(
+                    sendIntent,
+                    PackageManager.MATCH_DEFAULT_ONLY
+                )
+                for (resolveInfo in resInfoList) {
+                    val pkg = resolveInfo.activityInfo.packageName
+                    try {
+                        context.grantUriPermission(pkg, imageContentUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+        }
+
+        withContext(Dispatchers.Main) {
+            context.startActivity(chooser)
+        }
+    }
+
+    /**
+     * Backward-compatible synchronous share intent creator with clickable links.
+     */
+    fun createShareIntent(postId: Long, cleanTitle: String, permalink: String? = null): Intent {
+        val shareMessage = buildShareMessage(postId, cleanTitle, permalink)
+        val htmlShareMessage = buildHtmlShareMessage(postId, cleanTitle, permalink)
         return Intent().apply {
             action = Intent.ACTION_SEND
             putExtra(Intent.EXTRA_SUBJECT, cleanTitle)
+            putExtra(Intent.EXTRA_TITLE, cleanTitle)
             putExtra(Intent.EXTRA_TEXT, shareMessage)
+            putExtra(Intent.EXTRA_HTML_TEXT, htmlShareMessage)
+            clipData = ClipData(
+                ClipDescription(cleanTitle, arrayOf("text/plain", "text/html")),
+                ClipData.Item(shareMessage, htmlShareMessage, null, null)
+            )
             type = "text/plain"
         }
     }

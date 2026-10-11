@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -261,6 +262,31 @@ fun HeroCard(
                         fontFamily = InterFamily,
                         fontSize = 11.5.sp
                     )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    IconButton(
+                        onClick = {
+                            haptics.click()
+                            coroutineScope.launch {
+                                com.chaipanchayat.app.utils.DeepLinkManager.shareArticle(
+                                    context = context,
+                                    postId = post.id,
+                                    cleanTitle = displayTitle ?: post.cleanTitle,
+                                    imageUrl = post.featuredImageUrl,
+                                    permalink = post.link.takeIf { it.isNotBlank() }
+                                )
+                            }
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Share,
+                            contentDescription = "Share story",
+                            tint = ChaiTheme.extended.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }

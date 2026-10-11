@@ -1,143 +1,130 @@
-# Unified Global Language & Content Translation Plan (Revised)
+# Firebase Hosting Intent Redirector & Post Sharing Plan (Revised)
 
-Unify homepage and article translation into a single, seamless global experience where setting a language from the homepage automatically translates all feed headlines and articles. Crucially, all language switchers, buttons, and toggles are fully localized and universally recognizable so readers who do not know Hindi can effortlessly navigate, switch between English/Spanish/etc., and toggle back and forth.
+Implement Firebase Hosting smart link redirector infrastructure (`https://gen-lang-client-0700030242.web.app/post/{id}`) that induces the native Android app intent, ensures 100% clickability across WhatsApp, Telegram, and SMS, attaches the featured image, and completely prevents routing users to the WordPress website.
 
-## User Feedback Addressed: Non-Hindi Speaker Accessibility
+## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> **Issue Identified**: If language controls or toggle buttons stay in Hindi after translating, a user who does not speak Hindi will get trapped or confused when trying to switch from English to Spanish, French, or another language.
->
-> **The Solution**:
-> 1. **Universal Globe & Flag Indicator (`🌐 🇬🇧 English ▾`)**:
->    - The language switcher button on the Homepage and Article reader always displays the universal international globe icon (`🌐`), the active language's flag, and the language name in its own script/English (e.g., `🌐 🇬🇧 English ▾` or `🌐 🇪🇸 Español ▾`).
->    - It is instantly recognizable to anyone from any country, regardless of language proficiency.
-> 2. **Fully Localized Quick-Toggles**:
->    - The quick toggle to view original Hindi is localized to the active language:
->      - In English: `[ 🇮🇳 View Original (Hindi) ]`
->      - In Spanish: `[ 🇮🇳 Ver original (Hindi) ]`
->      - In French: `[ 🇮🇳 Voir l'original (Hindi) ]`
->    - When switched to original Hindi, the restore button clearly says:
->      - `[ 🌐 Show Translation (English) ]`
-> 3. **Dual-Script Language Picker (`LanguagePickerSheet`)**:
->    - Every language in the bottom sheet displays both its native name and English name:
->      - `🇮🇳 हिन्दी • Hindi`
->      - `🇬🇧 English`
->      - `🇪🇸 Español • Spanish`
->      - `🇫🇷 Français • French`
->      - `🇩🇪 Deutsch • German`
->      - `🇷🇺 Русский • Russian`
->      - `🇸🇦 العربية • Arabic`
->      - `🇮🇳 বাংলা • Bengali`
->      - `🇮🇳 मराठी • Marathi`
->      - `🇮🇳 ગુજરાતી • Gujarati`
->    - Header and helper text adapt dynamically to the currently selected language using `ChaiLocalization`.
-> 4. **Single Source of Truth**:
->    - Changing the language anywhere (Homepage header, Article reader, or Settings) updates `SettingsRepository.appLanguage`, which synchronously updates all feed cards, article reader, audio reader, and UI strings.
-> 5. **Version Bump**:
->    - Incrementing `versionCode = 9` and `versionName = "2.2.4"` in `app/build.gradle.kts` and `SettingsScreen.kt`.
+> **The Firebase Hosting Intent-Inducing Solution**:
+> 1. **Why Custom Schemes Fail Alone**: Plain schemes like `chaipanchayat://post/123` cannot be clicked inside WhatsApp, SMS, or Telegram because messaging clients only activate `http://` and `https://` protocols.
+> 2. **Why WordPress Links Fail**: Sharing `https://chaipanchayat.com/?p=123` defaults to opening the full WordPress website in Chrome instead of keeping users in the app.
+> 3. **The Firebase Hosting Bridge**:
+>    - We configure Firebase Hosting for project `gen-lang-client-0700030242` (`public/index.html` + `firebase.json`).
+>    - Share link format: `https://gen-lang-client-0700030242.web.app/post/{id}`.
+>    - Because it is a secure `https://` address, all social and messaging apps render it as a clickable blue hyperlink with rich Open Graph previews.
+>    - When tapped on Android with the app installed, Android's `intent-filter` intercepts the domain immediately without launching Chrome.
+>    - If tapped in a mobile browser, Firebase Hosting serves an intent-inducing script (`intent://post/{id}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;end` and `location.href = "chaipanchayat://post/{id}"`) which immediately opens the native app, with a fallback button to Google Play.
+
+- **Confirmed Decision 1**: Share messages will use `https://gen-lang-client-0700030242.web.app/post/{id}` as the primary clickable URL, paired with the downloaded featured image via `FileProvider`.
+- **Confirmed Decision 2**: Zero WordPress redirects—the Firebase Hosting endpoint induces the native Android intent directly, keeping the experience strictly in-app.
 
 ---
 
-## 1. UX & Visual Architecture
+## 1. Overview & Core Concept
+
+- **What It Does**: When any article or video post is shared, the app attaches the featured image and generates a formatted message containing the headline and a clickable Firebase Hosting link. Tapping the link opens the Chai Panchayat app directly to that specific post.
+- **Target Audience / Persona**: Readers sharing news stories with friends and groups on WhatsApp, Telegram, Facebook, and SMS.
+- **Key Value**: Delivers frictionless sharing with attractive image previews and guaranteed in-app opening without visiting the website.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  Homepage Header                                             │
-│  [ Chai Panchayat Logo ]          [ 🌐 🇬🇧 English ▾ ] [ 🔍 ] │
-└──────────────────────────────┬───────────────────────────────┘
-                               │ Tapping opens Language Picker
-                               ▼
-┌──────────────────────────────────────────────────────────────┐
-│  Language Picker Bottom Sheet (Fully Accessible)             │
-│  "Select Language / भाषा चुनें"                               │
-│  • 🇬🇧 English                             [ Selected ✓ ]     │
-│  • 🇪🇸 Español • Spanish                                      │
-│  • 🇮🇳 हिन्दी • Hindi                                          │
-│  • 🇫🇷 Français • French                                       │
-│  • 🇩🇪 Deutsch • German                                       │
-└──────────────────────────────┬───────────────────────────────┘
-                               │ Switching to Español
-                               ▼
-┌──────────────────────────────────────────────────────────────┐
-│  Homepage Header Updates Automatically:                      │
-│  [ 🌐 🇪🇸 Español ▾ ]                                         │
-│                                                              │
-│  Feed Banner:                                                │
-│  [ 🌐 Traducido al español ]   [ 🇮🇳 Ver original (Hindi) ]   │
-│                                                              │
-│  Feed Headlines translated dynamically into Spanish          │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                 Chai Panchayat Story Share                  │
+├─────────────────────────────────────────────────────────────┤
+│ [Featured Image Attached]                                   │
+│                                                             │
+│ 🔥 {Post Headline}                                          │
+│                                                             │
+│ 📲 ऐप में सीधे पढ़ें (Tap to Open in App):                 │
+│ https://gen-lang-client-0700030242.web.app/post/{id}        │
+│                                                             │
+│ (चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Technical Implementation Details
+## 2. User Experience & Visual Design
 
-### A. Localized Strings (`ChaiLocalization.kt`)
-Add localized phrases across all supported languages for the translation actions:
-- `viewOriginalHindi`:
-  - English: `"View Original (Hindi)"`
-  - Spanish: `"Ver original (Hindi)"`
-  - French: `"Voir l'original (Hindi)"`
-  - German: `"Original anzeigen (Hindi)"`
-  - Hindi: `"मूल हिंदी देखें"`
-  - Gujarati: `"મૂળ હિન્દી જુઓ"`
-  - Marathi: `"मूळ हिंदी पहा"`
-  - Bengali: `"মূল হিন্দি দেখুন"`
-- `showTranslation`:
-  - English: `"Show Translation"`
-  - Spanish: `"Mostrar traducción"`
-  - French: `"Afficher la traduction"`
-  - German: `"Übersetzung anzeigen"`
-  - Hindi: `"अनुवाद दिखाएं"`
-- `translatedToLanguage(langName)`:
-  - English: `"Translated into %s"`
-  - Spanish: `"Traducido al %s"`
-  - French: `"Traduit en %s"`
-  - Hindi: `"%s में अनुवादित"`
+- **Key User Flows**:
+  1. **Share Trigger**: User taps the Share button on any `NewsCard`, `HeroCard`, `ArticleScreen`, or `VideosScreen`.
+  2. **Image Preparation**: High-res featured image is retrieved from Coil cache or fetched via OkHttp and placed into the app cache (`shared_images/share_post_{id}.jpg`).
+  3. **Intent Dispatch**: `Intent.ACTION_SEND` opens the Android system share sheet with both the image URI and the text containing `https://gen-lang-client-0700030242.web.app/post/{id}`.
+  4. **Recipient Tap (In-App Direct)**: Recipient clicks the link on Android. The system matches the `autoVerify` intent filter on `gen-lang-client-0700030242.web.app` and launches `MainActivity` directly into `ArticleScreen(postId)`.
+  5. **Recipient Tap (Browser Fallback)**: If opened in a web browser, the Firebase Hosting page immediately executes an Android Intent URI launch (`intent://post/{id}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;end`) to induce the app, featuring a clean Hindi/English branded button "ऐप में खोलें (Open in Chai Panchayat App)".
 
-### B. High-Performance Feed Translation Engine (`TranslationService.kt`)
-- `translateBatchTitles(posts: List<WPPost>, targetLang: AppLanguage): Map<Long, String>`
-- Uses in-memory LRU cache (`titleCache`) keyed by `"${postId}_${targetLang.code}"`.
-- Translates feed headlines concurrently using Kotlin coroutines without freezing scrolling or user input.
-
-### C. Homepage Feed Integration (`HomeScreen.kt`)
-- Prominent top bar button: `[ 🌐 ${currentAppLang.flag} ${currentAppLang.englishName} ▾ ]`
-- When `currentAppLang != AppLanguage.HINDI`:
-  - A clean translation bar appears above the feed:
-    - `"🌐 " + localizedStrings.translatedToLanguage(currentAppLang.nativeName) + " • "`
-    - Action button: `[ 🇮🇳 ${localizedStrings.viewOriginalHindi} ]`
-  - Tapping this toggles `showOriginalHindi` in `SettingsRepository`.
-  - When in original mode, the button toggles to `[ 🌐 ${localizedStrings.showTranslation} ]`.
-- Passes the active title (`translated` or `original`) into `HeroCard`, `NewsCard`, `BreakingNewsTicker`, and `TodayChaiDigest`.
-
-### D. Article Screen Integration (`ArticleScreen.kt`)
-- When opened:
-  - If `currentAppLang != AppLanguage.HINDI` and `!showOriginalHindi`, **automatically loads and displays the translated article**.
-  - No need to hunt for a separate translation button.
-- Header Action Pill:
-  - When viewing translated: `[ 🇮🇳 ${localizedStrings.viewOriginalHindi} ]`
-  - When viewing original: `[ 🌐 ${localizedStrings.showTranslation} ]`
-  - Language picker chip: `[ 🌐 ${currentAppLang.flag} ${currentAppLang.englishName} ▾ ]` allows changing the target language directly from the article reader, syncing globally back to the home feed.
-- Audio Reader (`ChaiAudioReader`):
-  - Uses the TTS voice matching the active language (English voice when reading English, Hindi voice when reading Hindi).
-
-### E. Other Feed Screens (`CategoryFeedScreen.kt`, `SearchScreen.kt`, `SavedScreen.kt`)
-- Observe `SettingsRepository.appLanguage` and `showOriginalHindi` so all headlines across the app stay in sync.
-
-### F. Version Bump
-- Increment `versionCode = 9` and `versionName = "2.2.4"` in `app/build.gradle.kts` and `SettingsScreen.kt`.
+- **Visual Identity & Theme**:
+  - Consistent with Chai Panchayat's saffron/maroon and warm cream tones (`#E65100`, `#BF360C`, `#FFF8E1`).
+  - Clear Hindi CTA labels: "ऐप में सीधे पढ़ें" and "चाय पंचायत पर पूरी खबर देखें".
 
 ---
 
-## 3. Verification Checklist
+## 3. Key Product Decisions & Trade-Offs
 
-- [ ] Header button displays `🌐 🇬🇧 English ▾` when English is active, and `🌐 🇪🇸 Español ▾` when Spanish is active.
-- [ ] A non-Hindi user can tap the globe/flag button at any time to open the language picker.
-- [ ] Language picker displays English names alongside native names (`Español • Spanish`, `हिन्दी • Hindi`).
-- [ ] On English mode, the toggle button says `View Original (Hindi)` in English (never untranslated Hindi).
-- [ ] Tapping `View Original (Hindi)` toggles all feed headlines to Hindi; button updates to `Show Translation (English)`.
-- [ ] Opening any post opens directly in the selected language.
-- [ ] Article screen top controls show `View Original (Hindi)` and allow switching to Spanish/French/etc. seamlessly.
-- [ ] Version code bumped to 9 and version name to 2.2.4.
-- [ ] `compile_applet` runs with 0 errors.
+- **Decision 1: Firebase Hosting as the Link Host**:
+  - *Chosen Approach*: Deploy a lightweight intent-inducing web redirector on Firebase Hosting (`public/` directory with `firebase.json` rewrites).
+  - *Why*: Messaging apps strictly require standard `https://` protocol to create clickable links. Firebase Hosting is fast, free, Google-backed, and matches the project's Firebase backend.
+  - *Alternatives Considered*: Direct custom scheme `chaipanchayat://` was rejected because messaging apps render it as non-clickable plain text; `chaipanchayat.com` was rejected because it routes users to the web.
+
+- **Decision 2: Intent Induction Script on Web Landing**:
+  - *Chosen Approach*: The Firebase page runs:
+    ```javascript
+    const postId = window.location.pathname.split('/').pop() || new URLSearchParams(window.location.search).get('p');
+    window.location.href = `intent://post/${postId}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;S.browser_fallback_url=market%3A%2F%2Fdetails%3Fid%3Dcom.chaipanchayat.app;end`;
+    ```
+  - *Why*: Guarantees that even if the Android OS opens the link in Chrome, Chrome immediately prompts to hand off execution to the native Chai Panchayat app.
+
+---
+
+## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+
+### Architecture & Component Diagram
+
+```
+┌────────────────────────────────────────────────────────┐
+│               Chai Panchayat Android App               │
+│                                                        │
+│  NewsCard / ArticleScreen / VideosScreen               │
+│                    │                                   │
+│                    ▼ (User taps Share)                 │
+│         DeepLinkManager.shareArticle                   │
+│         - Downloads / resolves featured image          │
+│         - Writes to FileProvider (shared_images/)      │
+│         - Builds text with Firebase link:              │
+│           https://gen-lang-client-0700030242.web.app/  │
+│           post/{id}                                    │
+│         - Dispatches ACTION_SEND chooser               │
+└────────────────────┬───────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────────────────┐
+│       Recipient Messaging App (WhatsApp, Telegram)      │
+│       - Displays clickable https:// link               │
+│       - Displays featured photo                        │
+└────────────────────┬───────────────────────────────────┘
+                     │ (User taps link)
+                     ▼
+          ┌───────────────────────────┐
+          │ Is App Installed?         │
+          └─────┬───────────────┬─────┘
+                │ Yes           │ No / Web
+                ▼               ▼
+┌─────────────────────────┐   ┌───────────────────────────┐
+│ Android App Link Inter- │   │ Firebase Hosting          │
+│ cept (AndroidManifest)  │   │ (public/index.html)       │
+│ - Launches MainActivity │   │ - Runs Android Intent:    │
+│ - Navigates directly to │   │   intent://post/{id}      │
+│   ArticleScreen(postId) │   │ - Fallback: Play Store    │
+└─────────────────────────┘   └───────────────────────────┘
+```
+
+### File & Component Changes:
+1. **`firebase.json` & `public/index.html`**:
+   - Create Firebase Hosting config routing all `/post/**` requests to an intent redirector page with Chai Panchayat branding and immediate `intent://` induction.
+2. **`AndroidManifest.xml`**:
+   - Add `<intent-filter>` for host `gen-lang-client-0700030242.web.app` and `gen-lang-client-0700030242.firebaseapp.com` under pathPrefix `/post/`.
+3. **`DeepLinkManager.kt`**:
+   - Update `buildShareMessage` to format the Firebase Hosting link.
+   - Update `extractArticleId` to parse the Firebase Hosting domain paths (`/post/{id}` and `/?p={id}`).
+   - Ensure image sharing attaches JPEG via `FileProvider` with `FLAG_GRANT_READ_URI_PERMISSION`.
+4. **`file_paths.xml`**:
+   - Ensure `shared_images` cache path is fully mapped for FileProvider.

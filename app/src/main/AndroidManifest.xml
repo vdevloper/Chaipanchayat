@@ -54,7 +54,40 @@
                     android:scheme="chaipanchayat"
                     android:host="article" />
             </intent-filter>
+
+            <!-- Universal Web App Links (https://chaipanchayat.com) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="chaipanchayat.com" />
+                <data android:scheme="http" android:host="chaipanchayat.com" />
+                <data android:scheme="https" android:host="www.chaipanchayat.com" />
+                <data android:scheme="http" android:host="www.chaipanchayat.com" />
+            </intent-filter>
+
+            <!-- Firebase Hosting Smart In-App Intent Filter (https://gen-lang-client-0700030242.web.app/post/{id}) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="gen-lang-client-0700030242.web.app" />
+                <data android:scheme="http" android:host="gen-lang-client-0700030242.web.app" />
+                <data android:scheme="https" android:host="gen-lang-client-0700030242.firebaseapp.com" />
+                <data android:scheme="http" android:host="gen-lang-client-0700030242.firebaseapp.com" />
+            </intent-filter>
         </activity>
+
+        <!-- FileProvider for attaching featured images to share intents -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>
