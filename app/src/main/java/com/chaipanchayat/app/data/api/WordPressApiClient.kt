@@ -4,6 +4,7 @@ import android.content.Context
 import com.chaipanchayat.app.data.model.VideoItem
 import com.chaipanchayat.app.data.model.WPCategory
 import com.chaipanchayat.app.data.model.WPPost
+import com.chaipanchayat.app.utils.DateUtils
 import com.chaipanchayat.app.utils.HtmlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,7 +31,7 @@ object WordPressApiClient {
     )
 
     private val HTML5_VIDEO_REGEX = Pattern.compile(
-        "<video[^>]*src=[\"']([^\"']+)[\"']|<source[^>]*src=[\"']([^\"']+\\.(?:mp4|webm|m4v))[\"']",
+        "<video[^>]*src=[\"']([^\"']+)[\"']|<source[^>]*src=[\"']([^\"']+\\.(?:mp4|webm|m4v))[\"']|(https?://[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.~!$&'()*+,;=:@%/-]*)?\\.(?:mp4|webm|m4v))",
         Pattern.CASE_INSENSITIVE
     )
 
@@ -181,96 +182,180 @@ object WordPressApiClient {
         forceNetwork: Boolean = false
     ): List<VideoItem> = withContext(Dispatchers.IO) {
         val videoItems = mutableListOf<VideoItem>()
-        val seenIds = mutableSetOf<String>()
+        val seenMediaUrls = mutableSetOf<String>()
         val seenPostIds = mutableSetOf<Long>()
+        val seenTitles = mutableSetOf<String>()
 
-        fun processPostsJson(jsonString: String) {
+        fun normalizeUrl(url: String): String {
+            return url.trim().lowercase().substringBefore("?").removeSuffix("/")
+        }
+
+        fun normalizeTitle(title: String): String {
+            return title.trim().lowercase().replace(Regex("""\s+"""), " ")
+        }
+
+        // Cache of recent posts for associating with media attachments
+        val postMap = mutableMapOf<Long, WPPost>()
+
+        // 1. Fetch recent posts to populate postMap and extract post-embedded MP4s
+        val urlRecentPosts = "$BASE_URL/posts".toHttpUrlOrNull()?.newBuilder()?.apply {
+            addQueryParameter("per_page", "40")
+            addQueryParameter("orderby", "date")
+            addQueryParameter("order", "desc")
+            addQueryParameter("_embed", "1")
+        }?.build()
+
+        if (urlRecentPosts != null) {
             try {
-                val jsonArray = JSONArray(jsonString)
-                for (i in 0 until jsonArray.length()) {
-                    val obj = jsonArray.getJSONObject(i)
-                    val post = parsePost(obj)
-                    val ytId = post.youtubeId
-                    if (!seenPostIds.contains(post.id)) {
-                        seenPostIds.add(post.id)
-                        if (!ytId.isNullOrBlank() && !seenIds.contains(ytId)) {
-                            seenIds.add(ytId)
-                            videoItems.add(
-                                VideoItem(
-                                    id = post.id,
-                                    title = post.cleanTitle,
-                                    youtubeId = ytId,
-                                    youtubeUrl = "https://www.youtube.com/watch?v=$ytId",
-                                    thumbnail = "https://img.youtube.com/vi/$ytId/hqdefault.jpg",
-                                    category = post.primaryCategory ?: "Video Report",
-                                    date = post.date,
-                                    articleId = post.id,
-                                    description = post.cleanExcerpt
-                                )
-                            )
-                        } else if (!post.videoUrl.isNullOrBlank()) {
-                            val dummyId = "mp4_${post.id}"
-                            if (!seenIds.contains(dummyId)) {
-                                seenIds.add(dummyId)
-                                videoItems.add(
-                                    VideoItem(
-                                        id = post.id,
-                                        title = post.cleanTitle,
-                                        youtubeId = dummyId,
-                                        youtubeUrl = post.videoUrl,
-                                        thumbnail = post.featuredImageUrl ?: "",
-                                        category = post.primaryCategory ?: "Video Report",
-                                        date = post.date,
-                                        articleId = post.id,
-                                        description = post.cleanExcerpt
-                                    )
-                                )
-                            }
-                        }
+                val reqBuilder = Request.Builder().url(urlRecentPosts).get()
+                if (forceNetwork) reqBuilder.cacheControl(CacheControl.FORCE_NETWORK)
+                val resp = client.newCall(reqBuilder.build()).execute()
+                if (resp.isSuccessful) {
+                    val jsonArray = JSONArray(resp.body?.string().orEmpty())
+                    for (i in 0 until jsonArray.length()) {
+                        val post = parsePost(jsonArray.getJSONObject(i))
+                        postMap[post.id] = post
                     }
                 }
             } catch (_: Exception) { }
         }
 
-        // 1. Fetch posts with search query "youtube"
-        val urlSearch = "$BASE_URL/posts".toHttpUrlOrNull()?.newBuilder()?.apply {
-            addQueryParameter("search", "youtube")
+        // 2. Fetch native WordPress uploaded videos (/wp/v2/media?media_type=video)
+        val urlMedia = "$BASE_URL/media".toHttpUrlOrNull()?.newBuilder()?.apply {
+            addQueryParameter("media_type", "video")
             addQueryParameter("per_page", perPage.toString())
             addQueryParameter("page", page.toString())
             addQueryParameter("orderby", "date")
             addQueryParameter("order", "desc")
-            addQueryParameter("_embed", "1")
         }?.build()
 
-        if (urlSearch != null) {
+        if (urlMedia != null) {
             try {
-                val reqBuilder = Request.Builder().url(urlSearch).get()
+                val reqBuilder = Request.Builder().url(urlMedia).get()
                 if (forceNetwork) reqBuilder.cacheControl(CacheControl.FORCE_NETWORK)
                 val resp = client.newCall(reqBuilder.build()).execute()
                 if (resp.isSuccessful) {
-                    processPostsJson(resp.body?.string().orEmpty())
+                    val mediaArray = JSONArray(resp.body?.string().orEmpty())
+                    for (i in 0 until mediaArray.length()) {
+                        val mediaObj = mediaArray.getJSONObject(i)
+                        val mediaId = mediaObj.optLong("id")
+                        val sourceUrl = mediaObj.optString("source_url").takeIf { it.isNotBlank() }
+                            ?: mediaObj.optJSONObject("guid")?.optString("rendered", "").orEmpty()
+
+                        if (sourceUrl.isBlank()) continue
+                        val normUrl = normalizeUrl(sourceUrl)
+                        if (seenMediaUrls.contains(normUrl)) continue
+
+                        val associatedPostId = mediaObj.optLong("post", 0L)
+                        // Deduplicate: avoid adding multiple duplicate video uploads for the exact same article
+                        if (associatedPostId > 0 && seenPostIds.contains(associatedPostId)) {
+                            continue
+                        }
+
+                        val parentPost = if (associatedPostId > 0) postMap[associatedPostId] else null
+
+                        val rawTitle = mediaObj.optJSONObject("title")?.optString("rendered", "").orEmpty()
+                        val cleanMediaTitle = HtmlUtils.stripHtml(rawTitle)
+                        val displayTitle = when {
+                            parentPost != null && parentPost.cleanTitle.isNotBlank() -> parentPost.cleanTitle
+                            cleanMediaTitle.isNotBlank() && !cleanMediaTitle.startsWith("video_", ignoreCase = true) -> cleanMediaTitle
+                            else -> "चाय पंचायत ग्राउंड रिपोर्ट #$mediaId"
+                        }
+
+                        val normTitle = normalizeTitle(displayTitle)
+                        if (seenTitles.contains(normTitle)) continue
+
+                        seenMediaUrls.add(normUrl)
+                        seenTitles.add(normTitle)
+                        if (associatedPostId > 0) seenPostIds.add(associatedPostId)
+
+                        val displayThumb = parentPost?.featuredImageUrl
+                            ?: "https://chaipanchayat.com/wp-content/uploads/2023/08/cropped-logo-1.png"
+
+                        val category = parentPost?.primaryCategory ?: "ग्राउंड रिपोर्ट"
+                        val date = mediaObj.optString("date", parentPost?.date ?: "")
+                        val description = parentPost?.cleanExcerpt ?: ""
+
+                        videoItems.add(
+                            VideoItem(
+                                id = mediaId,
+                                title = displayTitle,
+                                youtubeId = "native_$mediaId",
+                                youtubeUrl = sourceUrl,
+                                thumbnail = displayThumb,
+                                category = category,
+                                date = date,
+                                articleId = associatedPostId,
+                                description = description,
+                                videoUrl = sourceUrl
+                            )
+                        )
+                    }
                 }
             } catch (_: Exception) { }
         }
 
-        // 2. Fetch recent general posts to catch embedded videos without "youtube" in title
-        val urlRecent = "$BASE_URL/posts".toHttpUrlOrNull()?.newBuilder()?.apply {
-            addQueryParameter("per_page", "35")
-            addQueryParameter("orderby", "date")
-            addQueryParameter("order", "desc")
-            addQueryParameter("_embed", "1")
-        }?.build()
-
-        if (urlRecent != null) {
-            try {
-                val reqBuilder = Request.Builder().url(urlRecent).get()
-                if (forceNetwork) reqBuilder.cacheControl(CacheControl.FORCE_NETWORK)
-                val resp = client.newCall(reqBuilder.build()).execute()
-                if (resp.isSuccessful) {
-                    processPostsJson(resp.body?.string().orEmpty())
+        // 3. Add posts that contain native direct MP4 videos in their content
+        for ((postId, post) in postMap) {
+            if (seenPostIds.contains(postId)) continue
+            val vUrl = post.videoUrl
+            if (!vUrl.isNullOrBlank()) {
+                val normUrl = normalizeUrl(vUrl)
+                val normTitle = normalizeTitle(post.cleanTitle)
+                if (!seenMediaUrls.contains(normUrl) && !seenTitles.contains(normTitle)) {
+                    seenMediaUrls.add(normUrl)
+                    seenTitles.add(normTitle)
+                    seenPostIds.add(postId)
+                    videoItems.add(
+                        VideoItem(
+                            id = postId,
+                            title = post.cleanTitle,
+                            youtubeId = "post_mp4_$postId",
+                            youtubeUrl = vUrl,
+                            thumbnail = post.featuredImageUrl ?: "https://chaipanchayat.com/wp-content/uploads/2023/08/cropped-logo-1.png",
+                            category = post.primaryCategory ?: "वीडियो",
+                            date = post.date,
+                            articleId = postId,
+                            description = post.cleanExcerpt,
+                            videoUrl = vUrl
+                        )
+                    )
                 }
-            } catch (_: Exception) { }
+            }
         }
+
+        // 4. Fallback: if very few native videos found on this page, include YouTube video posts as fallback
+        if (videoItems.size < 5) {
+            for ((postId, post) in postMap) {
+                if (seenPostIds.contains(postId)) continue
+                val ytId = post.youtubeId
+                if (!ytId.isNullOrBlank()) {
+                    val normTitle = normalizeTitle(post.cleanTitle)
+                    if (!seenMediaUrls.contains(ytId) && !seenTitles.contains(normTitle)) {
+                        seenMediaUrls.add(ytId)
+                        seenTitles.add(normTitle)
+                        seenPostIds.add(postId)
+                        videoItems.add(
+                            VideoItem(
+                                id = postId,
+                                title = post.cleanTitle,
+                                youtubeId = ytId,
+                                youtubeUrl = "https://www.youtube.com/watch?v=$ytId",
+                                thumbnail = "https://img.youtube.com/vi/$ytId/hqdefault.jpg",
+                                category = post.primaryCategory ?: "वीडियो",
+                                date = post.date,
+                                articleId = postId,
+                                description = post.cleanExcerpt,
+                                videoUrl = null
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // 5. Strict serial ordering by post timing (newest first, genuine WordPress dates)
+        videoItems.sortByDescending { DateUtils.parseDate(it.date)?.time ?: 0L }
 
         videoItems
     }
@@ -431,11 +516,10 @@ object WordPressApiClient {
             youtubeId = ytMatcher.group(1)
         }
 
-        // Extract HTML5 direct video if present
         var videoUrl: String? = null
         val vidMatcher = HTML5_VIDEO_REGEX.matcher(rawContent)
         if (vidMatcher.find()) {
-            videoUrl = vidMatcher.group(1) ?: vidMatcher.group(2)
+            videoUrl = vidMatcher.group(1) ?: vidMatcher.group(2) ?: vidMatcher.group(3)
         }
 
         return WPPost(

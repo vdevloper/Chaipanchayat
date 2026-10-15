@@ -13,8 +13,8 @@ android {
         applicationId = "com.chaipanchayat.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "2.3.1"
+        versionCode = 11
+        versionName = "2.4.0"
     }
 
     signingConfigs {
@@ -72,4 +72,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
 }

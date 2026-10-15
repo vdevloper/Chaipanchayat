@@ -1,6 +1,7 @@
 package com.chaipanchayat.app.ui.screens
 
 import android.widget.Toast
+import com.chaipanchayat.app.BuildConfig
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -318,7 +319,7 @@ fun SettingsScreen(
             )
             SettingsInfoRow(
                 title = "App Version",
-                value = "2.3.0 (v9)"
+                value = "${BuildConfig.VERSION_NAME} (v${BuildConfig.VERSION_CODE})"
             )
         }
     }
@@ -642,7 +643,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "• आधिकारिक वेबसाइट: chaipanchayat.com\n• संपादकीय संपर्क: chaipanchayat@gmail.com\n• तकनीकी/डेवलपर: kvashudev934@gmail.com\n• मुख्यालय: गोरखपुर, उत्तर प्रदेश (273001)\n• संस्करण: 2.1 (Chai Editorial)",
+                        text = "• आधिकारिक वेबसाइट: chaipanchayat.com\n• संपादकीय संपर्क: chaipanchayat@gmail.com\n• तकनीकी/डेवलपर: kvashudev934@gmail.com\n• मुख्यालय: गोरखपुर, उत्तर प्रदेश (273001)\n• संस्करण: ${BuildConfig.VERSION_NAME} (Chai Editorial)",
                         fontFamily = InterFamily,
                         fontSize = 12.sp,
                         lineHeight = 18.sp,

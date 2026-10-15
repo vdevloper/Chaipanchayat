@@ -1,130 +1,67 @@
-# Firebase Hosting Intent Redirector & Post Sharing Plan (Revised)
+# Implementation Plan: Accurate Post Timings, Share Tagline Update & Instagram Reels Native Video Player
 
-Implement Firebase Hosting smart link redirector infrastructure (`https://gen-lang-client-0700030242.web.app/post/{id}`) that induces the native Android app intent, ensures 100% clickability across WhatsApp, Telegram, and SMS, attaches the featured image, and completely prevents routing users to the WordPress website.
+Revamp post timing calculations to accurately reflect publication timestamps without timezone drift, update the post sharing closing tagline to retain 'बेबाक, सटीक, निष्पक्ष' without 'खबरें', and redesign the Videos screen into a pure, full-screen Instagram Reels-style vertical feed powered by native WordPress MP4 video uploads.
 
-## User Review & Critical Decisions
+## User Review Required
 
 > [!IMPORTANT]
-> **The Firebase Hosting Intent-Inducing Solution**:
-> 1. **Why Custom Schemes Fail Alone**: Plain schemes like `chaipanchayat://post/123` cannot be clicked inside WhatsApp, SMS, or Telegram because messaging clients only activate `http://` and `https://` protocols.
-> 2. **Why WordPress Links Fail**: Sharing `https://chaipanchayat.com/?p=123` defaults to opening the full WordPress website in Chrome instead of keeping users in the app.
-> 3. **The Firebase Hosting Bridge**:
->    - We configure Firebase Hosting for project `gen-lang-client-0700030242` (`public/index.html` + `firebase.json`).
->    - Share link format: `https://gen-lang-client-0700030242.web.app/post/{id}`.
->    - Because it is a secure `https://` address, all social and messaging apps render it as a clickable blue hyperlink with rich Open Graph previews.
->    - When tapped on Android with the app installed, Android's `intent-filter` intercepts the domain immediately without launching Chrome.
->    - If tapped in a mobile browser, Firebase Hosting serves an intent-inducing script (`intent://post/{id}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;end` and `location.href = "chaipanchayat://post/{id}"`) which immediately opens the native app, with a fallback button to Google Play.
-
-- **Confirmed Decision 1**: Share messages will use `https://gen-lang-client-0700030242.web.app/post/{id}` as the primary clickable URL, paired with the downloaded featured image via `FileProvider`.
-- **Confirmed Decision 2**: Zero WordPress redirects—the Firebase Hosting endpoint induces the native Android intent directly, keeping the experience strictly in-app.
+> - **Video Reels Experience**: Immersive full-screen vertical pager (`VerticalPager`) with tap-to-pause/play, auto-looping, and pure video playback free of comment sections or like clutter.
+> - **Video Media Sources**: Both native WordPress uploaded media (`/wp-json/wp/v2/media?media_type=video`) and WordPress posts containing direct MP4 videos will be fetched and unified.
+> - **Post Timings**: Accurate timestamp parsing recognizing Indian Standard Time (`Asia/Kolkata`, UTC+05:30) so times are never off by 5.5 hours or showing incorrect relative durations.
+> - **Share Tagline**: Updated to `(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)` without the word `खबरें`.
 
 ---
 
-## 1. Overview & Core Concept
+## Proposed Changes
 
-- **What It Does**: When any article or video post is shared, the app attaches the featured image and generates a formatted message containing the headline and a clickable Firebase Hosting link. Tapping the link opens the Chai Panchayat app directly to that specific post.
-- **Target Audience / Persona**: Readers sharing news stories with friends and groups on WhatsApp, Telegram, Facebook, and SMS.
-- **Key Value**: Delivers frictionless sharing with attractive image previews and guaranteed in-app opening without visiting the website.
+### 1. Fix Post Timings (`DateUtils.kt` & `WordPressApiClient.kt`)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 Chai Panchayat Story Share                  │
-├─────────────────────────────────────────────────────────────┤
-│ [Featured Image Attached]                                   │
-│                                                             │
-│ 🔥 {Post Headline}                                          │
-│                                                             │
-│ 📲 ऐप में सीधे पढ़ें (Tap to Open in App):                 │
-│ https://gen-lang-client-0700030242.web.app/post/{id}        │
-│                                                             │
-│ (चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)                  │
-└─────────────────────────────────────────────────────────────┘
-```
+- **Root Cause**: WordPress REST API returns `date` in the site's local time (IST, `Asia/Kolkata`), but `DateUtils.parseDate` defaulted to UTC for formats without explicit offset. As a result, newly published posts were parsed 5.5 hours into the future, causing relative timings to fail or display incorrectly.
+- **Solution**:
+  - In `DateUtils.kt`, parse naive ISO dates using the Indian Standard Time timezone (`Asia/Kolkata` / GMT+05:30), while preserving ISO-8601 with timezone offsets (`XXX` / `Z`).
+  - Add robust relative time logic ("अभी-अभी", "X मिनट पहले", "X घंटे पहले", "कल", "X दिन पहले") with clean Hindi/English formatting fallback.
+  - In `WordPressApiClient.kt`, capture both `date` and `date_gmt` to ensure consistent epoch calculation.
 
 ---
 
-## 2. User Experience & Visual Design
+### 2. Update Share Message Tagline (`DeepLinkManager.kt`)
 
-- **Key User Flows**:
-  1. **Share Trigger**: User taps the Share button on any `NewsCard`, `HeroCard`, `ArticleScreen`, or `VideosScreen`.
-  2. **Image Preparation**: High-res featured image is retrieved from Coil cache or fetched via OkHttp and placed into the app cache (`shared_images/share_post_{id}.jpg`).
-  3. **Intent Dispatch**: `Intent.ACTION_SEND` opens the Android system share sheet with both the image URI and the text containing `https://gen-lang-client-0700030242.web.app/post/{id}`.
-  4. **Recipient Tap (In-App Direct)**: Recipient clicks the link on Android. The system matches the `autoVerify` intent filter on `gen-lang-client-0700030242.web.app` and launches `MainActivity` directly into `ArticleScreen(postId)`.
-  5. **Recipient Tap (Browser Fallback)**: If opened in a web browser, the Firebase Hosting page immediately executes an Android Intent URI launch (`intent://post/{id}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;end`) to induce the app, featuring a clean Hindi/English branded button "ऐप में खोलें (Open in Chai Panchayat App)".
-
-- **Visual Identity & Theme**:
-  - Consistent with Chai Panchayat's saffron/maroon and warm cream tones (`#E65100`, `#BF360C`, `#FFF8E1`).
-  - Clear Hindi CTA labels: "ऐप में सीधे पढ़ें" and "चाय पंचायत पर पूरी खबर देखें".
+- In `DeepLinkManager.buildShareMessage` and `buildHtmlShareMessage`:
+  - Change the closing tagline from:
+    `(चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)`
+  - To:
+    `(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)`
+  - Retaining `बेबाक, सटीक, निष्पक्ष` and removing `खबरें` as requested.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+### 3. Native WordPress Video Ingestion (`WordPressApiClient.kt` & `NewsRepository.kt`)
 
-- **Decision 1: Firebase Hosting as the Link Host**:
-  - *Chosen Approach*: Deploy a lightweight intent-inducing web redirector on Firebase Hosting (`public/` directory with `firebase.json` rewrites).
-  - *Why*: Messaging apps strictly require standard `https://` protocol to create clickable links. Firebase Hosting is fast, free, Google-backed, and matches the project's Firebase backend.
-  - *Alternatives Considered*: Direct custom scheme `chaipanchayat://` was rejected because messaging apps render it as non-clickable plain text; `chaipanchayat.com` was rejected because it routes users to the web.
-
-- **Decision 2: Intent Induction Script on Web Landing**:
-  - *Chosen Approach*: The Firebase page runs:
-    ```javascript
-    const postId = window.location.pathname.split('/').pop() || new URLSearchParams(window.location.search).get('p');
-    window.location.href = `intent://post/${postId}#Intent;scheme=chaipanchayat;package=com.chaipanchayat.app;S.browser_fallback_url=market%3A%2F%2Fdetails%3Fid%3Dcom.chaipanchayat.app;end`;
-    ```
-  - *Why*: Guarantees that even if the Android OS opens the link in Chrome, Chrome immediately prompts to hand off execution to the native Chai Panchayat app.
+- In `WordPressApiClient`:
+  - Add native media query: Fetch `/wp-json/wp/v2/media?media_type=video&per_page=20` to directly load uploaded `.mp4` video files (`source_url`, `guid.rendered`, title, and date).
+  - Enhance post video parsing: In addition to the media library, parse posts that contain direct HTML5 `<video src="...">`, `<source src="...">`, or direct uploaded `.mp4` URLs.
+  - Combine both sources into unified `VideoItem` models prioritized by recency, setting `videoUrl` directly to the native MP4 stream.
 
 ---
 
-## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+### 4. Full-Screen Instagram Reels Feed (`VideosScreen.kt` & `ReelsVideoPlayer.kt`)
 
-### Architecture & Component Diagram
+- Replace the multi-section layout (chips, hero card, article bottom sheets, comments, and like widgets) in `VideosScreen.kt` with a modern Instagram Reels vertical experience:
+  - **Vertical Pager**: `VerticalPager` allowing users to swipe up and down smoothly between videos.
+  - **Full-Screen Immersive Video**: Videos fill the entire screen with aspect ratio handling (aspect fit / fill).
+  - **Tap to Pause / Play**: Single tap anywhere on the screen toggles playback with a subtle visual ripple and pause icon overlay.
+  - **Auto-Play Active Video**: Only the currently visible page plays audio and video; swiping pauses the previous video and immediately buffers the next.
+  - **Minimalist Overlay**: Pure video aesthetic with only a discreet bottom gradient featuring the headline and category, plus an optional share button, completely eliminating unnecessary comment sections and clutter.
 
-```
-┌────────────────────────────────────────────────────────┐
-│               Chai Panchayat Android App               │
-│                                                        │
-│  NewsCard / ArticleScreen / VideosScreen               │
-│                    │                                   │
-│                    ▼ (User taps Share)                 │
-│         DeepLinkManager.shareArticle                   │
-│         - Downloads / resolves featured image          │
-│         - Writes to FileProvider (shared_images/)      │
-│         - Builds text with Firebase link:              │
-│           https://gen-lang-client-0700030242.web.app/  │
-│           post/{id}                                    │
-│         - Dispatches ACTION_SEND chooser               │
-└────────────────────┬───────────────────────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────────────────────┐
-│       Recipient Messaging App (WhatsApp, Telegram)      │
-│       - Displays clickable https:// link               │
-│       - Displays featured photo                        │
-└────────────────────┬───────────────────────────────────┘
-                     │ (User taps link)
-                     ▼
-          ┌───────────────────────────┐
-          │ Is App Installed?         │
-          └─────┬───────────────┬─────┘
-                │ Yes           │ No / Web
-                ▼               ▼
-┌─────────────────────────┐   ┌───────────────────────────┐
-│ Android App Link Inter- │   │ Firebase Hosting          │
-│ cept (AndroidManifest)  │   │ (public/index.html)       │
-│ - Launches MainActivity │   │ - Runs Android Intent:    │
-│ - Navigates directly to │   │   intent://post/{id}      │
-│   ArticleScreen(postId) │   │ - Fallback: Play Store    │
-└─────────────────────────┘   └───────────────────────────┘
-```
+---
 
-### File & Component Changes:
-1. **`firebase.json` & `public/index.html`**:
-   - Create Firebase Hosting config routing all `/post/**` requests to an intent redirector page with Chai Panchayat branding and immediate `intent://` induction.
-2. **`AndroidManifest.xml`**:
-   - Add `<intent-filter>` for host `gen-lang-client-0700030242.web.app` and `gen-lang-client-0700030242.firebaseapp.com` under pathPrefix `/post/`.
-3. **`DeepLinkManager.kt`**:
-   - Update `buildShareMessage` to format the Firebase Hosting link.
-   - Update `extractArticleId` to parse the Firebase Hosting domain paths (`/post/{id}` and `/?p={id}`).
-   - Ensure image sharing attaches JPEG via `FileProvider` with `FLAG_GRANT_READ_URI_PERMISSION`.
-4. **`file_paths.xml`**:
-   - Ensure `shared_images` cache path is fully mapped for FileProvider.
+## Verification Plan
+
+### Automated Verification
+- Run `compile_applet` to ensure Kotlin compilation, compose dependencies, and layout stability.
+- Run unit/Robolectric tests for `DateUtils` to verify that an IST timestamp calculates the exact correct elapsed minutes and hours against system time.
+
+### Manual / Device Verification
+- **Timestamps**: Verify home feed, hero cards, news lists, and article detail show realistic, non-negative relative times matching current publication dates.
+- **Share Message**: Verify sharing an article generates text ending in `(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)`.
+- **Reels Experience**: Open the Videos tab, verify full-screen vertical swipe, tap to pause/play, and verify native MP4 playback from WordPress uploads.

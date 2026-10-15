@@ -229,7 +229,7 @@ object DeepLinkManager {
             append("\n")
             append(playStoreUrl)
             append("\n\n")
-            append("(चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)")
+            append("(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)")
         }
     }
 
@@ -250,7 +250,7 @@ object DeepLinkManager {
             <a href="$websiteLink">$websiteLink</a></p>
             <p>📥 <b>चाय पंचायत ऐप डाउनलोड करें:</b><br/>
             <a href="$playStoreUrl">$playStoreUrl</a></p>
-            <p><i>(चाय पंचायत - बेबाक, सटीक, निष्पक्ष खबरें)</i></p>
+            <p><i>(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)</i></p>
         """.trimIndent()
     }
 

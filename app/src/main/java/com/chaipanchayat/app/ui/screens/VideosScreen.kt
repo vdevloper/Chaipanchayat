@@ -1,58 +1,55 @@
 package com.chaipanchayat.app.ui.screens
 
 import android.annotation.SuppressLint
-import android.content.Intent
-import android.net.Uri
+import android.view.ViewGroup
+import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import com.chaipanchayat.app.ui.components.ChaiVideoPlayer
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -62,391 +59,594 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import com.chaipanchayat.app.data.model.VideoItem
 import com.chaipanchayat.app.data.repository.NewsRepository
-import com.chaipanchayat.app.ui.components.EmptyState
-import com.chaipanchayat.app.ui.components.HeroSkeleton
+import com.chaipanchayat.app.ui.components.ChaiVideoPlayer
 import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
-import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
-import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.utils.DateUtils
+import com.chaipanchayat.app.utils.DeepLinkManager
+import com.chaipanchayat.app.utils.rememberChaiHaptics
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Filter tabs for Video feed:
+ * 1. ALL: Normal videos list
+ * 2. TAJA_CHAI: Latest videos from today and the last 5 days ordered serially by post timings
+ */
+enum class VideoFeedTab(val label: String, val testTag: String) {
+    ALL("वीडियो", "tab_all_videos"),
+    TAJA_CHAI("ताज़ा चाय", "tab_taja_chai")
+}
+
+/**
+ * Full-screen vertical video feed.
+ * Features:
+ * - Two top options: "वीडियो" (normal) and "ताज़ा चाय" (today & last 5 days serial-wise)
+ * - Pure, uncluttered full-screen video layout
+ * - Vertical swipe (VerticalPager) to seamlessly transition between videos
+ * - Plays full videos completely to the end (no short loops, repeatMode = OFF)
+ * - Sleek playback progress indicator with time elapsed and total duration
+ * - Native Media3 ExoPlayer for direct WordPress uploaded MP4 videos
+ * - Tap anywhere to toggle play/pause with animated indicator
+ * - Replay action when video finishes
+ * - Robust deduplication preventing duplicate items on scroll up
+ * - Global mute/unmute sound toggle
+ * - Clean bottom overlay with headline, category, and direct share action
+ */
 @Composable
 fun VideosScreen(
     onNavigateToArticle: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
+    val haptics = rememberChaiHaptics()
     val repository = remember { NewsRepository.getInstance() }
-
-    // Instant data from memory cache
     val initialCached = remember { repository.getCachedVideos().orEmpty() }
+
     var videos by remember { mutableStateOf(initialCached) }
     var isLoading by remember { mutableStateOf(initialCached.isEmpty()) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    var isOffline by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf("All") }
-    var activePlayingVideo by remember { mutableStateOf<VideoItem?>(null) }
+    var isMuted by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(VideoFeedTab.ALL) }
 
     val coroutineScope = rememberCoroutineScope()
-    val listState = rememberLazyListState()
 
-    suspend fun loadVideos(forceRefresh: Boolean = false) {
-        if (videos.isEmpty()) isLoading = true
-        try {
-            val fetched = repository.getVideoPosts(forceRefresh = forceRefresh)
-            videos = fetched
-            isOffline = false
-        } catch (e: Exception) {
-            if (videos.isEmpty()) {
-                isOffline = true
+    fun loadVideos(forceNetwork: Boolean = false) {
+        coroutineScope.launch {
+            if (videos.isEmpty()) isLoading = true
+            try {
+                val fetched = repository.getVideoPosts(forceRefresh = forceNetwork)
+                if (fetched.isNotEmpty()) {
+                    videos = fetched
+                }
+            } catch (_: Exception) {
+            } finally {
+                isLoading = false
             }
-        } finally {
-            isLoading = false
-            isRefreshing = false
         }
     }
 
     LaunchedEffect(Unit) {
-        loadVideos(forceRefresh = false)
+        loadVideos(forceNetwork = initialCached.isEmpty())
     }
 
-    val filterOptions = listOf("All", "Ground Reports", "Special Stories", "Police & Law")
-
-    val filteredVideos = remember(videos, selectedFilter) {
-        when (selectedFilter) {
-            "Ground Reports" -> videos.filter {
-                it.title.contains("ग्राउंड", ignoreCase = true) ||
-                        it.title.contains("रिपोर्ट", ignoreCase = true) ||
-                        it.category?.contains("Report", ignoreCase = true) == true
+    // Filter displayed videos based on selected tab
+    val displayedVideos = remember(videos, selectedTab) {
+        when (selectedTab) {
+            VideoFeedTab.ALL -> videos
+            VideoFeedTab.TAJA_CHAI -> {
+                // Today and last 5 days only, strictly ordered serially by post timing (newest first)
+                videos.filter { DateUtils.isTodayOrPastDays(it.date, pastDays = 5) }
+                    .sortedByDescending { DateUtils.parseDate(it.date)?.time ?: 0L }
             }
-            "Special Stories" -> videos.filter {
-                it.title.contains("विशेष", ignoreCase = true) ||
-                        it.title.contains("साक्षात्कार", ignoreCase = true) ||
-                        it.title.contains("कहानी", ignoreCase = true)
-            }
-            "Police & Law" -> videos.filter {
-                it.title.contains("पुलिस", ignoreCase = true) ||
-                        it.title.contains("दरोगा", ignoreCase = true) ||
-                        it.title.contains("कैंट", ignoreCase = true) ||
-                        it.title.contains("एसएसपी", ignoreCase = true)
-            }
-            else -> videos
         }
     }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(Color.Black)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Header Bar
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        when {
+            isLoading && videos.isEmpty() -> {
+                // Loading state
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayCircle,
-                            contentDescription = null,
-                            tint = ChaiCrimson,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "वीडियो बुलेटिन",
-                                fontFamily = NotoSerifFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Ground Reports & Video Stories",
-                                fontFamily = InterFamily,
-                                fontSize = 11.sp,
-                                color = ChaiTheme.extended.muted
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                isRefreshing = true
-                                loadVideos(forceRefresh = true)
-                            }
-                        },
-                        modifier = Modifier.testTag("videos-refresh-button")
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Refresh,
-                            contentDescription = "Refresh Videos",
-                            tint = MaterialTheme.colorScheme.onSurface
+                        CircularProgressIndicator(
+                            color = ChaiSaffron,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(42.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "चाय पंचायत वीडियो लोड हो रहे हैं...",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontFamily = InterFamily,
+                            fontSize = 14.sp
                         )
                     }
                 }
             }
 
-            HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border)
-
-            // Category Filter Chips
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(filterOptions) { filter ->
-                    val isSelected = selectedFilter == filter
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { selectedFilter = filter },
-                        label = {
-                            Text(
-                                text = when (filter) {
-                                    "All" -> "सभी वीडियो (${videos.size})"
-                                    "Ground Reports" -> "ग्राउंड रिपोर्ट"
-                                    "Special Stories" -> "खास खबरें"
-                                    "Police & Law" -> "कानून व पुलिस"
-                                    else -> filter
-                                },
-                                fontFamily = InterFamily,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 13.sp
+            videos.isEmpty() -> {
+                // Empty state with retry
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Text(
+                            text = "कोई वीडियो उपलब्ध नहीं है",
+                            color = Color.White,
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "कृपया इंटरनेट कनेक्शन जांचें और पुनः प्रयास करें।",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontFamily = InterFamily,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = { loadVideos(forceNetwork = true) },
+                            colors = ButtonDefaults.buttonColors(containerColor = ChaiCrimson),
+                            modifier = Modifier.testTag("btn_video_refresh")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
                             )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = ChaiSaffron,
-                            selectedLabelColor = Color.White
-                        )
-                    )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("पुनः लोड करें")
+                        }
+                    }
                 }
             }
 
-            // Main Content Area with PullToRefresh
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    coroutineScope.launch {
-                        isRefreshing = true
-                        loadVideos(forceRefresh = true)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            ) {
-                when {
-                    isLoading && videos.isEmpty() -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp)
+            displayedVideos.isEmpty() -> {
+                // Empty state specific to Taja Chai tab (no videos in last 5 days)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = ChaiSaffron.copy(alpha = 0.15f),
+                            modifier = Modifier.size(64.dp)
                         ) {
-                            HeroSkeleton()
-                            Spacer(modifier = Modifier.height(16.dp))
-                            HeroSkeleton()
-                        }
-                    }
-
-                    isOffline && videos.isEmpty() -> {
-                        EmptyState(
-                            title = "कोई वीडियो उपलब्ध नहीं है",
-                            message = "इंटरनेट कनेक्शन की जांच करें और पुनः प्रयास करें।",
-                            actionLabel = "पुनः प्रयास करें",
-                            onAction = {
-                                coroutineScope.launch { loadVideos(forceRefresh = true) }
-                            }
-                        )
-                    }
-
-                    filteredVideos.isEmpty() -> {
-                        EmptyState(
-                            title = "इस श्रेणी में कोई वीडियो नहीं मिला",
-                            message = "कृपया 'सभी वीडियो' श्रेणी चुनें।",
-                            actionLabel = "सभी वीडियो देखें",
-                            onAction = { selectedFilter = "All" }
-                        )
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            contentPadding = PaddingValues(bottom = 24.dp)
-                        ) {
-                            // Featured Top Video
-                            item(key = "featured_video") {
-                                val topVideo = filteredVideos.first()
-                                FeaturedVideoCard(
-                                    video = topVideo,
-                                    onPlay = { activePlayingVideo = topVideo },
-                                    onReadStory = { onNavigateToArticle(topVideo.articleId) },
-                                    onShare = {
-                                        shareVideo(context, topVideo)
-                                    }
-                                )
-                                Spacer(modifier = Modifier.height(20.dp))
+                            Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = "ताज़ा वीडियो खबरें",
-                                    fontFamily = NotoSerifFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                    text = "☕",
+                                    fontSize = 30.sp
                                 )
-                            }
-
-                            // Remaining Video Cards
-                            items(
-                                items = filteredVideos.drop(1),
-                                key = { it.youtubeId + it.id }
-                            ) { video ->
-                                VideoFeedCard(
-                                    video = video,
-                                    onPlay = { activePlayingVideo = video },
-                                    onReadStory = { onNavigateToArticle(video.articleId) },
-                                    onShare = { shareVideo(context, video) }
-                                )
-                                Spacer(modifier = Modifier.height(14.dp))
                             }
                         }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "ताज़ा चाय - आज और पिछले 5 दिन",
+                            color = Color.White,
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "पिछले 5 दिनों में कोई नया वीडियो नहीं आया है। आप सभी वीडियो देख सकते हैं।",
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontFamily = InterFamily,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = {
+                                haptics.click()
+                                selectedTab = VideoFeedTab.ALL
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = ChaiCrimson),
+                            modifier = Modifier.testTag("btn_switch_all_videos")
+                        ) {
+                            Text("सभी वीडियो देखें")
+                        }
                     }
+                }
+            }
+
+            else -> {
+                val pagerState = rememberPagerState(
+                    initialPage = 0,
+                    pageCount = { displayedVideos.size }
+                )
+
+                // When switching tabs, reset to top page
+                LaunchedEffect(selectedTab) {
+                    pagerState.scrollToPage(0)
+                }
+
+                VerticalPager(
+                    state = pagerState,
+                    key = { index ->
+                        val item = displayedVideos.getOrNull(index)
+                        item?.videoUrl ?: item?.youtubeUrl ?: item?.id ?: index
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 2
+                ) { page ->
+                    val video = displayedVideos[page]
+                    val isCurrentPage = pagerState.currentPage == page
+
+                    VideoFeedItem(
+                        video = video,
+                        isActive = isCurrentPage,
+                        isMuted = isMuted,
+                        onNavigateToArticle = onNavigateToArticle
+                    )
                 }
             }
         }
 
-        // In-App Video Player Sheet
-        activePlayingVideo?.let { activeVideo ->
-            VideoPlayerSheet(
-                video = activeVideo,
-                onDismiss = { activePlayingVideo = null },
-                onReadStory = {
-                    val id = activeVideo.articleId
-                    activePlayingVideo = null
-                    onNavigateToArticle(id)
+        // Top Navigation Bar: Segmented Tab Options ("वीडियो" | "ताज़ा चाय") & Sound Toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Segmented Tabs Pill: Option 1: वीडियो, Option 2: ताज़ा चाय
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.Black.copy(alpha = 0.65f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    VideoFeedTab.entries.forEach { tab ->
+                        val isSelected = selectedTab == tab
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSelected) ChaiCrimson else Color.Transparent,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable {
+                                    if (selectedTab != tab) {
+                                        haptics.click()
+                                        selectedTab = tab
+                                    }
+                                }
+                                .testTag(tab.testTag)
+                        ) {
+                            Text(
+                                text = tab.label,
+                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
+                                fontFamily = InterFamily,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
                 }
-            )
+            }
+
+            // Global Sound Toggle Button
+            Surface(
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.65f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                modifier = Modifier
+                    .size(40.dp)
+                    .clickable {
+                        haptics.click()
+                        isMuted = !isMuted
+                    }
+                    .testTag("btn_video_sound_toggle")
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = if (isMuted) "Unmute" else "Mute",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
-private fun FeaturedVideoCard(
+private fun VideoFeedItem(
     video: VideoItem,
-    onPlay: () -> Unit,
-    onReadStory: () -> Unit,
-    onShare: () -> Unit
+    isActive: Boolean,
+    isMuted: Boolean,
+    onNavigateToArticle: (Long) -> Unit
 ) {
     val context = LocalContext.current
+    val haptics = rememberChaiHaptics()
+    val scope = rememberCoroutineScope()
 
-    val isLiquid = ChaiTheme.extended.isLiquidGlass
-    val cardShape = RoundedCornerShape(16.dp)
+    var isPlaying by remember { mutableStateOf(true) }
+    var isBuffering by remember { mutableStateOf(false) }
+    var isVideoEnded by remember { mutableStateOf(false) }
+    var showPlayPauseIndicator by remember { mutableStateOf(false) }
 
-    Card(
-        shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 4.dp else 2.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("featured-video-card")
-            .then(
-                if (isLiquid) {
-                    Modifier.border(1.dp, ChaiTheme.extended.glassBorderBrush, cardShape)
-                } else {
-                    Modifier.border(0.8.dp, ChaiTheme.extended.border, cardShape)
+    var currentPositionMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
+
+    // Direct MP4 URL if available (from native WordPress media or post-embedded MP4)
+    val mp4Url = video.videoUrl?.takeIf { it.isNotBlank() }
+        ?: video.youtubeUrl.takeIf { it.contains(".mp4", ignoreCase = true) }
+
+    val isNativeMp4 = mp4Url != null
+
+    // ExoPlayer for native MP4 playback: Full video without short loops (REPEAT_MODE_OFF)
+    val exoPlayer = remember(mp4Url) {
+        if (isNativeMp4 && mp4Url != null) {
+            ExoPlayer.Builder(context).build().apply {
+                repeatMode = Player.REPEAT_MODE_OFF
+                val mediaItem = MediaItem.fromUri(mp4Url)
+                setMediaItem(mediaItem)
+                prepare()
+            }
+        } else {
+            null
+        }
+    }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                isBuffering = (state == Player.STATE_BUFFERING)
+                isVideoEnded = (state == Player.STATE_ENDED)
+                if (state == Player.STATE_READY) {
+                    val d = exoPlayer?.duration ?: 0L
+                    if (d > 0L) durationMs = d
                 }
-            )
-    ) {
-        Column {
-            // Thumbnail with Play Button
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clickable(onClick = onPlay)
+            }
+        }
+        exoPlayer?.addListener(listener)
+
+        onDispose {
+            exoPlayer?.removeListener(listener)
+            exoPlayer?.release()
+        }
+    }
+
+    // Sync play/pause with active page state
+    LaunchedEffect(isActive, isPlaying, exoPlayer) {
+        exoPlayer?.let { player ->
+            if (isActive && isPlaying && !isVideoEnded) {
+                player.play()
+            } else {
+                player.pause()
+            }
+        }
+    }
+
+    // Sync volume with global mute state
+    LaunchedEffect(isMuted, exoPlayer) {
+        exoPlayer?.volume = if (isMuted) 0f else 1f
+    }
+
+    // Real-time playback progress tracker for displaying accurate full-video scrubber & duration
+    LaunchedEffect(isActive, isPlaying, isVideoEnded, exoPlayer) {
+        if (isActive && isPlaying && !isVideoEnded && exoPlayer != null) {
+            while (true) {
+                currentPositionMs = exoPlayer.currentPosition.coerceAtLeast(0L)
+                val d = exoPlayer.duration
+                if (d > 0L) durationMs = d
+                delay(250)
+            }
+        }
+    }
+
+    // Auto-hide play/pause indicator after brief animation
+    LaunchedEffect(showPlayPauseIndicator) {
+        if (showPlayPauseIndicator) {
+            delay(650)
+            showPlayPauseIndicator = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
             ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(video.thumbnail)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = video.title,
-                    contentScale = ContentScale.Crop,
+                haptics.click()
+                if (isVideoEnded) {
+                    // Replay full video from start
+                    exoPlayer?.seekTo(0)
+                    exoPlayer?.play()
+                    isVideoEnded = false
+                    isPlaying = true
+                } else {
+                    isPlaying = !isPlaying
+                    showPlayPauseIndicator = true
+                }
+            }
+    ) {
+        if (isNativeMp4 && exoPlayer != null) {
+            // Native Full-Screen MP4 Video Player View
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        player = exoPlayer
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                update = { view ->
+                    view.player = exoPlayer
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            // YouTube or Web fallback player
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                ChaiVideoPlayer(
+                    youtubeId = video.youtubeId,
+                    videoUrl = video.videoUrl,
+                    title = video.title,
+                    thumbnailUrl = video.thumbnail,
+                    autoPlay = isActive,
                     modifier = Modifier.fillMaxSize()
                 )
+            }
+        }
 
-                // Dark Scrim Gradient
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Black.copy(alpha = 0.15f),
-                                    Color.Black.copy(alpha = 0.75f)
-                                )
-                            )
-                        )
-                )
+        // Buffering Indicator
+        if (isBuffering && isPlaying) {
+            CircularProgressIndicator(
+                color = ChaiSaffron,
+                strokeWidth = 3.dp,
+                modifier = Modifier
+                    .size(48.dp)
+                    .align(Alignment.Center)
+            )
+        }
 
-                // Prominent Play Button Badge
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .align(Alignment.Center)
-                        .background(ChaiCrimson, CircleShape),
-                    contentAlignment = Alignment.Center
+        // Replay Button when Full Video Finishes Playing
+        if (isVideoEnded) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color.Black.copy(alpha = 0.75f),
+                border = BorderStroke(1.dp, ChaiSaffron),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable {
+                        haptics.click()
+                        exoPlayer?.seekTo(0)
+                        exoPlayer?.play()
+                        isVideoEnded = false
+                        isPlaying = true
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Play Video",
-                        tint = Color.White,
-                        modifier = Modifier.size(34.dp)
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = "Replay",
+                        tint = ChaiSaffron,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "फिर से देखें",
+                        color = Color.White,
+                        fontFamily = InterFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
                     )
                 }
+            }
+        }
 
-                // Category & Live Badge
+        // Animated Play/Pause Center Indicator
+        AnimatedVisibility(
+            visible = showPlayPauseIndicator && !isVideoEnded,
+            enter = fadeIn(tween(150)) + scaleIn(initialScale = 0.6f),
+            exit = fadeOut(tween(250)) + scaleOut(targetScale = 1.2f),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.55f),
+                modifier = Modifier.size(68.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        contentDescription = if (isPlaying) "Play" else "Pause",
+                        tint = Color.White,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
+            }
+        }
+
+        // Bottom Gradient & Content (Headline, Category, Authentic Time, Progress Scrubber & Share)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.70f),
+                            Color.Black.copy(alpha = 0.96f)
+                        )
+                    )
+                )
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Category pill and real authentic post time
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                        .align(Alignment.TopStart),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        color = ChaiCrimson,
-                        shape = RoundedCornerShape(4.dp)
+                        shape = RoundedCornerShape(6.dp),
+                        color = ChaiCrimson.copy(alpha = 0.9f)
                     ) {
                         Text(
-                            text = "विशेष रिपोर्ट",
+                            text = video.category ?: "वीडियो",
                             color = Color.White,
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Bold,
@@ -455,334 +655,138 @@ private fun FeaturedVideoCard(
                         )
                     }
 
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
+                    val formattedTime = DateUtils.timeAgo(video.date)
+                    if (formattedTime.isNotBlank()) {
                         Text(
-                            text = DateUtils.getRelativeTime(video.date),
-                            color = Color.White,
+                            text = formattedTime,
+                            color = Color.White.copy(alpha = 0.85f),
                             fontFamily = InterFamily,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            fontSize = 12.sp
                         )
                     }
                 }
-            }
-
-            // Details and Actions
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = video.title,
-                    fontFamily = NotoSerifFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    lineHeight = 24.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = onPlay,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = ChaiCrimson,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "वीडियो देखें",
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    Row {
-                        IconButton(onClick = onReadStory) {
-                            Icon(
-                                imageVector = Icons.Outlined.Article,
-                                contentDescription = "Read full article",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = onShare) {
-                            Icon(
-                                imageVector = Icons.Outlined.Share,
-                                contentDescription = "Share video",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun VideoFeedCard(
-    video: VideoItem,
-    onPlay: () -> Unit,
-    onReadStory: () -> Unit,
-    onShare: () -> Unit
-) {
-    val context = LocalContext.current
-
-    val isLiquid = ChaiTheme.extended.isLiquidGlass
-    val cardShape = RoundedCornerShape(12.dp)
-
-    Card(
-        shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 3.dp else 1.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (isLiquid) {
-                    Modifier.border(1.dp, ChaiTheme.extended.glassBorderBrush, cardShape)
-                } else {
-                    Modifier.border(0.8.dp, ChaiTheme.extended.border, cardShape)
-                }
-            )
-            .clickable(onClick = onPlay)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp)
-        ) {
-            // Video Thumbnail
-            Box(
-                modifier = Modifier
-                    .width(130.dp)
-                    .aspectRatio(16f / 10f)
-                    .clip(RoundedCornerShape(8.dp))
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(video.thumbnail)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = video.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // Dark gradient
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
-                            )
-                        )
-                )
-
-                // Mini Play badge
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .align(Alignment.Center)
-                        .background(ChaiCrimson, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Text Info
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(82.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = video.title,
-                    fontFamily = NotoSerifFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    lineHeight = 21.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = DateUtils.getRelativeTime(video.date),
-                        fontFamily = InterFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 12.sp,
-                        color = ChaiTheme.extended.textSecondary
-                    )
-
-                    Row {
-                        IconButton(
-                            onClick = onReadStory,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Article,
-                                contentDescription = "Read story",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        IconButton(
-                            onClick = onShare,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Share,
-                                contentDescription = "Share",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@SuppressLint("SetJavaScriptEnabled")
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun VideoPlayerSheet(
-    video: VideoItem,
-    onDismiss: () -> Unit,
-    onReadStory: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val context = LocalContext.current
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 32.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "चाय पंचायत वीडियो प्लेयर",
-                    fontFamily = InterFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close player"
-                    )
-                }
-            }
-
-            // Robust ChaiVideoPlayer (works with both YouTube and direct MP4/WebM)
-            ChaiVideoPlayer(
-                youtubeId = video.youtubeId,
-                videoUrl = video.videoUrl,
-                title = video.title,
-                thumbnailUrl = video.thumbnail,
-                autoPlay = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-
-            // Video Title & Meta
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = video.title,
-                    fontFamily = NotoSerifFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    lineHeight = 22.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Video Title
                 Text(
-                    text = "प्रकाशित: ${DateUtils.formatDateTime(video.date)}",
+                    text = video.title,
+                    color = Color.White,
                     fontFamily = InterFamily,
-                    fontSize = 12.sp,
-                    color = ChaiTheme.extended.muted
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Action Buttons
+                // Full Video Progress Scrubber Bar and Duration Display
+                if (isNativeMp4 && durationMs > 0L) {
+                    val progressFraction = (currentPositionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        LinearProgressIndicator(
+                            progress = { progressFraction },
+                            color = ChaiSaffron,
+                            trackColor = Color.White.copy(alpha = 0.25f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = formatDurationMs(currentPositionMs),
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontFamily = InterFamily,
+                                fontSize = 10.sp
+                            )
+                            Text(
+                                text = formatDurationMs(durationMs),
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontFamily = InterFamily,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                // Action Bar: "पूरी खबर पढ़ें" (if attached to post) + Clean Share Button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(video.youtubeUrl))
-                            context.startActivity(intent)
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("YouTube पर देखें", fontSize = 13.sp)
+                    if (video.articleId > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.White.copy(alpha = 0.18f),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable {
+                                    haptics.medium()
+                                    onNavigateToArticle(video.articleId)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "पूरी खबर पढ़ें",
+                                    color = Color.White,
+                                    fontFamily = InterFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                                    contentDescription = null,
+                                    tint = ChaiSaffron,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
                     }
 
-                    OutlinedButton(
-                        onClick = onReadStory,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
+                    // Share Button (No copyright mention)
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clickable {
+                                haptics.medium()
+                                scope.launch {
+                                    val shareTargetId = if (video.articleId > 0) video.articleId else video.id
+                                    DeepLinkManager.shareArticle(
+                                        context = context,
+                                        postId = shareTargetId,
+                                        cleanTitle = video.title,
+                                        imageUrl = video.thumbnail,
+                                        permalink = "https://chaipanchayat.com/?p=$shareTargetId"
+                                    )
+                                }
+                            }
+                            .testTag("btn_share_video")
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Article,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("पूरी खबर पढ़ें", fontSize = 13.sp)
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.Share,
+                                contentDescription = "शेयर करें",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -790,14 +794,10 @@ private fun VideoPlayerSheet(
     }
 }
 
-private fun shareVideo(context: android.content.Context, video: VideoItem) {
-    val targetId = if (video.articleId != null && video.articleId > 0) video.articleId else video.id
-    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-        com.chaipanchayat.app.utils.DeepLinkManager.shareArticle(
-            context = context,
-            postId = targetId,
-            cleanTitle = video.title,
-            imageUrl = video.thumbnail.takeIf { it.isNotBlank() }
-        )
-    }
+private fun formatDurationMs(ms: Long): String {
+    if (ms <= 0L) return "00:00"
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 }
