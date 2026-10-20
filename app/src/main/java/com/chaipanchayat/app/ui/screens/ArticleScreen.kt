@@ -790,51 +790,14 @@ fun ArticleScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // In-Post Video Report Card (if video attached to the news post)
-                    if (!currentPost.youtubeId.isNullOrBlank() || !currentPost.videoUrl.isNullOrBlank()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(ChaiCrimson)
-                                )
-                                Text(
-                                    text = "वीडियो रिपोर्ट • VIDEO REPORT",
-                                    fontFamily = InterFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = ChaiCrimson,
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
-                            ChaiVideoPlayer(
-                                youtubeId = currentPost.youtubeId,
-                                videoUrl = currentPost.videoUrl,
-                                title = currentPost.cleanTitle,
-                                thumbnailUrl = currentPost.featuredImageUrl,
-                                autoPlay = false
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
+                    // Featured Image with curved modern borders and fallback
+                    val headerImage = currentPost.featuredImageUrl?.takeIf { it.isNotBlank() }
+                        ?: currentPost.youtubeId?.takeIf { it.isNotBlank() }?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Featured Image with curved modern borders
-                    if (!currentPost.featuredImageUrl.isNullOrBlank()) {
+                    if (!headerImage.isNullOrBlank()) {
                         AsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(currentPost.featuredImageUrl)
+                                .data(headerImage)
                                 .crossfade(true)
                                 .build(),
                             contentDescription = currentPost.cleanTitle,
@@ -850,7 +813,7 @@ fun ArticleScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // Native Parsed Article Body HTML
+                    // Native Parsed Article Body HTML with inline gallery pictures and in-flow video
                     val displayContent = if (isTranslated && translatedArticle != null) {
                         translatedArticle!!.translatedContent
                     } else {
@@ -859,7 +822,11 @@ fun ArticleScreen(
 
                     ArticleHtmlView(
                         html = displayContent,
-                        multiplier = textSize.multiplier
+                        multiplier = textSize.multiplier,
+                        attachedVideoYtId = currentPost.youtubeId,
+                        attachedVideoUrl = currentPost.videoUrl,
+                        articleTitle = currentPost.cleanTitle,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))

@@ -36,16 +36,16 @@ val ChaiHeroOverlayGradient = Brush.verticalGradient(
     )
 )
 
-// Premium Light Editorial Palette (Warm Newspaper Ivory & Ultra-High Editorial Contrast)
-val LightSurface = Color(0xFFF8F9FA)
-val LightSurfaceSecondary = Color(0xFFFFFFFF)
-val LightSurfaceTertiary = Color(0xFFF1F5F9)
+// Premium Light Editorial Palette (Warm Newspaper Ivory & Distinct Ambient Lighting)
+val LightSurface = Color(0xFFFBF8F3) // Warm atmospheric ivory canvas
+val LightSurfaceSecondary = Color(0xFFFFFFFF) // Crisp elevated cards
+val LightSurfaceTertiary = Color(0xFFF3EEE4) // Warm shaded pill & container background
 val LightOnSurface = Color(0xFF0F172A) // Deep Slate-900 for ultra-crisp readable headlines
 val LightSecondaryText = Color(0xFF334155) // Slate-700 for high-contrast bylines and excerpts
-val LightMuted = Color(0xFF475569) // Slate-600 (contrast > 7:1) for readable dates/meta
-val LightBorder = Color(0xFFE2E8F0)
-val LightSkeleton = Color(0xFFE2E8F0)
-val LightCardGlow = Color(0x0DFF5A00)
+val LightMuted = Color(0xFF57534E) // Stone-600 (contrast > 7:1) for warm readable dates/meta
+val LightBorder = Color(0xFFE5DDD0) // Warm tactile border with distinct card depth
+val LightSkeleton = Color(0xFFEDE6DA) // Warm soft skeleton shimmer
+val LightCardGlow = Color(0x14FF5A00) // Subtle saffron ambient lighting
 val LightBrandText = Color(0xFFC2410C) // Burnt saffron (contrast > 5.3:1 on white) for tags
 val LightGoldText = Color(0xFF854D0E) // Deep gold (contrast > 6.2:1 on white) for badges
 val ErrorBreakingNews = Color(0xFFE52B2B)

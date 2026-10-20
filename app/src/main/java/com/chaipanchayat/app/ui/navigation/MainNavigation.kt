@@ -303,9 +303,9 @@ fun MainTabsScaffold(
     val haptics = rememberChaiHaptics()
 
     val tabs = listOf(
-        TabBarItem(MainTab.HOME, Icons.Filled.Home, Icons.Outlined.Home, "tab-home"),
         TabBarItem(MainTab.VIDEOS, Icons.Filled.PlayCircle, Icons.Outlined.PlayCircleOutline, "tab-videos"),
         TabBarItem(MainTab.CATEGORIES, Icons.Filled.GridView, Icons.Outlined.GridView, "tab-categories"),
+        TabBarItem(MainTab.HOME, Icons.Filled.Home, Icons.Outlined.Home, "tab-home"),
         TabBarItem(MainTab.SAVED, Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder, "tab-saved"),
         TabBarItem(MainTab.SETTINGS, Icons.Filled.Settings, Icons.Outlined.Settings, "tab-settings")
     )
@@ -326,7 +326,7 @@ fun MainTabsScaffold(
                 )
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp
+                    tonalElevation = 3.dp
                 ) {
                     val pulseTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "video_tab_pulse")
                     val videoBadgeAlpha by pulseTransition.animateFloat(
@@ -341,11 +341,12 @@ fun MainTabsScaffold(
 
                     tabs.forEach { item ->
                         val isSelected = selectedTab == item.tab
-                        val activeColor = ChaiTheme.extended.brandText
-                        val indicatorBg = ChaiSaffron.copy(alpha = 0.14f)
+                        val isCenterHome = item.tab == MainTab.HOME
+                        val activeColor = if (isCenterHome) ChaiSaffron else ChaiTheme.extended.brandText
+                        val indicatorBg = if (isCenterHome) ChaiSaffron.copy(alpha = 0.18f) else ChaiSaffron.copy(alpha = 0.14f)
 
                         val iconScale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.15f else 1.0f,
+                            targetValue = if (isSelected) (if (isCenterHome) 1.22f else 1.15f) else (if (isCenterHome) 1.08f else 1.0f),
                             animationSpec = spring(dampingRatio = 0.5f, stiffness = 550f),
                             label = "tab_icon_scale_${item.tab.name}"
                         )
@@ -360,22 +361,44 @@ fun MainTabsScaffold(
                             },
                             icon = {
                                 Box(
-                                    modifier = Modifier.scale(iconScale)
+                                    modifier = Modifier.scale(iconScale),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                        contentDescription = item.tab.title,
-                                        modifier = Modifier.size(23.dp)
-                                    )
-                                    // Live red badge indicator on VIDEOS tab with breathing pulse
-                                    if (item.tab == MainTab.VIDEOS) {
+                                    if (isCenterHome) {
+                                        // Prominent center button container like modern professional apps
                                         Box(
                                             modifier = Modifier
-                                                .size(6.dp)
-                                                .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
-                                                .align(Alignment.TopEnd)
-                                                .offset(x = 3.dp, y = (-2).dp)
+                                                .size(36.dp)
+                                                .background(
+                                                    if (isSelected) ChaiSaffron.copy(alpha = 0.16f)
+                                                    else Color.Transparent,
+                                                    CircleShape
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                                contentDescription = item.tab.title,
+                                                modifier = Modifier.size(24.dp),
+                                                tint = if (isSelected) ChaiSaffron else ChaiTheme.extended.textSecondary
+                                            )
+                                        }
+                                    } else {
+                                        Icon(
+                                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                            contentDescription = item.tab.title,
+                                            modifier = Modifier.size(23.dp)
                                         )
+                                        // Live red badge indicator on VIDEOS tab with breathing pulse
+                                        if (item.tab == MainTab.VIDEOS) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
+                                                    .align(Alignment.TopEnd)
+                                                    .offset(x = 3.dp, y = (-2).dp)
+                                            )
+                                        }
                                     }
                                 }
                             },
@@ -391,8 +414,8 @@ fun MainTabsScaffold(
                                 Text(
                                     text = tabTitle,
                                     fontFamily = InterFamily,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else (if (isCenterHome) FontWeight.Bold else FontWeight.SemiBold),
+                                    fontSize = if (isCenterHome) 11.5.sp else 11.sp,
                                     letterSpacing = 0.2.sp
                                 )
                             },
@@ -413,7 +436,9 @@ fun MainTabsScaffold(
         AnimatedContent(
             targetState = selectedTab,
             transitionSpec = {
-                val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                val fromIndex = tabs.indexOfFirst { it.tab == initialState }
+                val toIndex = tabs.indexOfFirst { it.tab == targetState }
+                val direction = if (toIndex > fromIndex) 1 else -1
                 (slideInHorizontally(
                     initialOffsetX = { direction * it / 5 },
                     animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f)

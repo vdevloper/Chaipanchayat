@@ -181,7 +181,9 @@ fun ChaiPanchayatTheme(
             skeleton = LightSkeleton,
             errorBreaking = ErrorBreakingNews,
             cardGlow = LightCardGlow,
-            glassBorderBrush = Brush.linearGradient(listOf(LightBorder, LightBorder))
+            glassBorderBrush = Brush.linearGradient(
+                listOf(LightBorder, ChaiSaffron.copy(alpha = 0.24f), LightBorder)
+            )
         )
     }
 

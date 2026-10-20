@@ -88,11 +88,11 @@ object WordPressApiClient {
         urlBuilder.addQueryParameter("order", "desc")
         urlBuilder.addQueryParameter("_embed", "1")
 
-        // Performance: if not requesting full article content, omit the heavy HTML payload!
+        // Always include media metadata so article images are never stripped
         if (!includeContent) {
             urlBuilder.addQueryParameter(
                 "_fields",
-                "id,date,link,slug,title,excerpt,categories,_links,_embedded"
+                "id,date,link,slug,title,excerpt,content,categories,featured_media,jetpack_featured_media_url,yoast_head_json,_links,_embedded"
             )
         }
 
@@ -472,7 +472,10 @@ object WordPressApiClient {
             val mediaArr = embedded.optJSONArray("wp:featuredmedia")
             if (mediaArr != null && mediaArr.length() > 0) {
                 val mediaObj = mediaArr.optJSONObject(0)
-                featuredImage = mediaObj?.optString("source_url")
+                featuredImage = mediaObj?.optString("source_url").takeIf { !it.isNullOrBlank() }
+                    ?: mediaObj?.optJSONObject("media_details")?.optJSONObject("sizes")?.optJSONObject("large")?.optString("source_url")
+                    ?: mediaObj?.optJSONObject("media_details")?.optJSONObject("sizes")?.optJSONObject("medium_large")?.optString("source_url")
+                    ?: mediaObj?.optJSONObject("media_details")?.optJSONObject("sizes")?.optJSONObject("full")?.optString("source_url")
             }
 
             val termOuterArr = embedded.optJSONArray("wp:term")
@@ -497,14 +500,28 @@ object WordPressApiClient {
                 authorName = authorArr.optJSONObject(0)?.optString("name")
             }
         }
+
         if (featuredImage.isNullOrBlank()) {
             featuredImage = obj.optString("jetpack_featured_media_url").takeIf { it.isNotBlank() }
                 ?: obj.optString("featured_media_src_url").takeIf { it.isNotBlank() }
         }
+
+        if (featuredImage.isNullOrBlank()) {
+            val yoastOg = obj.optJSONObject("yoast_head_json")?.optJSONArray("og_image")
+            if (yoastOg != null && yoastOg.length() > 0) {
+                featuredImage = yoastOg.optJSONObject(0)?.optString("url")?.takeIf { it.isNotBlank() }
+            }
+        }
+
         if (featuredImage.isNullOrBlank()) {
             val imgMatcher = IMG_SRC_REGEX.matcher(rawContent)
             if (imgMatcher.find()) {
                 featuredImage = imgMatcher.group(1)
+            } else {
+                val excerptImgMatcher = IMG_SRC_REGEX.matcher(rawExcerpt)
+                if (excerptImgMatcher.find()) {
+                    featuredImage = excerptImgMatcher.group(1)
+                }
             }
         }
 
@@ -514,6 +531,15 @@ object WordPressApiClient {
         val ytMatcher = YOUTUBE_REGEX.matcher(fullSearchText)
         if (ytMatcher.find()) {
             youtubeId = ytMatcher.group(1)
+        }
+
+        if (featuredImage.isNullOrBlank() && !youtubeId.isNullOrBlank()) {
+            featuredImage = "https://img.youtube.com/vi/$youtubeId/hqdefault.jpg"
+        }
+
+        // Ensure HTTPS for secure, fast loading
+        if (featuredImage?.startsWith("http://") == true) {
+            featuredImage = featuredImage.replaceFirst("http://", "https://")
         }
 
         var videoUrl: String? = null

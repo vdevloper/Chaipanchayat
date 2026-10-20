@@ -186,10 +186,16 @@ fun HomeScreen(
     }
 
     val chipItems = remember(categories) {
-        val list = mutableListOf(CategoryChipItem(0L, "ताज़ा (Latest)"))
-        categories.forEach {
-            list.add(CategoryChipItem(it.id, it.name))
-        }
+        val list = mutableListOf(CategoryChipItem(0L, "सभी (All)"))
+        categories
+            .filter { cat ->
+                val name = cat.name.trim().lowercase()
+                val slug = cat.slug.trim().lowercase()
+                !name.contains("latest") && !slug.contains("latest") && !name.contains("ताज़ा")
+            }
+            .forEach {
+                list.add(CategoryChipItem(it.id, it.name))
+            }
         list
     }
 
@@ -472,15 +478,15 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                             }
 
-                            // 2. Section Header
+                            // 2. Bold Sub Header between posts
                             item(key = "section_header_$selectedCategoryId") {
-                                val sectionTitle = if (selectedCategoryId == 0L) "ताज़ा समाचार • LATEST STORIES" else {
+                                val sectionTitle = if (selectedCategoryId == 0L) "मुख्य समाचार • TOP STORIES" else {
                                     categories.find { it.id == selectedCategoryId }?.name?.uppercase() ?: "STORIES"
                                 }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        .padding(horizontal = 16.dp, vertical = 10.dp)
                                         .animateItem(),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
@@ -488,18 +494,18 @@ fun HomeScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Box(
                                             modifier = Modifier
-                                                .width(3.5.dp)
-                                                .height(16.dp)
+                                                .width(4.5.dp)
+                                                .height(20.dp)
                                                 .background(ChaiSaffron, RoundedCornerShape(2.dp))
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(10.dp))
                                         Text(
                                             text = sectionTitle,
                                             color = MaterialTheme.colorScheme.onSurface,
                                             fontFamily = InterFamily,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.5.sp,
-                                            letterSpacing = 0.5.sp
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 15.sp,
+                                            letterSpacing = 0.6.sp
                                         )
                                     }
 
@@ -507,57 +513,20 @@ fun HomeScreen(
                                         text = "${posts.size} लेख",
                                         color = ChaiTheme.extended.muted,
                                         fontFamily = InterFamily,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 11.5.sp
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
                                     )
                                 }
                             }
 
-                            // 3. Editorial Flow: Immediate access to news feed
-                            if (selectedCategoryId == 0L && posts.size >= 3) {
-                                // First 2 standard news feed items directly beneath the header
-                                val topStories = posts.subList(1, minOf(3, posts.size))
-                                items(topStories, key = { it.id }) { post ->
-                                    NewsCard(
-                                        post = post,
-                                        onClick = { onNavigateToArticle(post.id) },
-                                        displayTitle = getHeadline(post),
-                                        modifier = Modifier.animateItem()
-                                    )
-                                }
-
-                                // Mid-feed signature feature: ☕ आज की चाय (Today's Tea Digest)
-                                item(key = "chai_digest") {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    TodayChaiDigest(
-                                        posts = posts.take(5),
-                                        onPostClick = onNavigateToArticle,
-                                        translatedTitles = if (showOriginalHindi) emptyMap() else translatedTitles,
-                                        modifier = Modifier.animateItem()
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                }
-
-                                // Remaining Feed Stories
-                                val remainingStories = posts.drop(3)
-                                items(remainingStories, key = { it.id }) { post ->
-                                    NewsCard(
-                                        post = post,
-                                        onClick = { onNavigateToArticle(post.id) },
-                                        displayTitle = getHeadline(post),
-                                        modifier = Modifier.animateItem()
-                                    )
-                                }
-                            } else {
-                                // Category view or short list
-                                items(posts.drop(1), key = { it.id }) { post ->
-                                    NewsCard(
-                                        post = post,
-                                        onClick = { onNavigateToArticle(post.id) },
-                                        displayTitle = getHeadline(post),
-                                        modifier = Modifier.animateItem()
-                                    )
-                                }
+                            // 3. Editorial Flow: Stories rendered in clear, uninterrupted serial order
+                            items(posts.drop(1), key = { it.id }) { post ->
+                                NewsCard(
+                                    post = post,
+                                    onClick = { onNavigateToArticle(post.id) },
+                                    displayTitle = getHeadline(post),
+                                    modifier = Modifier.animateItem()
+                                )
                             }
 
                             item(key = "feed_bottom_spacer") {

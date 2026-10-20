@@ -87,19 +87,8 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
- * Filter tabs for Video feed:
- * 1. ALL: Normal videos list
- * 2. TAJA_CHAI: Latest videos from today and the last 5 days ordered serially by post timings
- */
-enum class VideoFeedTab(val label: String, val testTag: String) {
-    ALL("वीडियो", "tab_all_videos"),
-    TAJA_CHAI("ताज़ा चाय", "tab_taja_chai")
-}
-
-/**
  * Full-screen vertical video feed.
  * Features:
- * - Two top options: "वीडियो" (normal) and "ताज़ा चाय" (today & last 5 days serial-wise)
  * - Pure, uncluttered full-screen video layout
  * - Vertical swipe (VerticalPager) to seamlessly transition between videos
  * - Plays full videos completely to the end (no short loops, repeatMode = OFF)
@@ -123,7 +112,6 @@ fun VideosScreen(
     var videos by remember { mutableStateOf(initialCached) }
     var isLoading by remember { mutableStateOf(initialCached.isEmpty()) }
     var isMuted by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf(VideoFeedTab.ALL) }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -144,18 +132,6 @@ fun VideosScreen(
 
     LaunchedEffect(Unit) {
         loadVideos(forceNetwork = initialCached.isEmpty())
-    }
-
-    // Filter displayed videos based on selected tab
-    val displayedVideos = remember(videos, selectedTab) {
-        when (selectedTab) {
-            VideoFeedTab.ALL -> videos
-            VideoFeedTab.TAJA_CHAI -> {
-                // Today and last 5 days only, strictly ordered serially by post timing (newest first)
-                videos.filter { DateUtils.isTodayOrPastDays(it.date, pastDays = 5) }
-                    .sortedByDescending { DateUtils.parseDate(it.date)?.time ?: 0L }
-            }
-        }
     }
 
     Box(
@@ -233,80 +209,22 @@ fun VideosScreen(
                 }
             }
 
-            displayedVideos.isEmpty() -> {
-                // Empty state specific to Taja Chai tab (no videos in last 5 days)
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(32.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = ChaiSaffron.copy(alpha = 0.15f),
-                            modifier = Modifier.size(64.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "☕",
-                                    fontSize = 30.sp
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "ताज़ा चाय - आज और पिछले 5 दिन",
-                            color = Color.White,
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "पिछले 5 दिनों में कोई नया वीडियो नहीं आया है। आप सभी वीडियो देख सकते हैं।",
-                            color = Color.White.copy(alpha = 0.75f),
-                            fontFamily = InterFamily,
-                            fontSize = 13.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Button(
-                            onClick = {
-                                haptics.click()
-                                selectedTab = VideoFeedTab.ALL
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = ChaiCrimson),
-                            modifier = Modifier.testTag("btn_switch_all_videos")
-                        ) {
-                            Text("सभी वीडियो देखें")
-                        }
-                    }
-                }
-            }
-
             else -> {
                 val pagerState = rememberPagerState(
                     initialPage = 0,
-                    pageCount = { displayedVideos.size }
+                    pageCount = { videos.size }
                 )
-
-                // When switching tabs, reset to top page
-                LaunchedEffect(selectedTab) {
-                    pagerState.scrollToPage(0)
-                }
 
                 VerticalPager(
                     state = pagerState,
                     key = { index ->
-                        val item = displayedVideos.getOrNull(index)
+                        val item = videos.getOrNull(index)
                         item?.videoUrl ?: item?.youtubeUrl ?: item?.id ?: index
                     },
                     modifier = Modifier.fillMaxSize(),
                     beyondViewportPageCount = 2
                 ) { page ->
-                    val video = displayedVideos[page]
+                    val video = videos[page]
                     val isCurrentPage = pagerState.currentPage == page
 
                     VideoFeedItem(
@@ -319,7 +237,7 @@ fun VideosScreen(
             }
         }
 
-        // Top Navigation Bar: Segmented Tab Options ("वीडियो" | "ताज़ा चाय") & Sound Toggle
+        // Top Navigation Bar: Pure Video Title & Controls
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -329,41 +247,29 @@ fun VideosScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Segmented Tabs Pill: Option 1: वीडियो, Option 2: ताज़ा चाय
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = Color.Black.copy(alpha = 0.65f),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
             ) {
                 Row(
-                    modifier = Modifier.padding(3.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    VideoFeedTab.entries.forEach { tab ->
-                        val isSelected = selectedTab == tab
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) ChaiCrimson else Color.Transparent,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable {
-                                    if (selectedTab != tab) {
-                                        haptics.click()
-                                        selectedTab = tab
-                                    }
-                                }
-                                .testTag(tab.testTag)
-                        ) {
-                            Text(
-                                text = tab.label,
-                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
-                                fontFamily = InterFamily,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .background(ChaiCrimson, CircleShape)
+                    )
+                    Text(
+                        text = "वीडियो • Videos",
+                        color = Color.White,
+                        fontFamily = InterFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp,
+                        letterSpacing = 0.3.sp
+                    )
                 }
             }
 

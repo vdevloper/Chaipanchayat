@@ -123,11 +123,11 @@ fun BreakingNewsTicker(
                     )
                     Spacer(modifier = Modifier.width(3.5.dp))
                     Text(
-                        text = "LATEST",
+                        text = "Flash News",
                         color = Color.White,
                         fontFamily = InterFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 9.sp,
+                        fontSize = 9.5.sp,
                         letterSpacing = 0.5.sp
                     )
                 }

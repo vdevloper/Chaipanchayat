@@ -52,6 +52,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.chaipanchayat.app.data.model.WPPost
 import com.chaipanchayat.app.data.repository.BookmarkRepository
+import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
@@ -111,23 +112,61 @@ fun NewsCard(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Thumbnail with aspect ratio & rounded corners
+            // Thumbnail with aspect ratio, rounded corners, and branded fallback
+            val thumbUrl = post.featuredImageUrl?.takeIf { it.isNotBlank() }
+                ?: post.youtubeId?.takeIf { it.isNotBlank() }?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+
             Box(
                 modifier = Modifier
                     .size(width = 118.dp, height = 98.dp)
                     .clip(thumbShape)
-                    .background(ChaiTheme.extended.skeleton)
+                    .background(ChaiTheme.extended.skeleton),
+                contentAlignment = Alignment.Center
             ) {
-                if (!post.featuredImageUrl.isNullOrBlank()) {
+                if (!thumbUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(post.featuredImageUrl)
+                            .data(thumbUrl)
                             .crossfade(true)
                             .build(),
                         contentDescription = post.cleanTitle,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+                } else {
+                    // Editorial Branded Fallback Card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    listOf(
+                                        ChaiCrimson.copy(alpha = 0.85f),
+                                        ChaiSaffron.copy(alpha = 0.9f)
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "☕",
+                                fontSize = 24.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "चाय पंचायत",
+                                color = Color.White,
+                                fontFamily = NotoSerifFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                letterSpacing = 0.3.sp
+                            )
+                        }
+                    }
                 }
             }
 

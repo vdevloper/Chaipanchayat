@@ -56,7 +56,7 @@ import coil.request.ImageRequest
 import com.chaipanchayat.app.data.model.WPPost
 import com.chaipanchayat.app.data.repository.BookmarkRepository
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
-import com.chaipanchayat.app.ui.theme.ChaiGold
+import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiHeroOverlayGradient
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
@@ -120,44 +120,47 @@ fun HeroCard(
                     .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
                     .background(ChaiTheme.extended.skeleton)
             ) {
-                if (!post.featuredImageUrl.isNullOrBlank()) {
+                val heroThumb = post.featuredImageUrl?.takeIf { it.isNotBlank() }
+                    ?: post.youtubeId?.takeIf { it.isNotBlank() }?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
+
+                if (!heroThumb.isNullOrBlank()) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(post.featuredImageUrl)
+                            .data(heroThumb)
                             .crossfade(true)
                             .build(),
                         contentDescription = post.cleanTitle,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                }
-
-                // Top Story Kicker Badge
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = Color.Black.copy(alpha = 0.7f),
-                    modifier = Modifier
-                        .padding(10.dp)
-                        .align(Alignment.TopStart)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    listOf(
+                                        ChaiCrimson.copy(alpha = 0.85f),
+                                        ChaiSaffron.copy(alpha = 0.95f)
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(5.dp)
-                                .background(ChaiGold, CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = "खास खबर • LEAD STORY",
-                            color = Color.White,
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            letterSpacing = 0.5.sp
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(text = "☕", fontSize = 42.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "चाय पंचायत • विशेष ग्राउंड रिपोर्ट",
+                                color = Color.White,
+                                fontFamily = NotoSerifFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }
