@@ -3,6 +3,7 @@ package com.chaipanchayat.app.ui.screens
 import android.widget.Toast
 import com.chaipanchayat.app.BuildConfig
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Email
@@ -120,7 +122,7 @@ fun SettingsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (ChaiTheme.extended.isLiquidGlass) Color.Transparent else MaterialTheme.colorScheme.surface)
             .testTag("settings-screen"),
         contentPadding = PaddingValues(bottom = 48.dp)
     ) {
@@ -222,14 +224,135 @@ fun SettingsScreen(
         // ==========================================
         item {
             SettingsSectionHeader(title = "APPEARANCE")
+
+            // Visual Theme Cards: Obsidian Dark vs Editorial Light
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // 1. Obsidian Dark Card
+                val isObsidian = themeMode == ThemeMode.DARK
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF0D121D),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = if (isObsidian) 2.dp else 1.dp,
+                        color = if (isObsidian) ChaiSaffron else Color(0xFF1E2838)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { settingsRepo.setThemeMode(ThemeMode.DARK) }
+                        .testTag("theme-card-obsidian")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF04060A))
+                                .padding(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.7f)
+                                    .height(6.dp)
+                                    .background(ChaiSaffron, RoundedCornerShape(3.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.45f)
+                                    .height(4.dp)
+                                    .background(Color(0xFF1E2838), RoundedCornerShape(2.dp))
+                                    .align(Alignment.CenterStart)
+                            )
+                        }
+                        Text(
+                            text = "Obsidian Dark",
+                            fontFamily = InterFamily,
+                            fontWeight = if (isObsidian) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.sp,
+                            color = if (isObsidian) ChaiSaffron else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "AMOLED • स्वच्छ डार्क",
+                            fontFamily = InterFamily,
+                            fontSize = 10.5.sp,
+                            color = ChaiTheme.extended.textSecondary
+                        )
+                    }
+                }
+
+                // 2. Editorial Light Card
+                val isLight = themeMode == ThemeMode.LIGHT
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF182236),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = if (isLight) 2.dp else 1.dp,
+                        color = if (isLight) ChaiSaffron else Color(0xFF26354D)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { settingsRepo.setThemeMode(ThemeMode.LIGHT) }
+                        .testTag("theme-card-light")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF9F6F0))
+                                .padding(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.7f)
+                                    .height(6.dp)
+                                    .background(Color(0xFFC04000), RoundedCornerShape(3.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.45f)
+                                    .height(4.dp)
+                                    .background(Color(0xFFDDD7CD), RoundedCornerShape(2.dp))
+                                    .align(Alignment.CenterStart)
+                            )
+                        }
+                        Text(
+                            text = "Editorial Light",
+                            fontFamily = InterFamily,
+                            fontWeight = if (isLight) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.sp,
+                            color = if (isLight) ChaiSaffron else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Ivory • क्लासिक लाइट",
+                            fontFamily = InterFamily,
+                            fontSize = 10.5.sp,
+                            color = ChaiTheme.extended.textSecondary
+                        )
+                    }
+                }
+            }
+
             SettingsNavRow(
                 icon = Icons.Outlined.DarkMode,
-                title = "Theme",
+                title = "All Themes (अन्य विकल्प)",
                 trailingValue = when (themeMode) {
                     ThemeMode.DARK -> "Obsidian Dark"
                     ThemeMode.LIGHT -> "Editorial Light"
                     ThemeMode.SYSTEM -> "System"
-                    ThemeMode.LIQUID_GLASS -> "Liquid Glass"
+                    ThemeMode.LIQUID_GLASS -> "Obsidian Dark"
                 },
                 onClick = { showThemeDialog = true },
                 testTag = "settings-theme-row"
@@ -536,8 +659,7 @@ fun SettingsScreen(
                     listOf(
                         ThemeMode.DARK to "Obsidian Dark (डार्क - डिफ़ॉल्ट)",
                         ThemeMode.LIGHT to "Editorial Light (लाइट)",
-                        ThemeMode.SYSTEM to "System (सिस्टम अनुसार)",
-                        ThemeMode.LIQUID_GLASS to "Liquid Glass (प्रायोगिक)"
+                        ThemeMode.SYSTEM to "System (सिस्टम अनुसार)"
                     ).forEach { (mode, label) ->
                         Row(
                             modifier = Modifier

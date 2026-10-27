@@ -41,8 +41,9 @@ fun TopBar(
     title: String? = null,
     rightActions: @Composable RowScope.() -> Unit = {}
 ) {
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = if (isLiquid) androidx.compose.ui.graphics.Color(0x66060910) else MaterialTheme.colorScheme.surface,
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -68,7 +69,8 @@ fun TopBar(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = ChaiTheme.extended.surfaceSecondary,
+                    color = if (isLiquid) androidx.compose.ui.graphics.Color(0x731E293B) else ChaiTheme.extended.surfaceSecondary,
+                    border = if (isLiquid) androidx.compose.foundation.BorderStroke(0.8.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.25f)) else null,
                     modifier = Modifier.size(40.dp)
                 ) {
                     IconButton(onClick = onBack) {

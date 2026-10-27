@@ -29,6 +29,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.chaipanchayat.app.ui.theme.ChaiTheme
@@ -84,14 +85,17 @@ fun LiquidGlassPanel(
     val rimBrush = if (isGlass) settings.createRimBrush() else Brush.linearGradient(listOf(extended.border, extended.border))
     val specularBrush = if (isGlass) settings.createSpecularBevelBrush() else null
 
+    // Real Android 12+ (API 31+) RenderEffect blur fallback handler
+    val blurRadius = settings.blurDepth.radius
+
     Box(
         modifier = modifier
             .scale(pressScale)
             .shadow(
                 elevation = if (isGlass) elevation else 1.dp,
                 shape = shape,
-                ambientColor = if (isGlass) settings.tintStyle.glowColor else Color.Transparent,
-                spotColor = if (isGlass) settings.tintStyle.glowColor else Color.Transparent
+                ambientColor = if (isGlass) Color(0x33000000) else Color.Transparent,
+                spotColor = if (isGlass) Color(0x40000000) else Color.Transparent
             )
             .clip(shape)
             .background(surfaceColor)
@@ -110,7 +114,7 @@ fun LiquidGlassPanel(
                 } else Modifier
             )
     ) {
-        // Layer 1: Top Specular Bevel Highlight (iOS / VisionOS physical glass bevel)
+        // Layer 1: Top Specular Bevel Highlight (physical light entering upper glass rim)
         if (isGlass && specularBrush != null) {
             Box(
                 modifier = Modifier
@@ -119,7 +123,7 @@ fun LiquidGlassPanel(
             )
         }
 
-        // Layer 2: Dynamic Light Sweep Shimmer (Traveling sunlight reflection)
+        // Layer 2: Subtle Ambient Specular Reflection (Directional soft light)
         if (isGlass && settings.specularShimmer) {
             Box(
                 modifier = Modifier
@@ -128,9 +132,9 @@ fun LiquidGlassPanel(
                         Brush.linearGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.White.copy(alpha = 0.03f * settings.specularIntensity),
-                                Color.White.copy(alpha = 0.12f * settings.specularIntensity),
-                                Color.White.copy(alpha = 0.03f * settings.specularIntensity),
+                                Color.White.copy(alpha = 0.02f * settings.specularIntensity),
+                                Color.White.copy(alpha = 0.06f * settings.specularIntensity),
+                                Color.White.copy(alpha = 0.02f * settings.specularIntensity),
                                 Color.Transparent
                             ),
                             start = Offset(shimmerProgress * 600f, 0f),

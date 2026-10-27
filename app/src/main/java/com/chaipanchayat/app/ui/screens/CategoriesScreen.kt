@@ -149,7 +149,7 @@ fun CategoriesScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (ChaiTheme.extended.isLiquidGlass) Color.Transparent else MaterialTheme.colorScheme.surface)
             .testTag("categories-screen")
     ) {
         // Top Brand Ribbon

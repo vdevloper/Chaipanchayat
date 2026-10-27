@@ -84,20 +84,40 @@ fun NewsCard(
         label = "card_scale"
     )
 
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardBg = if (isLiquid) {
+        Color(0x52182236)
+    } else {
+        ChaiTheme.extended.surfaceSecondary
+    }
+
+    val cardBorder = if (isLiquid) {
+        androidx.compose.foundation.BorderStroke(
+            width = 0.8.dp,
+            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(
+                    Color.White.copy(alpha = 0.35f),
+                    Color.White.copy(alpha = 0.08f)
+                )
+            )
+        )
+    } else {
+        androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = ChaiTheme.extended.border.copy(alpha = 0.6f)
+        )
+    }
+
     Card(
         shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 2.dp else 1.dp),
+        border = cardBorder,
         modifier = modifier
             .testTag("news-card-${post.id}")
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
             .scale(scale)
-            .border(
-                width = 1.dp,
-                color = ChaiTheme.extended.border.copy(alpha = 0.6f),
-                shape = cardShape
-            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

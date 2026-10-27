@@ -17,48 +17,48 @@ enum class GlassTintStyle(
 ) {
     CRYSTAL_CYAN(
         key = "crystal_cyan",
-        title = "Crystal Cyan (iOS Liquid Glass)",
-        accentColor = Color(0xFF00E5FF),
-        surfaceColor = Color(0xD00A1322),
-        surfaceSecondaryColor = Color(0xC0101E35),
-        rimHighlight = Color(0x9938BDF8),
-        glowColor = Color(0x4000E5FF)
+        title = "Liquid Glass (Apple iOS Inspired)",
+        accentColor = Color(0xFFFF5A00), // Chai Saffron as primary brand accent
+        surfaceColor = Color(0x66182236), // Balanced translucency (40% opacity)
+        surfaceSecondaryColor = Color(0x75202E46), // 46% opacity
+        rimHighlight = Color(0x73FFFFFF), // Clean specular white highlight rim
+        glowColor = Color(0x20FFFFFF) // Soft neutral depth glow
     ),
     FROSTED_ICE(
         key = "frosted_ice",
         title = "Frosted Ice (Pure Acrylic Glass)",
-        accentColor = Color(0xFFE2E8F0),
-        surfaceColor = Color(0xC81E293B),
-        surfaceSecondaryColor = Color(0xBB334155),
-        rimHighlight = Color(0xAAFFFFFF),
-        glowColor = Color(0x28FFFFFF)
+        accentColor = Color(0xFFF1F5F9),
+        surfaceColor = Color(0x601E293B),
+        surfaceSecondaryColor = Color(0x70334155),
+        rimHighlight = Color(0x80FFFFFF),
+        glowColor = Color(0x1AFFFFFF)
     ),
     ROYAL_SAFFRON(
         key = "royal_saffron",
-        title = "Royal Saffron (Chai Panchayat Amber)",
+        title = "Royal Saffron (Amber Glass)",
         accentColor = Color(0xFFFF5400),
-        surfaceColor = Color(0xD41A0E08),
-        surfaceSecondaryColor = Color(0xC526150C),
-        rimHighlight = Color(0xAAFF7733),
-        glowColor = Color(0x40FF5400)
+        surfaceColor = Color(0x662A1408),
+        surfaceSecondaryColor = Color(0x753B1D0C),
+        rimHighlight = Color(0x80FFB380),
+        glowColor = Color(0x26FF5400)
     ),
     OBSIDIAN_SMOKE(
         key = "obsidian_smoke",
-        title = "Obsidian Smoke (Deep Stealth)",
-        accentColor = Color(0xFFA855F7),
-        surfaceColor = Color(0xE005070B),
-        surfaceSecondaryColor = Color(0xD20B0F17),
-        rimHighlight = Color(0x80C084FC),
-        glowColor = Color(0x30A855F7)
+        title = "Obsidian Smoke (Smoked Glass)",
+        accentColor = Color(0xFFC084FC),
+        surfaceColor = Color(0x700C111C),
+        surfaceSecondaryColor = Color(0x80151D2E),
+        rimHighlight = Color(0x60E2E8F0),
+        glowColor = Color(0x20000000)
     ),
     AURORA_EMERALD(
         key = "aurora_emerald",
         title = "Aurora Emerald (Nordic Glass)",
-        accentColor = Color(0xFF10B981),
-        surfaceColor = Color(0xD0061914),
-        surfaceSecondaryColor = Color(0xC20B271F),
-        rimHighlight = Color(0x9934D399),
-        glowColor = Color(0x3810B981)
+        accentColor = Color(0xFF34D399),
+        surfaceColor = Color(0x60061914),
+        surfaceSecondaryColor = Color(0x700B271F),
+        rimHighlight = Color(0x70A7F3D0),
+        glowColor = Color(0x2010B981)
     );
 
     companion object {
@@ -83,48 +83,40 @@ enum class GlassBlurDepth(val key: String, val title: String, val radius: Dp) {
 data class LiquidGlassSettings(
     val tintStyle: GlassTintStyle = GlassTintStyle.CRYSTAL_CYAN,
     val blurDepth: GlassBlurDepth = GlassBlurDepth.BALANCED,
-    val frostOpacity: Float = 0.76f,
+    val frostOpacity: Float = 0.52f, // Balanced glass translucency
     val chromaticRim: Boolean = true,
     val specularShimmer: Boolean = true,
     val touchPhysics: Boolean = true,
     val ambientOrbs: Boolean = true,
-    val specularIntensity: Float = 0.70f
+    val specularIntensity: Float = 0.65f
 ) {
     /**
-     * Generates a multi-stop iridescent prism border simulating real optical refraction.
+     * Generates a physical top-down directional glass rim.
+     * Highlights the top and upper-left corner with white specular light,
+     * fading delicately towards the bottom to give authentic physical thickness.
      */
     fun createRimBrush(): Brush {
-        return if (chromaticRim) {
-            Brush.linearGradient(
-                colors = listOf(
-                    Color(0x99FFFFFF),
-                    Color(0x28FFFFFF),
-                    tintStyle.rimHighlight,
-                    tintStyle.accentColor.copy(alpha = 0.55f),
-                    Color(0x30FFFFFF),
-                    tintStyle.rimHighlight.copy(alpha = 0.35f)
-                )
-            )
-        } else {
-            Brush.linearGradient(
-                colors = listOf(
-                    Color(0x60FFFFFF),
-                    Color(0x18FFFFFF),
-                    Color(0x40FFFFFF)
-                )
-            )
-        }
+        return Brush.linearGradient(
+            colors = listOf(
+                Color(0x99FFFFFF), // Top specular reflection
+                Color(0x40FFFFFF), // Mid transmission
+                Color(0x1AFFFFFF), // Low edge
+                Color(0x0DFFFFFF)  // Base shadow transition
+            ),
+            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+            end = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY)
+        )
     }
 
     /**
      * Top-to-bottom specular bevel highlight representing light entering the glass pane.
      */
     fun createSpecularBevelBrush(): Brush {
-        val alpha = (0.35f * specularIntensity).coerceIn(0.05f, 0.60f)
+        val alpha = (0.28f * specularIntensity).coerceIn(0.04f, 0.45f)
         return Brush.verticalGradient(
             colors = listOf(
                 Color.White.copy(alpha = alpha),
-                Color.White.copy(alpha = alpha * 0.3f),
+                Color.White.copy(alpha = alpha * 0.25f),
                 Color.Transparent
             )
         )

@@ -13,20 +13,30 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.chaipanchayat.app.engine.liquidglass.LiquidGlassPanel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.GridView
@@ -301,6 +311,7 @@ fun MainTabsScaffold(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     val haptics = rememberChaiHaptics()
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
 
     val tabs = listOf(
         TabBarItem(MainTab.VIDEOS, Icons.Filled.PlayCircle, Icons.Outlined.PlayCircleOutline, "tab-videos"),
@@ -311,99 +322,54 @@ fun MainTabsScaffold(
     )
 
     Scaffold(
+        containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
-            val isLiquid = ChaiTheme.extended.isLiquidGlass
-            Column {
+            val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
+            val pulseTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "video_tab_pulse")
+            val videoBadgeAlpha by pulseTransition.animateFloat(
+                initialValue = 0.45f,
+                targetValue = 1.0f,
+                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                    animation = tween(850, easing = FastOutSlowInEasing),
+                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                ),
+                label = "video_badge_alpha"
+            )
+
+            if (isLiquid) {
+                // Floating Translucent Liquid Glass Pill Bar (iOS Material Language)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(1.dp)
-                        .background(
-                            if (isLiquid) ChaiTheme.extended.glassBorderBrush
-                            else androidx.compose.ui.graphics.SolidColor(ChaiTheme.extended.border.copy(alpha = 0.7f))
-                        )
-                )
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 3.dp
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val pulseTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "video_tab_pulse")
-                    val videoBadgeAlpha by pulseTransition.animateFloat(
-                        initialValue = 0.45f,
-                        targetValue = 1.0f,
-                        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                            animation = tween(850, easing = FastOutSlowInEasing),
-                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-                        ),
-                        label = "video_badge_alpha"
-                    )
+                    LiquidGlassPanel(
+                        shape = RoundedCornerShape(32.dp),
+                        elevation = 8.dp,
+                        borderWidth = 1.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            tabs.forEach { item ->
+                                val isSelected = selectedTab == item.tab
+                                val isCenterHome = item.tab == MainTab.HOME
 
-                    tabs.forEach { item ->
-                        val isSelected = selectedTab == item.tab
-                        val isCenterHome = item.tab == MainTab.HOME
-                        val activeColor = if (isCenterHome) ChaiSaffron else ChaiTheme.extended.brandText
-                        val indicatorBg = if (isCenterHome) ChaiSaffron.copy(alpha = 0.18f) else ChaiSaffron.copy(alpha = 0.14f)
+                                val iconScale by animateFloatAsState(
+                                    targetValue = if (isSelected) (if (isCenterHome) 1.15f else 1.08f) else 1.0f,
+                                    animationSpec = spring(dampingRatio = 0.65f, stiffness = 480f),
+                                    label = "tab_scale_${item.tab.name}"
+                                )
 
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (isSelected) (if (isCenterHome) 1.22f else 1.15f) else (if (isCenterHome) 1.08f else 1.0f),
-                            animationSpec = spring(dampingRatio = 0.5f, stiffness = 550f),
-                            label = "tab_icon_scale_${item.tab.name}"
-                        )
-
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = {
-                                if (selectedTab != item.tab) {
-                                    haptics.click()
-                                    selectedTab = item.tab
-                                }
-                            },
-                            icon = {
-                                Box(
-                                    modifier = Modifier.scale(iconScale),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isCenterHome) {
-                                        // Prominent center button container like modern professional apps
-                                        Box(
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .background(
-                                                    if (isSelected) ChaiSaffron.copy(alpha = 0.16f)
-                                                    else Color.Transparent,
-                                                    CircleShape
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                                contentDescription = item.tab.title,
-                                                modifier = Modifier.size(24.dp),
-                                                tint = if (isSelected) ChaiSaffron else ChaiTheme.extended.textSecondary
-                                            )
-                                        }
-                                    } else {
-                                        Icon(
-                                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                            contentDescription = item.tab.title,
-                                            modifier = Modifier.size(23.dp)
-                                        )
-                                        // Live red badge indicator on VIDEOS tab with breathing pulse
-                                        if (item.tab == MainTab.VIDEOS) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
-                                                    .align(Alignment.TopEnd)
-                                                    .offset(x = 3.dp, y = (-2).dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            label = {
-                                val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
                                 val tabTitle = when (item.tab) {
                                     MainTab.HOME -> strings.home
                                     MainTab.VIDEOS -> strings.videos
@@ -411,23 +377,192 @@ fun MainTabsScaffold(
                                     MainTab.SAVED -> strings.saved
                                     MainTab.SETTINGS -> strings.settings
                                 }
-                                Text(
-                                    text = tabTitle,
-                                    fontFamily = InterFamily,
-                                    fontWeight = if (isSelected) FontWeight.Bold else (if (isCenterHome) FontWeight.Bold else FontWeight.SemiBold),
-                                    fontSize = if (isCenterHome) 11.5.sp else 11.sp,
-                                    letterSpacing = 0.2.sp
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = activeColor,
-                                selectedTextColor = activeColor,
-                                indicatorColor = indicatorBg,
-                                unselectedIconColor = ChaiTheme.extended.textSecondary,
-                                unselectedTextColor = ChaiTheme.extended.textSecondary
-                            ),
-                            modifier = Modifier.testTag(item.testTag)
-                        )
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(24.dp))
+                                        .background(
+                                            if (isSelected) {
+                                                if (isCenterHome) ChaiSaffron.copy(alpha = 0.22f)
+                                                else Color.White.copy(alpha = 0.12f)
+                                            } else Color.Transparent
+                                        )
+                                        .then(
+                                            if (isSelected) {
+                                                Modifier.border(
+                                                    width = 0.8.dp,
+                                                    brush = Brush.verticalGradient(
+                                                        listOf(
+                                                            Color.White.copy(alpha = 0.40f),
+                                                            Color.White.copy(alpha = 0.08f)
+                                                        )
+                                                    ),
+                                                    shape = RoundedCornerShape(24.dp)
+                                                )
+                                            } else Modifier
+                                        )
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            if (selectedTab != item.tab) {
+                                                haptics.click()
+                                                selectedTab = item.tab
+                                            }
+                                        }
+                                        .testTag(item.testTag),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.scale(iconScale),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                                contentDescription = tabTitle,
+                                                modifier = Modifier.size(21.dp),
+                                                tint = if (isSelected) {
+                                                    if (isCenterHome) ChaiSaffron else Color.White
+                                                } else {
+                                                    Color.White.copy(alpha = 0.55f)
+                                                }
+                                            )
+
+                                            if (item.tab == MainTab.VIDEOS) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(5.dp)
+                                                        .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
+                                                        .align(Alignment.TopEnd)
+                                                        .offset(x = 3.dp, y = (-2).dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = tabTitle,
+                                            fontFamily = InterFamily,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 10.sp,
+                                            letterSpacing = 0.1.sp,
+                                            color = if (isSelected) {
+                                                if (isCenterHome) ChaiSaffron else Color.White
+                                            } else {
+                                                Color.White.copy(alpha = 0.50f)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Obsidian Dark: Clean Grounded Flat Navigation Bar
+                Column {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(0.8.dp)
+                            .background(ChaiTheme.extended.border.copy(alpha = 0.6f))
+                    )
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp
+                    ) {
+                        tabs.forEach { item ->
+                            val isSelected = selectedTab == item.tab
+                            val isCenterHome = item.tab == MainTab.HOME
+                            val activeColor = if (isCenterHome) ChaiSaffron else ChaiTheme.extended.brandText
+                            val indicatorBg = if (isCenterHome) ChaiSaffron.copy(alpha = 0.16f) else ChaiSaffron.copy(alpha = 0.12f)
+
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (isSelected) (if (isCenterHome) 1.20f else 1.14f) else 1.0f,
+                                animationSpec = spring(dampingRatio = 0.5f, stiffness = 550f),
+                                label = "tab_icon_scale_${item.tab.name}"
+                            )
+
+                            NavigationBarItem(
+                                selected = isSelected,
+                                onClick = {
+                                    if (selectedTab != item.tab) {
+                                        haptics.click()
+                                        selectedTab = item.tab
+                                    }
+                                },
+                                icon = {
+                                    Box(
+                                        modifier = Modifier.scale(iconScale),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (isCenterHome) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .background(
+                                                        if (isSelected) ChaiSaffron.copy(alpha = 0.16f)
+                                                        else Color.Transparent,
+                                                        CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                                    contentDescription = item.tab.title,
+                                                    modifier = Modifier.size(24.dp),
+                                                    tint = if (isSelected) ChaiSaffron else ChaiTheme.extended.textSecondary
+                                                )
+                                            }
+                                        } else {
+                                            Icon(
+                                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                                contentDescription = item.tab.title,
+                                                modifier = Modifier.size(23.dp)
+                                            )
+                                            if (item.tab == MainTab.VIDEOS) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
+                                                        .align(Alignment.TopEnd)
+                                                        .offset(x = 3.dp, y = (-2).dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                },
+                                label = {
+                                    val tabTitle = when (item.tab) {
+                                        MainTab.HOME -> strings.home
+                                        MainTab.VIDEOS -> strings.videos
+                                        MainTab.CATEGORIES -> strings.categories
+                                        MainTab.SAVED -> strings.saved
+                                        MainTab.SETTINGS -> strings.settings
+                                    }
+                                    Text(
+                                        text = tabTitle,
+                                        fontFamily = InterFamily,
+                                        fontWeight = if (isSelected) FontWeight.Bold else (if (isCenterHome) FontWeight.Bold else FontWeight.SemiBold),
+                                        fontSize = if (isCenterHome) 11.5.sp else 11.sp,
+                                        letterSpacing = 0.2.sp
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = activeColor,
+                                    selectedTextColor = activeColor,
+                                    indicatorColor = indicatorBg,
+                                    unselectedIconColor = ChaiTheme.extended.textSecondary,
+                                    unselectedTextColor = ChaiTheme.extended.textSecondary
+                                ),
+                                modifier = Modifier.testTag(item.testTag)
+                            )
+                        }
                     }
                 }
             }
@@ -469,7 +604,8 @@ fun MainTabsScaffold(
 
                 MainTab.SAVED -> SavedScreen(
                     onNavigateToArticle = onNavigateToArticle,
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = Modifier.padding(innerPadding),
+                    onExploreNews = { selectedTab = MainTab.HOME }
                 )
 
                 MainTab.SETTINGS -> SettingsScreen(

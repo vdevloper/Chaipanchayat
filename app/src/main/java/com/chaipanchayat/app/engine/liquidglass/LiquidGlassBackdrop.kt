@@ -86,19 +86,20 @@ fun LiquidGlassBackdrop(
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(Color(0xFF060910))
     ) {
         val w = size.width
         val h = size.height
 
-        // Orb 1: Primary Glass Tint Orb (Cyan/Teal/Ice)
+        // Orb 1: Subtle Atmospheric Cool Lens Glow (Apple glass ambient)
         val center1 = Offset(orb1X * w, orb1Y * h)
-        val radius1 = (w * 0.75f).coerceAtLeast(300f)
+        val radius1 = (w * 0.95f).coerceAtLeast(360f)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    tint.glowColor.copy(alpha = 0.38f),
-                    tint.accentColor.copy(alpha = 0.15f),
+                    Color(0x2838BDF8),
+                    Color(0x120284C7),
+                    Color(0x04000000),
                     Color.Transparent
                 ),
                 center = center1,
@@ -108,14 +109,14 @@ fun LiquidGlassBackdrop(
             center = center1
         )
 
-        // Orb 2: Editorial Warm Saffron Flare
+        // Orb 2: Editorial Warm Saffron Flare (Chai Panchayat brand presence)
         val center2 = Offset(orb2X * w, orb2Y * h)
-        val radius2 = (w * 0.65f).coerceAtLeast(260f)
+        val radius2 = (w * 0.80f).coerceAtLeast(300f)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0x35FF5400),
-                    Color(0x12FF9E00),
+                    Color(0x2EFF5400),
+                    Color(0x14FF9E00),
                     Color.Transparent
                 ),
                 center = center2,
@@ -125,13 +126,14 @@ fun LiquidGlassBackdrop(
             center = center2
         )
 
-        // Orb 3: Deep Bottom Ambient Glow
-        val center3 = Offset(w * 0.5f, h * 0.92f)
-        val radius3 = (w * 0.90f).coerceAtLeast(350f)
+        // Orb 3: Deep Bottom Ambient Cushion (Subtly illuminates floating bottom nav)
+        val center3 = Offset(w * 0.5f, h * 0.94f)
+        val radius3 = (w * 0.95f).coerceAtLeast(380f)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    tint.surfaceSecondaryColor.copy(alpha = 0.40f),
+                    Color(0x2038BDF8),
+                    Color(0x101E293B),
                     Color.Transparent
                 ),
                 center = center3,

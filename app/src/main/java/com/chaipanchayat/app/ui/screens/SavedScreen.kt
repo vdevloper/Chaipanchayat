@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -67,7 +68,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SavedScreen(
     onNavigateToArticle: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onExploreNews: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val bookmarkRepo = BookmarkRepository.getInstance(context)
@@ -96,7 +98,7 @@ fun SavedScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (ChaiTheme.extended.isLiquidGlass) Color.Transparent else MaterialTheme.colorScheme.surface)
     ) {
         // Top Brand Ribbon
         Box(
@@ -166,7 +168,9 @@ fun SavedScreen(
             EmptyState(
                 title = strings.noSavedStories,
                 message = strings.noSavedStoriesSub,
-                icon = Icons.Outlined.BookmarkBorder
+                icon = Icons.Outlined.BookmarkBorder,
+                actionLabel = "ताज़ा खबरें पढ़ें",
+                onAction = onExploreNews
             )
         } else {
             LazyColumn(

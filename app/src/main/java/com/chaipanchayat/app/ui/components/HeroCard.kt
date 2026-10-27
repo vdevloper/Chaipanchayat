@@ -88,20 +88,40 @@ fun HeroCard(
     val isBookmarked by bookmarkRepo.isBookmarked(post.id).collectAsState(initial = false)
     val coroutineScope = rememberCoroutineScope()
 
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardBg = if (isLiquid) {
+        Color(0x5E182236)
+    } else {
+        ChaiTheme.extended.surfaceSecondary
+    }
+
+    val cardBorder = if (isLiquid) {
+        androidx.compose.foundation.BorderStroke(
+            width = 0.8.dp,
+            brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                listOf(
+                    Color.White.copy(alpha = 0.38f),
+                    Color.White.copy(alpha = 0.08f)
+                )
+            )
+        )
+    } else {
+        androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = ChaiTheme.extended.border.copy(alpha = 0.65f)
+        )
+    }
+
     Card(
         shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 3.dp else 1.5.dp),
+        border = cardBorder,
         modifier = modifier
             .testTag("hero-card-${post.id}")
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .scale(scale)
-            .border(
-                width = 1.dp,
-                color = ChaiTheme.extended.border.copy(alpha = 0.65f),
-                shape = cardShape
-            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
