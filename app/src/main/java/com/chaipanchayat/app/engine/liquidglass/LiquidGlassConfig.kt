@@ -96,15 +96,13 @@ data class LiquidGlassSettings(
      * fading delicately towards the bottom to give authentic physical thickness.
      */
     fun createRimBrush(): Brush {
-        return Brush.linearGradient(
+        return Brush.verticalGradient(
             colors = listOf(
                 Color(0x99FFFFFF), // Top specular reflection
                 Color(0x40FFFFFF), // Mid transmission
                 Color(0x1AFFFFFF), // Low edge
                 Color(0x0DFFFFFF)  // Base shadow transition
-            ),
-            start = androidx.compose.ui.geometry.Offset(0f, 0f),
-            end = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY)
+            )
         )
     }
 

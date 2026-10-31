@@ -204,19 +204,23 @@ object DeepLinkManager {
     /**
      * Builds a clean, fully clickable share message for WhatsApp, Telegram, SMS, etc.
      * Includes:
-     * 1) Smart In-App Link (Firebase Hosting intent redirector): https://gen-lang-client-0700030242.web.app/post/$postId
-     * 2) Official Website Article Link: https://chaipanchayat.com/?p=$postId (or post permalink)
-     * 3) App Download Link (Google Play Store)
+     * 1) Title prefixed with the chai emoji ☕
+     * 2) Smart In-App Link: https://gen-lang-client-0700030242.web.app/post/$postId
+     * 3) Official Website Article Link: https://chaipanchayat.com/?p=$postId (or post permalink)
+     * (Promotional tagline removed from shared text per user requirement; branding retained within the app)
      */
     fun buildShareMessage(postId: Long, cleanTitle: String, permalink: String? = null): String {
         val websiteLink = if (!permalink.isNullOrBlank()) permalink.trim() else "https://chaipanchayat.com/?p=$postId"
+        val appLink = "https://gen-lang-client-0700030242.web.app/post/$postId"
 
         return buildString {
             append("☕ ")
             append(cleanTitle.trim())
-            append("\n")
-            append("चाय पंचायत - बेबाक, सटीक, निष्पक्ष")
             append("\n\n")
+            append("📲 ऐप में सीधे पढ़ें (Open in App):\n")
+            append(appLink)
+            append("\n\n")
+            append("🌐 वेबसाइट पर पढ़ें (Read on Web):\n")
             append(websiteLink)
         }
     }
@@ -226,12 +230,13 @@ object DeepLinkManager {
      */
     fun buildHtmlShareMessage(postId: Long, cleanTitle: String, permalink: String? = null): String {
         val websiteLink = if (!permalink.isNullOrBlank()) permalink.trim() else "https://chaipanchayat.com/?p=$postId"
+        val appLink = "https://gen-lang-client-0700030242.web.app/post/$postId"
         val safeTitle = cleanTitle.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").trim()
 
         return """
             <p><b>☕ $safeTitle</b></p>
-            <p><i>चाय पंचायत - बेबाक, सटीक, निष्पक्ष</i></p>
-            <p><a href="$websiteLink">$websiteLink</a></p>
+            <p>📲 <b>ऐप में सीधे पढ़ें (Open in App):</b> <a href="$appLink">$appLink</a></p>
+            <p>🌐 <b>वेबसाइट पर पढ़ें (Read on Web):</b> <a href="$websiteLink">$websiteLink</a></p>
         """.trimIndent()
     }
 

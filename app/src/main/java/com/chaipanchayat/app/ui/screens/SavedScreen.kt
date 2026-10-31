@@ -190,7 +190,7 @@ fun SavedScreen(
                     )
                 }
                 item(key = "saved_bottom_spacer") {
-                    Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(if (ChaiTheme.extended.isLiquidGlass) 164.dp else 28.dp))
                 }
             }
         }

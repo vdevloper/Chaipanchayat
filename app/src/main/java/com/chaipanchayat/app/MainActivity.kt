@@ -70,8 +70,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            // Request POST_NOTIFICATIONS permission safely after initial composition
             LaunchedEffect(Unit) {
+                com.chaipanchayat.app.engine.liquidglass.ThemePrewarmer.warmUp()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     runCatching {
                         val hasPermission = ContextCompat.checkSelfPermission(
@@ -102,6 +102,7 @@ class MainActivity : ComponentActivity() {
                             targetArticleId.value = null
                         }
                     )
+                    com.chaipanchayat.app.engine.liquidglass.ThemeTransitionOverlay()
                 }
             }
         }

@@ -158,6 +158,15 @@ fun HomeScreen(
         try {
             val fetchedPosts = repository.getPosts(categoryId = catId, forceRefresh = isRefreshing)
             posts = fetchedPosts
+            fetchedPosts.firstOrNull()?.let { topPost ->
+                com.chaipanchayat.app.utils.ChaiAudioReader.getInstance(context).seedFeaturedArticle(
+                    postId = topPost.id,
+                    title = topPost.cleanTitle,
+                    contentHtml = topPost.rawContent,
+                    imageUrl = topPost.featuredImageUrl,
+                    category = topPost.primaryCategory ?: "ताज़ा ख़बरें"
+                )
+            }
             isOffline = false
             newStoriesCount = 0
         } catch (e: Exception) {
@@ -530,7 +539,7 @@ fun HomeScreen(
                             }
 
                             item(key = "feed_bottom_spacer") {
-                                Spacer(modifier = Modifier.height(36.dp))
+                                Spacer(modifier = Modifier.height(if (ChaiTheme.extended.isLiquidGlass) 164.dp else 36.dp))
                             }
                         }
                     }

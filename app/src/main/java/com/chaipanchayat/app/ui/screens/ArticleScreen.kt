@@ -166,12 +166,7 @@ fun ArticleScreen(
         }
     }
 
-    val audioReader = remember { ChaiAudioReader(context) }
-    DisposableEffect(Unit) {
-        onDispose {
-            audioReader.release()
-        }
-    }
+    val audioReader = remember { ChaiAudioReader.getInstance(context) }
     val audioPlayState by audioReader.playState
     val audioProgress by audioReader.progress
 
@@ -677,7 +672,21 @@ fun ArticleScreen(
                                 val audioTitle = if (isTranslated && translatedArticle != null) translatedArticle!!.translatedTitle else currentPost.cleanTitle
                                 val audioBody = if (isTranslated && translatedArticle != null) translatedArticle!!.translatedContent else currentPost.rawContent
                                 val audioLocale = if (isTranslated) targetLanguage.locale else java.util.Locale("hi", "IN")
-                                audioReader.togglePlayPause(audioTitle, audioBody, audioLocale)
+                                val audioImage = currentPost.featuredImageUrl
+                                if (audioPlayState == ChaiAudioReader.PlayState.PLAYING) {
+                                    audioReader.pause()
+                                } else if (audioPlayState == ChaiAudioReader.PlayState.PAUSED && audioReader.activeArticle.value?.postId == postId) {
+                                    audioReader.resume()
+                                } else {
+                                    audioReader.playArticle(
+                                        postId = postId,
+                                        title = audioTitle,
+                                        contentHtml = audioBody,
+                                        imageUrl = audioImage,
+                                        category = currentPost.primaryCategory ?: "ताज़ा ख़बरें",
+                                        locale = audioLocale
+                                    )
+                                }
                             }
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {

@@ -90,6 +90,7 @@ fun LiquidGlassBackdrop(
     ) {
         val w = size.width
         val h = size.height
+        if (w <= 0f || h <= 0f || w.isNaN() || h.isNaN()) return@Canvas
 
         // Orb 1: Subtle Atmospheric Cool Lens Glow (Apple glass ambient)
         val center1 = Offset(orb1X * w, orb1Y * h)

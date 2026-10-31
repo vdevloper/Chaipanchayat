@@ -36,7 +36,19 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.toSize
 import com.chaipanchayat.app.engine.liquidglass.LiquidGlassPanel
+import com.chaipanchayat.app.engine.liquidglass.ChaiLiquidBottomTabs
+import com.chaipanchayat.app.engine.liquidglass.ChaiTabItem
+import com.chaipanchayat.app.engine.liquidglass.LocalBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.GridView
@@ -92,12 +104,7 @@ import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.utils.rememberChaiHaptics
 
-private data class TabBarItem(
-    val tab: MainTab,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
-    val testTag: String
-)
+private typealias TabBarItem = ChaiTabItem
 
 @Composable
 fun MainAppNavigation(
@@ -321,6 +328,14 @@ fun MainTabsScaffold(
         TabBarItem(MainTab.SETTINGS, Icons.Filled.Settings, Icons.Outlined.Settings, "tab-settings")
     )
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val audioReader = remember { com.chaipanchayat.app.utils.ChaiAudioReader.getInstance(context) }
+    val activeAudioArticle by audioReader.activeArticle
+    val audioPlayState by audioReader.playState
+    val audioProgress by audioReader.progress
+
+    val backdrop = rememberLayerBackdrop()
+
     Scaffold(
         containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -338,133 +353,36 @@ fun MainTabsScaffold(
             )
 
             if (isLiquid) {
-                // Floating Translucent Liquid Glass Pill Bar (iOS Material Language)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LiquidGlassPanel(
-                        shape = RoundedCornerShape(32.dp),
-                        elevation = 8.dp,
-                        borderWidth = 1.dp,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            tabs.forEach { item ->
-                                val isSelected = selectedTab == item.tab
-                                val isCenterHome = item.tab == MainTab.HOME
-
-                                val iconScale by animateFloatAsState(
-                                    targetValue = if (isSelected) (if (isCenterHome) 1.15f else 1.08f) else 1.0f,
-                                    animationSpec = spring(dampingRatio = 0.65f, stiffness = 480f),
-                                    label = "tab_scale_${item.tab.name}"
-                                )
-
-                                val tabTitle = when (item.tab) {
-                                    MainTab.HOME -> strings.home
-                                    MainTab.VIDEOS -> strings.videos
-                                    MainTab.CATEGORIES -> strings.categories
-                                    MainTab.SAVED -> strings.saved
-                                    MainTab.SETTINGS -> strings.settings
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    activeAudioArticle?.let { currentArticle ->
+                        com.chaipanchayat.app.engine.liquidglass.ChaiGlassMiniPlayer(
+                            article = currentArticle,
+                            playState = audioPlayState,
+                            progress = audioProgress,
+                            onPlayPause = { audioReader.toggleCurrent() },
+                            onNext = { audioReader.skipNext() },
+                            onDismiss = { audioReader.dismiss() },
+                            onClick = {
+                                if (currentArticle.postId > 0L) {
+                                    onNavigateToArticle(currentArticle.postId)
+                                } else {
+                                    audioReader.toggleCurrent()
                                 }
-
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clip(RoundedCornerShape(24.dp))
-                                        .background(
-                                            if (isSelected) {
-                                                if (isCenterHome) ChaiSaffron.copy(alpha = 0.22f)
-                                                else Color.White.copy(alpha = 0.12f)
-                                            } else Color.Transparent
-                                        )
-                                        .then(
-                                            if (isSelected) {
-                                                Modifier.border(
-                                                    width = 0.8.dp,
-                                                    brush = Brush.verticalGradient(
-                                                        listOf(
-                                                            Color.White.copy(alpha = 0.40f),
-                                                            Color.White.copy(alpha = 0.08f)
-                                                        )
-                                                    ),
-                                                    shape = RoundedCornerShape(24.dp)
-                                                )
-                                            } else Modifier
-                                        )
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            if (selectedTab != item.tab) {
-                                                haptics.click()
-                                                selectedTab = item.tab
-                                            }
-                                        }
-                                        .testTag(item.testTag),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.scale(iconScale),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                                contentDescription = tabTitle,
-                                                modifier = Modifier.size(21.dp),
-                                                tint = if (isSelected) {
-                                                    if (isCenterHome) ChaiSaffron else Color.White
-                                                } else {
-                                                    Color.White.copy(alpha = 0.55f)
-                                                }
-                                            )
-
-                                            if (item.tab == MainTab.VIDEOS) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(5.dp)
-                                                        .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
-                                                        .align(Alignment.TopEnd)
-                                                        .offset(x = 3.dp, y = (-2).dp)
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = tabTitle,
-                                            fontFamily = InterFamily,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            fontSize = 10.sp,
-                                            letterSpacing = 0.1.sp,
-                                            color = if (isSelected) {
-                                                if (isCenterHome) ChaiSaffron else Color.White
-                                            } else {
-                                                Color.White.copy(alpha = 0.50f)
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                            },
+                            backdrop = backdrop
+                        )
                     }
+                    // Floating Translucent Liquid Glass Pill Bar (Kyant0 AndroidLiquidGlass Architecture)
+                    ChaiLiquidBottomTabs(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it },
+                        backdrop = backdrop,
+                        tabs = tabs,
+                        videoBadgeAlpha = videoBadgeAlpha
+                    )
                 }
             } else {
-                // Obsidian Dark: Clean Grounded Flat Navigation Bar
+                // Obsidian Dark: Clean Grounded Flat Navigation Bar (Untouched AMOLED Style)
                 Column {
                     Box(
                         modifier = Modifier
@@ -568,50 +486,76 @@ fun MainTabsScaffold(
             }
         }
     ) { innerPadding ->
-        AnimatedContent(
-            targetState = selectedTab,
-            transitionSpec = {
-                val fromIndex = tabs.indexOfFirst { it.tab == initialState }
-                val toIndex = tabs.indexOfFirst { it.tab == targetState }
-                val direction = if (toIndex > fromIndex) 1 else -1
-                (slideInHorizontally(
-                    initialOffsetX = { direction * it / 5 },
-                    animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f)
-                ) + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))) togetherWith
-                        (slideOutHorizontally(
-                            targetOffsetX = { -direction * it / 5 },
+        CompositionLocalProvider(LocalBackdrop provides null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (isLiquid) Modifier.layerBackdrop(backdrop) else Modifier)
+            ) {
+                val contentPadding = if (isLiquid) {
+                    PaddingValues(
+                        top = innerPadding.calculateTopPadding(),
+                        bottom = 0.dp
+                    )
+                } else {
+                    innerPadding
+                }
+
+                val videoContentPadding = if (isLiquid) {
+                    PaddingValues(
+                        top = innerPadding.calculateTopPadding(),
+                        bottom = if (activeAudioArticle != null) 132.dp else 76.dp
+                    )
+                } else {
+                    innerPadding
+                }
+
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        val fromIndex = tabs.indexOfFirst { it.tab == initialState }
+                        val toIndex = tabs.indexOfFirst { it.tab == targetState }
+                        val direction = if (toIndex > fromIndex) 1 else -1
+                        (slideInHorizontally(
+                            initialOffsetX = { direction * it / 5 },
                             animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f)
-                        ) + fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)))
-            },
-            label = "tab_content_transition"
-        ) { targetTab ->
-            when (targetTab) {
-                MainTab.HOME -> HomeScreen(
-                    onNavigateToArticle = onNavigateToArticle,
-                    onNavigateToSearch = onNavigateToSearch,
-                    modifier = Modifier.padding(innerPadding)
-                )
+                        ) + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))) togetherWith
+                                (slideOutHorizontally(
+                                    targetOffsetX = { -direction * it / 5 },
+                                    animationSpec = spring(dampingRatio = 0.85f, stiffness = 420f)
+                                ) + fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)))
+                    },
+                    label = "tab_content_transition"
+                ) { targetTab ->
+                    when (targetTab) {
+                        MainTab.HOME -> HomeScreen(
+                            onNavigateToArticle = onNavigateToArticle,
+                            onNavigateToSearch = onNavigateToSearch,
+                            modifier = Modifier.padding(contentPadding)
+                        )
 
-                MainTab.VIDEOS -> VideosScreen(
-                    onNavigateToArticle = onNavigateToArticle,
-                    modifier = Modifier.padding(innerPadding)
-                )
+                        MainTab.VIDEOS -> VideosScreen(
+                            onNavigateToArticle = onNavigateToArticle,
+                            modifier = Modifier.padding(videoContentPadding)
+                        )
 
-                MainTab.CATEGORIES -> CategoriesScreen(
-                    onNavigateToCategory = onNavigateToCategory,
-                    modifier = Modifier.padding(innerPadding)
-                )
+                        MainTab.CATEGORIES -> CategoriesScreen(
+                            onNavigateToCategory = onNavigateToCategory,
+                            modifier = Modifier.padding(contentPadding)
+                        )
 
-                MainTab.SAVED -> SavedScreen(
-                    onNavigateToArticle = onNavigateToArticle,
-                    modifier = Modifier.padding(innerPadding),
-                    onExploreNews = { selectedTab = MainTab.HOME }
-                )
+                        MainTab.SAVED -> SavedScreen(
+                            onNavigateToArticle = onNavigateToArticle,
+                            modifier = Modifier.padding(contentPadding),
+                            onExploreNews = { selectedTab = MainTab.HOME }
+                        )
 
-                MainTab.SETTINGS -> SettingsScreen(
-                    onNavigateToOnboarding = onNavigateToOnboarding,
-                    modifier = Modifier.padding(innerPadding)
-                )
+                        MainTab.SETTINGS -> SettingsScreen(
+                            onNavigateToOnboarding = onNavigateToOnboarding,
+                            modifier = Modifier.padding(contentPadding)
+                        )
+                    }
+                }
             }
         }
     }

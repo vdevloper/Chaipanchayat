@@ -392,7 +392,7 @@ fun CategoriesScreen(
                         )
                     } else {
                         LazyColumn(
-                            contentPadding = PaddingValues(bottom = 32.dp),
+                            contentPadding = PaddingValues(bottom = if (ChaiTheme.extended.isLiquidGlass) 164.dp else 32.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(filteredCategories, key = { it.id }) { cat ->
@@ -418,7 +418,7 @@ fun CategoriesScreen(
                         )
                     } else {
                         LazyColumn(
-                            contentPadding = PaddingValues(bottom = 32.dp),
+                            contentPadding = PaddingValues(bottom = if (ChaiTheme.extended.isLiquidGlass) 164.dp else 32.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(filteredTags, key = { it.id }) { tag ->

@@ -1,132 +1,73 @@
-# Chai Panchayat Android App — Complete UI/UX Polish & Liquid Glass Redesign
+# Chai Panchayat — Liquid Glass Theme Switching Fix & Preinitialized Transitions
 
-## 1. Executive Summary & Architecture Overview
-This plan establishes a comprehensive UI/UX overhaul of the Chai Panchayat Android application, addressing user requirements across 15 priority areas while preserving all WordPress REST API data structures, TTS, live feeds, bookmarking, caching, and translations.
-
-Key architectural targets:
-- **Clean Article Sharing:** Strip the flame icon (`🔥`), unnecessary promotional strings, and the tagline `(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)`, producing a clean, professional `[Headline]\n\n[Article Link]` share output.
-- **Genuine Liquid Glass Theme:** Upgrade the current theme into a high-translucency frosted glass interface featuring vivid ambient underglow, optical chromatic bevels, dynamic specular reflections, and layered depth over deep AMOLED charcoal foundations.
-- **Floating Glass Pill Navigation:** Transform bottom navigation in Liquid Glass into a floating, translucent glass capsule dock with smooth active indicators, while maintaining Obsidian Dark's grounded, minimal dark bar.
-- **Obsidian Dark Polish:** Refine the default theme's spacing, typography, padding, card silhouettes, and contrast without altering its clean AMOLED character.
-- **Screen-by-Screen Polish:** Refine Home (Flash News ticker, chips, hero card, top stories), Article Reader (toolbar, Devanagari typography, TTS player, bottom actions), Categories & Tags, Saved Articles (meaningful empty state), and Settings (visual theme previews).
+## 1. Problem Diagnosis & Root Cause
+The crash observed when switching between **Obsidian Dark** and **Liquid Glass** was caused by:
+1. **Recursive Hardware Layer Recording:** In `LayerBackdropModifier.kt` and `DrawBackdropModifier.kt`, the content tree was recorded into `backdrop.graphicsLayer`. When switching to Liquid Glass, child components inside that exact recorded hierarchy accessed `LocalBackdrop.current` and invoked `drawPlainBackdrop` / `drawLayer(graphicsLayer)` during the active recording of that same layer, creating a cyclic recording loop that caused HWUI RenderNode exceptions or fatal native crashes.
+2. **Exported Backdrop Nested Re-recording:** In `DrawBackdropModifier.kt` (line 337), `drawBackdropLayer()` was invoked inside an active `recordLayer(this, layer) { ... }` block, attempting nested re-recording on the same scope.
+3. **Unprotected HWUI / AGSL Combinations:** In `HighlightModifier.kt`, simultaneous `paint.blur(BlurMaskFilter)` and `paint.setRuntimeShader` on stroked canvases lacked exception handling when hardware accelerated pipeline conditions differed between devices.
 
 ---
 
-## 2. Detailed Implementation Phases
+## 2. Implemented Architecture & Solutions
 
-### Phase 1: Clean Article Sharing Content (`DeepLinkManager.kt`)
-- **File:** `app/src/main/java/com/chaipanchayat/app/utils/DeepLinkManager.kt`
-- **Actions:**
-  - In `buildShareMessage(...)`, remove `"🔥 "` prefix from title.
-  - Remove redundant promotional text: `"📲 ऐप में सीधे पढ़ें (Open in App):"`, `"🌐 वेबसाइट पर पढ़ें (Read on Web):"`, `"📥 चाय पंचायत ऐप डाउनलोड करें:"`, and `"(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)"`.
-  - Format output as:
-    ```
-    [Headline]
+### A. Lifecycle & Recording Safety Guards
+- **Layer Recording Isolation (`LayerBackdrop.kt` & `LayerBackdropModifier.kt`):**
+  - Added `isRecording` and `isRecorded` lifecycle guards.
+  - Wrapped layer recording in a `try-finally` block ensuring `backdrop.isRecording = false` always executes.
+  - `drawBackdrop` immediately exits if `!isRecorded || isRecording`, preventing any circular layer self-sampling.
+- **Nested Recording Prevention (`DrawBackdropModifier.kt`):**
+  - In `exportedBackdrop`, replaced nested `drawBackdropLayer()` with `this@DrawBackdropNode.graphicsLayer?.let { drawLayer(it) }`, eliminating nested offscreen layer re-recording.
+- **Paint & Shader Resilience (`HighlightModifier.kt`):**
+  - Wrapped `paint.blur` and `createShader` / `setRuntimeShader` in safe fallbacks, ensuring stroked borders gracefully drop back to clean solid borders on unsupported renderers.
+- **Backdrop Hierarchy Boundary (`MainNavigation.kt` & `LiquidGlassComponents.kt`):**
+  - Inside `MainTabsScaffold`, `LocalBackdrop provides null` is passed to the inner content hierarchy so that screen cards (which have their own frosted acrylic styling and bevels) do not attempt recursive sampling of the root page layer.
+  - Only the floating bottom navigation capsule dock (`ChaiLiquidBottomTabs`) samples the page backdrop, as it sits above the page content.
 
-    [Website Link / Article URL]
-    ```
-  - In `buildHtmlShareMessage(...)`, clean up HTML template to match the clean format:
-    ```html
-    <p><b>$safeTitle</b></p>
-    <p><a href="$websiteLink">$websiteLink</a></p>
-    ```
-  - Preserve the native Android `Intent.ACTION_SEND` chooser, image caching, and share sheet mechanics.
+### B. Startup Theme Prewarming (`ThemePrewarmer.kt`)
+- `ThemePrewarmer.warmUp()` is launched at application startup (`MainActivity.onCreate` / `LaunchedEffect(Unit)`).
+- Pre-verifies hardware `isRenderEffectSupported()` and `isRuntimeShaderSupported()`.
+- Pre-computes geometry shapes (`Capsule()`).
+- Pre-computes and caches common brushes and shaders (specular bevel brush, edge hairline gradients).
+- On Android 13+ (API 33+), pre-compiles AGSL shaders (`DefaultHighlightShaderString`) in the background so runtime shader compilation never blocks UI during theme switching.
 
----
+### C. Minimal AMOLED Tea-Cup Theme Transition (`ThemeTransitionManager.kt`)
+- When the user selects a theme in `SettingsScreen`, `ThemeTransitionManager.switchTheme(targetTheme)` is invoked.
+- Smoothly presents a minimal AMOLED-black (`#04060A`) transition overlay with Chai Panchayat's authentic hand-crafted Kulhad tea cup (`ChaiBrewLoadingIndicator`):
+  - Undulating warm chai liquid surface physics.
+  - Smooth quadratic bezier rising steam ribbons.
+  - Saffron accents and warm amber glow.
+  - Minimal Devanagari status indicator: *"थीम लागू की जा रही है..."*
+- Activates the destination theme in `SettingsRepository` and allows 2-3 frames for Compose layout and graphics layer recording to settle.
+- Smoothly fades out the overlay, revealing the fully prepared destination theme.
+- **Navigation & Scroll State Preservation:** Does not recreate the Activity or destroy the `NavHost`. Backstack, active tabs, and scroll positions remain 100% intact.
 
-### Phase 2: Theme System & Liquid Glass Engine Redesign
-- **Files:**
-  - `app/src/main/java/com/chaipanchayat/app/ui/theme/Color.kt`
-  - `app/src/main/java/com/chaipanchayat/app/ui/theme/Theme.kt`
-  - `app/src/main/java/com/chaipanchayat/app/engine/liquidglass/LiquidGlassConfig.kt`
-  - `app/src/main/java/com/chaipanchayat/app/engine/liquidglass/LiquidGlassComponents.kt`
-  - `app/src/main/java/com/chaipanchayat/app/engine/liquidglass/LiquidGlassBackdrop.kt`
-
-- **Visual Enhancements for Liquid Glass:**
-  - **High-Translucency Frosted Glass:** Adjust `frostOpacity` (around 0.65f - 0.75f for elevated cards, 0.85f for reading surfaces) over deep charcoal `#0B0F17` / `#050810` backgrounds.
-  - **Vivid Ambient Underglow:** Enhance `LiquidGlassBackdrop` with radial chromatic ambient glow (saffron flare `#FF5400`, crystal cyan `#00E5FF`, and royal amber) providing genuine optical refraction behind translucent surfaces without excessive neon outlines.
-  - **Specular Highlights & Rim Lighting:** Multi-stop iridescent hairline borders (`0.75.dp - 1.dp`) with subtle light sweep reflections and soft drop shadows (`ambientColor` and `spotColor` mapped to theme accent glow).
-  - **Touch Physics:** Responsive tactile spring compression (`0.975f` scale on tap) with haptic feedback.
-
-- **Obsidian Dark Polish:**
-  - True-black background `#000000` with subtle `#121214` surface cards, crisp saffron `#FF5400` highlights, and soft `#262628` hairline dividers.
-  - Remove visual noise, uneven outlines, and maintain optimal AMOLED contrast.
-
----
-
-### Phase 3: Floating Liquid Glass Bottom Navigation (`MainNavigation.kt`)
-- **File:** `app/src/main/java/com/chaipanchayat/app/ui/navigation/MainNavigation.kt`
-- **Actions:**
-  - **Liquid Glass Mode:**
-    - Render a floating rounded pill capsule (`RoundedCornerShape(32.dp)` or `RoundedCornerShape(28.dp)`) elevated slightly above the screen bottom (`padding(horizontal = 16.dp, vertical = 10.dp)`).
-    - Backed by translucent glass panel (`LiquidGlassPanel` or frosted acrylic surface with `glassBorderBrush` and specular rim).
-    - Refined active tab pill with soft glow and balanced icon scaling.
-  - **Obsidian Dark Mode:**
-    - Maintain standard grounded bottom bar with subtle top divider, clean black background, and sharp saffron icon states.
-  - **Insets & Scrolling:** Ensure `Modifier.navigationBarsPadding()` is respected so navigation bar floats cleanly above system gesture bars without clipping or obscuring scrollable content.
-
----
-
-### Phase 4: Home Screen Refinements (`HomeScreen.kt`, `HeroCard.kt`, `NewsCard.kt`)
-- **Files:**
-  - `app/src/main/java/com/chaipanchayat/app/ui/screens/HomeScreen.kt`
-  - `app/src/main/java/com/chaipanchayat/app/ui/components/HeroCard.kt`
-  - `app/src/main/java/com/chaipanchayat/app/ui/components/NewsCard.kt`
-- **Actions:**
-  - **Header:** Clean alignment between Chai Panchayat logo, verified badge, language toggle pill, search, and refresh button.
-  - **Flash News Ticker:** Compact, high-readability ticker with crisp "⚡ Flash News" badge and graceful marquee/ellipsis handling for long Hindi headlines.
-  - **Category Chips:** Refined horizontal scrolling chips with smooth pill geometry, subtle selected glow in Liquid Glass, and crisp saffron fill in Obsidian Dark.
-  - **Featured Article Card (`HeroCard.kt`):**
-    - Balanced 16:9 aspect ratio, refined gradient vignette, clean category tag, bold headline typography, and aligned date/bookmark controls.
-    - Confirm removal of redundant semi-transparent "Lead Story" tag as completed.
-  - **Top Stories Feed (`NewsCard.kt`):**
-    - Consistent 1:1 / 4:3 thumbnail aspect ratio with rounded corners (`12.dp`), aligned category kicker, 2-line headline wrapping, Hindi timestamp, and touch ripples.
+### D. Root Cause Resolution: `IllegalStateException: Size is unspecified`
+- **Exact Cause**:
+  `BackdropEffectScopeImpl` initializes `override var size: Size = Size.Unspecified`.
+  When `DrawBackdropNode.onAttach()` was invoked, it called `observeEffects()` -> `observeReads { updateEffects() }`.
+  Inside `updateEffects()`, line 375 evaluated:
+  `if (s.width.isNaN() || s.height.isNaN() || s.width <= 0f || s.height <= 0f) return`
+  In Jetpack Compose, calling `.width` or `.height` on `Size.Unspecified` asserts `check(this != Size.Unspecified) { "Size is unspecified" }`, which threw `java.lang.IllegalStateException: Size is unspecified` during `onAttach()` before layout measurement had occurred.
+- **Proper Architectural Fix**:
+  1. **Lifecycle Safe Measurement (`DrawBackdropNode.measure`)**:
+     In `DrawBackdropNode.measure()`, as soon as `placeable` is measured, `effectScope.update(this, Size(placeable.width.toFloat(), placeable.height.toFloat()), layoutDirection)` updates `size` to valid measured dimensions and calls `observeEffects()`.
+  2. **Safe Pre-Measurement Check**:
+     In `updateEffects()`:
+     `if (!s.isSpecified || s.width.isNaN() || s.height.isNaN() || s.width <= 0f || s.height <= 0f) return`
+     When called in `onAttach()`, `!s.isSpecified` evaluates to true and cleanly exits without accessing `.width`.
+  3. **Observation & Redraw Dispatch**:
+     When measurement completes or during `draw()`, `effectScope.update` sets the real dimensions and triggers `observeEffects()`. `observeReads` then captures any Compose state reads inside `effects` with valid dimensions.
+     `invalidateDrawCache()` calls `observeEffects()` and triggers `invalidateDraw()`.
+  4. **Exhaustive Size Safety**:
+     Updated `Lens.kt`, `HighlightStyle.kt`, `LayerRecorder.kt`, `LayerBackdropModifier.kt`, `ShadowModifier.kt`, and `InnerShadowModifier.kt` to check `size.isSpecified` before accessing `.width` or `.height`.
+  5. **Automated Unit Test Verification**:
+     Created `BackdropSizeSafetyTest.kt` verifying that `BackdropEffectScopeImpl` begins with `Size.Unspecified`, allows safe effect applications without throwing, transitions to specified dimensions during measurement updates, and safely resets without errors. `gradle :app:testDebugUnitTest` executed and passed cleanly.
 
 ---
 
-### Phase 5: Article Detail Reader Experience (`ArticleScreen.kt`, `ArticleHtmlView.kt`)
-- **Files:**
-  - `app/src/main/java/com/chaipanchayat/app/ui/screens/ArticleScreen.kt`
-  - `app/src/main/java/com/chaipanchayat/app/ui/components/ArticleHtmlView.kt`
-- **Actions:**
-  - **Toolbar:** Refine top app bar layout on narrow screens (prevent button squishing between back, category, translate, share, and external open).
-  - **Typography & Headline:** Generous line-height (`1.35x`), `NotoSerifFamily` ExtraBold, natural wrapping without clipping Devanagari vowel marks (*matras*).
-  - **Byline & Metadata:** Clean editorial row with author avatar badge, publication timestamp, and reading time estimate.
-  - **Listen in Hindi (TTS Player):** Visual polish for audio player card with play/pause state indicator, animated wave bars during playback, and graceful failure handling.
-  - **In-Article Sub-headings & Gallery:** Preserve the extra-bold sub-headings and inline photos added in recent updates.
-  - **Floating/Docked Reading Controls:** Refine bottom reading toolbar (bookmark, text size A-/A+, share) with translucent glass styling in Liquid Glass and solid contrast in Obsidian Dark.
-
----
-
-### Phase 6: Categories, Tags & Search Refinements (`CategoriesScreen.kt`)
-- **File:** `app/src/main/java/com/chaipanchayat/app/ui/screens/CategoriesScreen.kt`
-- **Actions:**
-  - **Segmented Control:** Crisp pill selector between "श्रेणियाँ (Categories)" and "टैग्स (Tags)".
-  - **Search Input:** Refined search bar with clear icon, search placeholder in Hindi/English, and focused border glow.
-  - **Category Rows:** Restrained border weight, soft background tint, consistent icon container size (`40.dp`), aligned article count badge, and chevron indicator.
-
----
-
-### Phase 7: Saved Articles Screen & Empty State (`SavedScreen.kt`)
-- **File:** `app/src/main/java/com/chaipanchayat/app/ui/screens/SavedScreen.kt`
-- **Actions:**
-  - **Empty State:** Replace bare icon with an intentional, premium illustration/badge (layered bookmark icon with warm saffron circle glow), clear headline *"कोई खबर सेव नहीं है"*, descriptive subtext, and a helpful *"ताज़ा खबरें पढ़ें (Explore News)"* action button navigating to Home.
-  - **Saved Card List:** Consistent card styling matching the Home news list, with smooth swipe/tap-to-remove bookmark interaction.
-
----
-
-### Phase 8: Settings Screen & Theme Previews (`SettingsScreen.kt`)
-- **File:** `app/src/main/java/com/chaipanchayat/app/ui/screens/SettingsScreen.kt`
-- **Actions:**
-  - **Theme Selector:** Visual preview cards for Obsidian Dark and Liquid Glass so users see the exact aesthetic (dark AMOLED with saffron vs translucent glass with cyan/ambient underglow) before selecting.
-  - **Section Hierarchy:** Consistent row height, icon containers, clean switches, typography size, and comfortable spacing.
-
----
-
-## 3. Verification & Quality Assurance Checklist
-1. **Compilation Check:** Run `compile_applet` to ensure zero compilation or syntax errors.
-2. **Sharing Verification:** Verify `DeepLinkManager.buildShareMessage` outputs clean headline and link without `🔥` or `(चाय पंचायत - बेबाक, सटीक, निष्पक्ष)`.
-3. **Theme Switching:** Verify immediate UI update and DataStore persistence when switching between Obsidian Dark and Liquid Glass.
-4. **Bottom Navigation:** Verify floating glass pill in Liquid Glass vs flat docked bar in Obsidian Dark with no content clipping or gesture bar overlap.
-5. **Screen Ergonomics:** Verify padding, system insets, and scrolling smoothness across Home, Article, Categories, Saved, and Settings.
-6. **Devanagari Readability:** Confirm all Hindi headlines, subheadings, and matras display cleanly without clipping.
+## 3. Verification
+- **Compilation:** `compile_applet` passed with zero errors.
+- **Unit Testing:** `gradle :app:testDebugUnitTest` executed with `BUILD SUCCESSFUL`.
+- **Theme Switching:** Both Obsidian Dark and Liquid Glass switch cleanly with zero crashes.
+- **Navigation Dock:** Floating translucent glass capsule in Liquid Glass mode; clean grounded AMOLED bar in Obsidian Dark mode.
+- **Sharing Output:** Preserves clean `[Headline]\n\n[App Link]\n[Website Link]` without promotional taglines.

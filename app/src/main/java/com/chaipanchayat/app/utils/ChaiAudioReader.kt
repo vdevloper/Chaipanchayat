@@ -19,6 +19,26 @@ class ChaiAudioReader(context: Context) {
         ERROR
     }
 
+    data class ActiveArticleAudio(
+        val postId: Long,
+        val title: String,
+        val subtitle: String = "चाय पंचायत ऑडियो • Hindi Voice",
+        val imageUrl: String? = null,
+        val contentHtml: String = "",
+        val category: String = "ताज़ा ख़बरें"
+    )
+
+    companion object {
+        @Volatile
+        private var instance: ChaiAudioReader? = null
+
+        fun getInstance(context: Context): ChaiAudioReader {
+            return instance ?: synchronized(this) {
+                instance ?: ChaiAudioReader(context.applicationContext).also { instance = it }
+            }
+        }
+    }
+
     private val appContext = context.applicationContext
     private var tts: TextToSpeech? = null
     private var isTtsInitialized = false
@@ -29,6 +49,20 @@ class ChaiAudioReader(context: Context) {
 
     private val _progress = mutableFloatStateOf(0f)
     val progress: State<Float> = _progress
+
+    private var userDismissed = false
+
+    private val _activeArticle = mutableStateOf<ActiveArticleAudio?>(
+        ActiveArticleAudio(
+            postId = 0L,
+            title = "चाय पंचायत • आज की प्रमुख ख़बरें",
+            subtitle = "चाय पंचायत ऑडियो • Hindi Voice",
+            imageUrl = null,
+            contentHtml = "चाय पंचायत में आपका स्वागत है। देश, प्रदेश और आपके शहर की ताज़ा और विश्वसनीय ख़बरें अब ऑडियो में सुनें।",
+            category = "ताज़ा ख़बरें"
+        )
+    )
+    val activeArticle: State<ActiveArticleAudio?> = _activeArticle
 
     private var sentences: List<String> = emptyList()
     private var currentSentenceIndex = 0
@@ -93,8 +127,59 @@ class ChaiAudioReader(context: Context) {
         })
     }
 
+    fun seedFeaturedArticle(
+        postId: Long,
+        title: String,
+        contentHtml: String,
+        imageUrl: String? = null,
+        category: String = "ताज़ा ख़बरें"
+    ) {
+        if (userDismissed) return
+        val current = _activeArticle.value
+        if (current == null || current.postId == 0L) {
+            _activeArticle.value = ActiveArticleAudio(
+                postId = postId,
+                title = title,
+                subtitle = "$category • ऑडियो समाचार",
+                imageUrl = imageUrl,
+                contentHtml = contentHtml,
+                category = category
+            )
+        }
+    }
+
+    fun playArticle(
+        postId: Long,
+        title: String,
+        contentHtml: String,
+        imageUrl: String? = null,
+        category: String = "ताज़ा ख़बरें",
+        locale: Locale? = null
+    ) {
+        userDismissed = false
+        _activeArticle.value = ActiveArticleAudio(
+            postId = postId,
+            title = title,
+            subtitle = "$category • ऑडियो समाचार",
+            imageUrl = imageUrl,
+            contentHtml = contentHtml,
+            category = category
+        )
+        prepareAndPlay(title, contentHtml, locale)
+    }
+
     fun prepareAndPlay(title: String, contentHtml: String, locale: Locale? = null) {
         val targetLocale = locale ?: Locale("hi", "IN")
+        if (_activeArticle.value == null || _activeArticle.value?.title != title) {
+            _activeArticle.value = ActiveArticleAudio(
+                postId = _activeArticle.value?.postId ?: 0L,
+                title = title,
+                subtitle = "चाय पंचायत ऑडियो • Hindi Voice",
+                imageUrl = _activeArticle.value?.imageUrl,
+                contentHtml = contentHtml,
+                category = _activeArticle.value?.category ?: "ताज़ा ख़बरें"
+            )
+        }
         try {
             val result = tts?.setLanguage(targetLocale)
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
@@ -157,6 +242,10 @@ class ChaiAudioReader(context: Context) {
     fun resume() {
         if (_playState.value == PlayState.PAUSED) {
             startSpeakingFromCurrent()
+        } else if (_playState.value == PlayState.IDLE || _playState.value == PlayState.COMPLETED) {
+            _activeArticle.value?.let {
+                prepareAndPlay(it.title, it.contentHtml)
+            }
         }
     }
 
@@ -169,11 +258,54 @@ class ChaiAudioReader(context: Context) {
         }
     }
 
+    fun toggleCurrent() {
+        when (_playState.value) {
+            PlayState.PLAYING -> pause()
+            PlayState.PAUSED -> resume()
+            PlayState.COMPLETED, PlayState.IDLE, PlayState.ERROR -> {
+                _activeArticle.value?.let {
+                    prepareAndPlay(it.title, it.contentHtml)
+                }
+            }
+            PlayState.PREPARING -> {}
+        }
+    }
+
+    fun skipNext() {
+        if (sentences.isNotEmpty() && currentSentenceIndex < sentences.size - 1) {
+            tts?.stop()
+            currentSentenceIndex++
+            updateProgress()
+            if (_playState.value == PlayState.PLAYING) {
+                speakSentence(currentSentenceIndex)
+            }
+        } else {
+            stop()
+        }
+    }
+
+    fun skipPrevious() {
+        if (sentences.isNotEmpty()) {
+            tts?.stop()
+            currentSentenceIndex = (currentSentenceIndex - 1).coerceAtLeast(0)
+            updateProgress()
+            if (_playState.value == PlayState.PLAYING) {
+                speakSentence(currentSentenceIndex)
+            }
+        }
+    }
+
     fun stop() {
         tts?.stop()
         currentSentenceIndex = 0
         _progress.value = 0f
         _playState.value = PlayState.IDLE
+    }
+
+    fun dismiss() {
+        userDismissed = true
+        stop()
+        _activeArticle.value = null
     }
 
     private fun updateProgress() {

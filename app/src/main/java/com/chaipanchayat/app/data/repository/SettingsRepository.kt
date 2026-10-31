@@ -20,8 +20,7 @@ enum class ThemeMode(val key: String, val title: String, val subtitle: String) {
 
     companion object {
         fun fromKey(key: String): ThemeMode {
-            val mode = entries.find { it.key == key } ?: DARK
-            return if (mode == LIQUID_GLASS) DARK else mode
+            return entries.find { it.key == key } ?: DARK
         }
     }
 }
