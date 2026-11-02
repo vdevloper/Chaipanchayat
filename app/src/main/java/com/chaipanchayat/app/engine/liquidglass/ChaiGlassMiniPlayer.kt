@@ -68,6 +68,7 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.isRenderEffectSupported
 import com.kyant.backdrop.shadow.Shadow
@@ -99,8 +100,8 @@ fun ChaiGlassMiniPlayer(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 1.025f else 1.0f,
-        animationSpec = spring(stiffness = 380f, dampingRatio = 0.65f),
+        targetValue = if (isPressed) 1.035f else 1.0f,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.60f),
         label = "mini_player_press_scale"
     )
 
@@ -127,27 +128,22 @@ fun ChaiGlassMiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp)
-            .padding(bottom = 6.dp)
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 4.dp)
             .scale(pressScale)
-            .shadow(
-                elevation = 12.dp,
-                shape = shape,
-                ambientColor = Color(0x35000000),
-                spotColor = Color(0x40000000)
-            )
             .then(
                 if (isRenderEffectSupported()) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { shape },
                         effects = {
-                            colorControls(saturation = 1.35f)
-                            blur(16.dp.toPx())
+                            vibrancy()
+                            colorControls(saturation = 1.45f)
+                            blur(8.dp.toPx())
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 lens(
-                                    refractionHeight = 7.dp.toPx(),
-                                    refractionAmount = 9.dp.toPx(),
+                                    refractionHeight = 12.dp.toPx(),
+                                    refractionAmount = 24.dp.toPx(),
                                     depthEffect = true,
                                     chromaticAberration = true
                                 )
@@ -156,31 +152,32 @@ fun ChaiGlassMiniPlayer(
                         highlight = { Highlight.Default },
                         shadow = {
                             Shadow(
-                                radius = 10.dp,
-                                offset = DpOffset(0.dp, 2.dp),
-                                color = Color.Black.copy(alpha = 0.35f)
+                                radius = 12.dp,
+                                offset = DpOffset(0.dp, 3.dp),
+                                color = Color.Black.copy(alpha = 0.38f)
                             )
                         },
                         onDrawSurface = {
-                            drawRect(Color(0x3D0B1220))
+                            drawRect(Color(0x330D111A))
                         }
                     )
                 } else {
-                    Modifier.background(Color(0xEC0B1220), shape)
+                    Modifier
+                        .background(Color(0xEC0B1220), shape)
+                        .border(
+                            width = 0.9.dp,
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.48f),
+                                    Color.White.copy(alpha = 0.16f),
+                                    Color.White.copy(alpha = 0.05f)
+                                )
+                            ),
+                            shape = shape
+                        )
                 }
             )
             .clip(shape)
-            .border(
-                width = 0.9.dp,
-                brush = Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.48f),
-                        Color.White.copy(alpha = 0.16f),
-                        Color.White.copy(alpha = 0.05f)
-                    )
-                ),
-                shape = shape
-            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

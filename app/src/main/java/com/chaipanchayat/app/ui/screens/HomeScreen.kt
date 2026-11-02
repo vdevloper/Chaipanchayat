@@ -82,6 +82,9 @@ import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.LocalChaiStrings
+import androidx.compose.ui.layout.onSizeChanged
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -208,232 +211,29 @@ fun HomeScreen(
         list
     }
 
-    Column(
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val homeFeedBackdrop = rememberLayerBackdrop()
+    var headerHeightPx by remember { mutableIntStateOf(0) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val headerHeightDp = with(density) { headerHeightPx.toDp() }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(if (ChaiTheme.extended.isLiquidGlass) Color.Transparent else MaterialTheme.colorScheme.surface)
+            .background(if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surface)
     ) {
-        // Editorial Masthead Header
-        Surface(
-            color = if (ChaiTheme.extended.isLiquidGlass) Color.Transparent else MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth()
+        // Layer 1: Scrollable News Feed recorded into homeFeedBackdrop so top floating header refracts it!
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (isLiquid) Modifier.layerBackdrop(homeFeedBackdrop) else Modifier)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Logo()
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Universal Language Switcher Pill (accessible to speakers of any language)
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.9f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            ChaiTheme.extended.border.copy(alpha = 0.6f)
-                        ),
-                        modifier = Modifier
-                            .height(36.dp)
-                            .clickable { showLanguagePicker = true }
-                            .testTag("header-language-button")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Language,
-                                contentDescription = "Language",
-                                tint = ChaiSaffron,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = currentAppLang.flag,
-                                fontSize = 13.5.sp
-                            )
-                            Text(
-                                text = currentAppLang.englishName,
-                                fontFamily = InterFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-
-                    // Search Action Button
-                    Surface(
-                        shape = CircleShape,
-                        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            ChaiTheme.extended.border.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        IconButton(
-                            onClick = onNavigateToSearch,
-                            modifier = Modifier.testTag("header-search-button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Search,
-                                contentDescription = "Search",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                    }
-
-                    // Refresh Button with Spin Effect
-                    Surface(
-                        shape = CircleShape,
-                        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            ChaiTheme.extended.border.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                refreshRotation += 360f
-                                coroutineScope.launch {
-                                    isRefreshing = true
-                                    loadCategories(forceRefresh = true)
-                                    loadFeed(showLoader = false)
-                                }
-                            },
-                            modifier = Modifier.testTag("header-refresh-button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Refresh,
-                                contentDescription = "Refresh",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier
-                                    .size(19.dp)
-                                    .rotate(animatedRotation)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
-
-        // Animated Breaking News Ticker (Live Headline updates)
-        if (posts.isNotEmpty()) {
-            BreakingNewsTicker(
-                posts = posts.take(6),
-                onPostClick = onNavigateToArticle,
-                translatedTitles = if (showOriginalHindi) emptyMap() else translatedTitles
-            )
-            HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
-        }
-
-        // Global Feed Translation Status & 1-Tap Original Hindi Toggle
-        if (currentAppLang != com.chaipanchayat.app.data.model.AppLanguage.HINDI) {
-            Surface(
-                color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.95f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (showOriginalHindi) ChaiCrimson.copy(alpha = 0.35f) else ChaiSaffron.copy(alpha = 0.4f)
+            if (isLiquid) {
+                com.chaipanchayat.app.engine.liquidglass.LiquidGlassBackdrop(
+                    settings = com.chaipanchayat.app.engine.liquidglass.LiquidGlassEngine.current
                 )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.weight(1f, fill = false)
-                    ) {
-                        Icon(
-                            imageVector = if (showOriginalHindi) Icons.Outlined.Language else Icons.Outlined.Translate,
-                            contentDescription = null,
-                            tint = if (showOriginalHindi) ChaiCrimson else ChaiSaffron,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = if (showOriginalHindi) {
-                                "🇮🇳 Showing Original Hindi"
-                            } else if (isTranslatingFeed) {
-                                "Translating feed to ${currentAppLang.englishName}..."
-                            } else {
-                                "Translated to ${currentAppLang.englishName}"
-                            },
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // 1-Tap Toggle Pill (localized so non-Hindi speakers understand)
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (showOriginalHindi) ChaiSaffron.copy(alpha = 0.15f) else ChaiCrimson.copy(alpha = 0.12f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (showOriginalHindi) ChaiSaffron.copy(alpha = 0.5f) else ChaiCrimson.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier
-                            .clickable { settingsRepo.toggleShowOriginalHindi() }
-                            .testTag("toggle-original-feed-button")
-                    ) {
-                        Text(
-                            text = if (showOriginalHindi) "🌐 ${strings.translate}" else "🇮🇳 ${strings.original}",
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.5.sp,
-                            color = if (showOriginalHindi) ChaiSaffron else ChaiCrimson,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
             }
-        }
 
-        // Offline notice
-        OfflineBanner(visible = isOffline)
-
-        // Categories Chips Row
-        CategoryChips(
-            chips = chipItems,
-            selectedId = selectedCategoryId,
-            onSelect = { selectedCategoryId = it },
-            isLoading = categories.isEmpty() && isLoading
-        )
-
-        HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
-
-        // Main Feed with Pull to Refresh
-        Box(modifier = Modifier.fillMaxSize()) {
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
                 onRefresh = {
@@ -452,27 +252,41 @@ fun HomeScreen(
                     label = "feed_loading_crossfade"
                 ) { loading ->
                     if (loading && posts.isEmpty()) {
-                        ChaiBrewLoadingScreen()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = headerHeightDp)
+                        ) {
+                            ChaiBrewLoadingScreen()
+                        }
                     } else if (loading) {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = headerHeightDp),
                             userScrollEnabled = false
                         ) {
                             item { HeroSkeleton() }
                             items(4) { NewsCardSkeleton() }
                         }
                     } else if (posts.isEmpty()) {
-                        EmptyState(
-                            title = "No stories found",
-                            message = if (isOffline) "Please check your internet connection." else "No articles published in this category yet.",
-                            actionLabel = "Retry",
-                            onAction = {
-                                coroutineScope.launch { loadFeed(showLoader = true) }
-                            }
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = headerHeightDp)
+                        ) {
+                            EmptyState(
+                                title = "No stories found",
+                                message = if (isOffline) "Please check your internet connection." else "No articles published in this category yet.",
+                                actionLabel = "Retry",
+                                onAction = {
+                                    coroutineScope.launch { loadFeed(showLoader = true) }
+                                }
+                            )
+                        }
                     } else {
                         LazyColumn(
                             state = listState,
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(top = headerHeightDp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             // 1. Hero Item (Lead Story)
@@ -539,27 +353,257 @@ fun HomeScreen(
                             }
 
                             item(key = "feed_bottom_spacer") {
-                                Spacer(modifier = Modifier.height(if (ChaiTheme.extended.isLiquidGlass) 164.dp else 36.dp))
+                                Spacer(modifier = Modifier.height(if (isLiquid) 172.dp else 36.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Layer 2: Floating Refractive Top Glass Header + Ticker + Category Chips
+        com.chaipanchayat.app.engine.liquidglass.ChaiGlassHeader(
+            backdrop = homeFeedBackdrop,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .onSizeChanged { size -> headerHeightPx = size.height }
+        ) {
+            // Editorial Masthead Header
+            Surface(
+                color = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Logo()
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Universal Language Switcher Pill
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isLiquid) Color(0x38FFFFFF) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.9f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border.copy(alpha = 0.6f)
+                            ),
+                            modifier = Modifier
+                                .height(36.dp)
+                                .clickable { showLanguagePicker = true }
+                                .testTag("header-language-button")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Language,
+                                    contentDescription = "Language",
+                                    tint = ChaiSaffron,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = currentAppLang.flag,
+                                    fontSize = 13.5.sp
+                                )
+                                Text(
+                                    text = currentAppLang.englishName,
+                                    fontFamily = InterFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+
+                        // Search Action Button
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isLiquid) Color(0x38FFFFFF) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            IconButton(
+                                onClick = onNavigateToSearch,
+                                modifier = Modifier.testTag("header-search-button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Search,
+                                    contentDescription = "Search",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+                        }
+
+                        // Refresh Button with Spin Effect
+                        Surface(
+                            shape = CircleShape,
+                            color = if (isLiquid) Color(0x38FFFFFF) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    refreshRotation += 360f
+                                    coroutineScope.launch {
+                                        isRefreshing = true
+                                        loadCategories(forceRefresh = true)
+                                        loadFeed(showLoader = false)
+                                    }
+                                },
+                                modifier = Modifier.testTag("header-refresh-button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Refresh,
+                                    contentDescription = "Refresh",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier
+                                        .size(19.dp)
+                                        .rotate(animatedRotation)
+                                )
                             }
                         }
                     }
                 }
             }
 
-            // New stories floating pill
-            NewStoriesPill(
-                count = newStoriesCount,
-                onClick = {
-                    coroutineScope.launch {
-                        listState.animateScrollToItem(0)
-                        loadFeed(showLoader = false)
+            HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = if (isLiquid) 0.25f else 0.5f))
+
+            // Animated Breaking News Ticker (Live Headline updates)
+            if (posts.isNotEmpty()) {
+                BreakingNewsTicker(
+                    posts = posts.take(6),
+                    onPostClick = onNavigateToArticle,
+                    translatedTitles = if (showOriginalHindi) emptyMap() else translatedTitles
+                )
+                HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = if (isLiquid) 0.25f else 0.5f))
+            }
+
+            // Global Feed Translation Status & 1-Tap Original Hindi Toggle
+            if (currentAppLang != com.chaipanchayat.app.data.model.AppLanguage.HINDI) {
+                Surface(
+                    color = if (isLiquid) Color(0x380D111A) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.95f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (showOriginalHindi) ChaiCrimson.copy(alpha = 0.35f) else ChaiSaffron.copy(alpha = 0.4f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Icon(
+                                imageVector = if (showOriginalHindi) Icons.Outlined.Language else Icons.Outlined.Translate,
+                                contentDescription = null,
+                                tint = if (showOriginalHindi) ChaiCrimson else ChaiSaffron,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = if (showOriginalHindi) {
+                                    "🇮🇳 Showing Original Hindi"
+                                } else if (isTranslatingFeed) {
+                                    "Translating feed to ${currentAppLang.englishName}..."
+                                } else {
+                                    "Translated to ${currentAppLang.englishName}"
+                                },
+                                fontFamily = InterFamily,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // 1-Tap Toggle Pill
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (showOriginalHindi) ChaiSaffron.copy(alpha = 0.15f) else ChaiCrimson.copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (showOriginalHindi) ChaiSaffron.copy(alpha = 0.5f) else ChaiCrimson.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .clickable { settingsRepo.toggleShowOriginalHindi() }
+                                .testTag("toggle-original-feed-button")
+                        ) {
+                            Text(
+                                text = if (showOriginalHindi) "🌐 ${strings.translate}" else "🇮🇳 ${strings.original}",
+                                fontFamily = InterFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                color = if (showOriginalHindi) ChaiSaffron else ChaiCrimson,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
-                },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
+                }
+            }
+
+            // Offline notice
+            OfflineBanner(visible = isOffline)
+
+            // Categories Chips Row
+            CategoryChips(
+                chips = chipItems,
+                selectedId = selectedCategoryId,
+                onSelect = { selectedCategoryId = it },
+                isLoading = categories.isEmpty() && isLoading
             )
+
+            if (!isLiquid) {
+                HorizontalDivider(thickness = 0.5.dp, color = ChaiTheme.extended.border.copy(alpha = 0.5f))
+            }
         }
+
+        // New stories floating pill
+        NewStoriesPill(
+            count = newStoriesCount,
+            onClick = {
+                coroutineScope.launch {
+                    listState.animateScrollToItem(0)
+                    loadFeed(showLoader = false)
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = headerHeightDp + 16.dp)
+        )
 
         if (showLanguagePicker) {
             com.chaipanchayat.app.ui.components.LanguagePickerSheet(

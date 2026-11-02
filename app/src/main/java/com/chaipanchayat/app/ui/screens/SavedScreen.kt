@@ -63,6 +63,9 @@ import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.utils.DateUtils
+import androidx.compose.ui.layout.onSizeChanged
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 @Composable
@@ -95,102 +98,139 @@ fun SavedScreen(
         }
     }
 
-    Column(
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val savedFeedBackdrop = rememberLayerBackdrop()
+    var headerHeightPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val headerHeightDp = with(density) { headerHeightPx.toDp() }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(if (ChaiTheme.extended.isLiquidGlass) Color.Transparent else MaterialTheme.colorScheme.surface)
+            .background(if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surface)
     ) {
-        // Top Brand Ribbon
+        // Layer 1: Scrollable Saved Feed recorded into savedFeedBackdrop
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .background(ChaiBrandGradient)
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .fillMaxSize()
+                .then(if (isLiquid) Modifier.layerBackdrop(savedFeedBackdrop) else Modifier)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .width(4.dp)
-                                .height(22.dp)
-                                .background(ChaiBrandGradient, RoundedCornerShape(2.dp))
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "सहेजी गई खबरें",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontFamily = NotoSerifFamily,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 24.sp
-                        )
-                    }
-                    Text(
-                        text = if (bookmarks.isEmpty()) "बाद में पढ़ने के लिए अपनी पसंदीदा खबरें यहाँ रखें।" else "${bookmarks.size} खबरें सुरक्षित हैं",
-                        color = ChaiTheme.extended.textSecondary,
-                        fontFamily = InterFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(start = 14.dp, top = 2.dp)
+            if (isLiquid) {
+                com.chaipanchayat.app.engine.liquidglass.LiquidGlassBackdrop(
+                    settings = com.chaipanchayat.app.engine.liquidglass.LiquidGlassEngine.current
+                )
+            }
+
+            if (bookmarks.isEmpty()) {
+                val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = headerHeightDp)
+                ) {
+                    EmptyState(
+                        title = strings.noSavedStories,
+                        message = strings.noSavedStoriesSub,
+                        icon = Icons.Outlined.BookmarkBorder,
+                        actionLabel = "ताज़ा खबरें पढ़ें",
+                        onAction = onExploreNews
                     )
                 }
-
-                if (bookmarks.isNotEmpty()) {
-                    Surface(
-                        shape = CircleShape,
-                        color = ChaiTheme.extended.brandTertiary
-                    ) {
-                        Text(
-                            text = "${bookmarks.size} सहेजे गए",
-                            color = ChaiTheme.extended.brandText,
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+            } else {
+                LazyColumn(
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        top = headerHeightDp + 8.dp
+                    ),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(bookmarks, key = { it.id }) { item ->
+                        SavedArticleCard(
+                            bookmark = item,
+                            onClick = { onNavigateToArticle(item.id) },
+                            displayTitle = if (showOriginalHindi) item.title else (translatedTitles[item.id] ?: item.title),
+                            onRemove = {
+                                coroutineScope.launch {
+                                    bookmarkRepo.removeBookmark(item.id)
+                                }
+                            },
+                            modifier = Modifier.animateItem()
                         )
+                    }
+                    item(key = "saved_bottom_spacer") {
+                        Spacer(modifier = Modifier.height(if (isLiquid) 172.dp else 28.dp))
                     }
                 }
             }
         }
 
-        if (bookmarks.isEmpty()) {
-            val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
-            EmptyState(
-                title = strings.noSavedStories,
-                message = strings.noSavedStoriesSub,
-                icon = Icons.Outlined.BookmarkBorder,
-                actionLabel = "ताज़ा खबरें पढ़ें",
-                onAction = onExploreNews
+        // Layer 2: Floating Refractive Glass Header
+        com.chaipanchayat.app.engine.liquidglass.ChaiGlassHeader(
+            backdrop = savedFeedBackdrop,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .onSizeChanged { size -> headerHeightPx = size.height }
+        ) {
+            // Top Brand Ribbon
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(ChaiBrandGradient)
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
-                items(bookmarks, key = { it.id }) { item ->
-                    SavedArticleCard(
-                        bookmark = item,
-                        onClick = { onNavigateToArticle(item.id) },
-                        displayTitle = if (showOriginalHindi) item.title else (translatedTitles[item.id] ?: item.title),
-                        onRemove = {
-                            coroutineScope.launch {
-                                bookmarkRepo.removeBookmark(item.id)
-                            }
-                        },
-                        modifier = Modifier.animateItem()
-                    )
-                }
-                item(key = "saved_bottom_spacer") {
-                    Spacer(modifier = Modifier.height(if (ChaiTheme.extended.isLiquidGlass) 164.dp else 28.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(22.dp)
+                                    .background(ChaiBrandGradient, RoundedCornerShape(2.dp))
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "सहेजी गई खबरें",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontFamily = NotoSerifFamily,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 24.sp
+                            )
+                        }
+                        Text(
+                            text = if (bookmarks.isEmpty()) "बाद में पढ़ने के लिए अपनी पसंदीदा खबरें यहाँ रखें।" else "${bookmarks.size} खबरें सुरक्षित हैं",
+                            color = ChaiTheme.extended.textSecondary,
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(start = 14.dp, top = 2.dp)
+                        )
+                    }
+
+                    if (bookmarks.isNotEmpty()) {
+                        Surface(
+                            shape = CircleShape,
+                            color = ChaiTheme.extended.brandTertiary
+                        ) {
+                            Text(
+                                text = "${bookmarks.size} सहेजे गए",
+                                color = ChaiTheme.extended.brandText,
+                                fontFamily = InterFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

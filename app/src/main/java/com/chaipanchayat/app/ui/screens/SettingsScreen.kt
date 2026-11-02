@@ -83,6 +83,9 @@ import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.worker.ChaiNewsNotificationWorker
+import androidx.compose.ui.layout.onSizeChanged
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -132,60 +135,40 @@ fun SettingsScreen(
         }
     }
 
-    LazyColumn(
+    val isLiquidGlassActive = ChaiTheme.extended.isLiquidGlass
+    val settingsFeedBackdrop = rememberLayerBackdrop()
+    var headerHeightPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val headerHeightDp = with(density) { headerHeightPx.toDp() }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(if (ChaiTheme.extended.isLiquidGlass) Color.Transparent else MaterialTheme.colorScheme.surface)
-            .testTag("settings-screen"),
-        contentPadding = PaddingValues(bottom = if (ChaiTheme.extended.isLiquidGlass) 164.dp else 48.dp)
+            .background(if (isLiquidGlassActive) Color.Transparent else MaterialTheme.colorScheme.surface)
+            .testTag("settings-screen")
     ) {
-        // Top Ribbon Accent
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(ChaiBrandGradient)
-            )
-        }
-
-        // Screen Header: सेटिंग्स
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 20.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .width(4.dp)
-                            .height(24.dp)
-                            .background(ChaiBrandGradient, RoundedCornerShape(2.dp))
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "सेटिंग्स",
-                        fontFamily = NotoSerifFamily,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 26.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(
-                    text = "प्राथमिकताएं एवं ऐप नियंत्रण",
-                    fontFamily = InterFamily,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 13.5.sp,
-                    color = ChaiTheme.extended.textSecondary,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+        // Layer 1: Scrollable Settings Feed recorded into settingsFeedBackdrop
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (isLiquidGlassActive) Modifier.layerBackdrop(settingsFeedBackdrop) else Modifier)
+        ) {
+            if (isLiquidGlassActive) {
+                com.chaipanchayat.app.engine.liquidglass.LiquidGlassBackdrop(
+                    settings = com.chaipanchayat.app.engine.liquidglass.LiquidGlassEngine.current
                 )
             }
-        }
 
-        // ==========================================
-        // SECTION: ACCOUNT
-        // ==========================================
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = headerHeightDp + 4.dp,
+                    bottom = if (isLiquidGlassActive) 172.dp else 48.dp
+                )
+            ) {
+                // ==========================================
+                // SECTION: ACCOUNT
+                // ==========================================
         item {
             SettingsSectionHeader(title = "ACCOUNT")
             SettingsNavRow(
@@ -664,6 +647,54 @@ fun SettingsScreen(
                 title = "App Version",
                 value = "${BuildConfig.VERSION_NAME} (v${BuildConfig.VERSION_CODE})"
             )
+        }
+            }
+        }
+
+        // Layer 2: Floating Refractive Top Glass Header
+        com.chaipanchayat.app.engine.liquidglass.ChaiGlassHeader(
+            backdrop = settingsFeedBackdrop,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .onSizeChanged { size -> headerHeightPx = size.height }
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(ChaiBrandGradient)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .width(4.dp)
+                            .height(24.dp)
+                            .background(ChaiBrandGradient, RoundedCornerShape(2.dp))
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "सेटिंग्स",
+                        fontFamily = NotoSerifFamily,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 26.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(
+                    text = "प्राथमिकताएं एवं ऐप नियंत्रण",
+                    fontFamily = InterFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.5.sp,
+                    color = ChaiTheme.extended.textSecondary,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
+            }
         }
     }
 

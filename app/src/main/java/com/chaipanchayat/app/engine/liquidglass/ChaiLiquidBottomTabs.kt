@@ -1,7 +1,6 @@
 package com.chaipanchayat.app.engine.liquidglass
 
 import android.os.Build
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -36,7 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -44,6 +43,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.ui.navigation.MainTab
@@ -59,6 +59,7 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.isRenderEffectSupported
 import com.kyant.backdrop.shadow.Shadow
@@ -73,14 +74,14 @@ data class ChaiTabItem(
 
 /**
  * Flagship Refractive Liquid Glass Floating Navigation Dock for Chai Panchayat
- * Modeled after iOS 26 and BitChord/Kyant0 backdrop rendering:
- * - Genuine AGSL lens refraction with depth and chromatic dispersion
- * - Color saturation boost (1.35x) so underlying content colors flow through the glass
- * - Traveling glass selection pill with Euler physics, under-damped spring lift & squash deformation
- * - Dual layered backdrops (records bar glass and foreground tab glyphs for realistic refraction)
- * - Directional specular rim highlight and upper bevel reflection
- * - High-contrast razor-sharp icons and Hindi typography
- * - Full accessibility compliance (>= 48dp touch targets)
+ * Modeled 1:1 after BitChord & Kyant0/AndroidLiquidGlass:
+ * - Unclipped outer container so the lifted GlassSelectionPill swells (+20dp width, +16dp height)
+ *   past the top and bottom edges of the capsule dock during travel and drag
+ * - Genuine AGSL lens refraction (refractionHeight = 12dp, refractionAmount = 24dp) with depthEffect
+ *   and RGB chromatic aberration
+ * - Vibrancy + Color saturation boost (1.45x) and crystal blur (8dp) so underlying content bends visibly
+ * - Dual layered backdrops (barGlassLayer + tabRowLayer) so the lifted selection pill magnifies and
+ *   chromatically refracts the tab icons and Hindi labels underneath it
  */
 @Composable
 fun ChaiLiquidBottomTabs(
@@ -104,7 +105,7 @@ fun ChaiLiquidBottomTabs(
         pillMotion.animateTo(selectedIndex)
     }
 
-    // Layer backdrops for layered glass refraction
+    // Layer backdrops for multi-surface glass refraction
     val barGlassLayer = rememberLayerBackdrop()
     val tabRowLayer = rememberLayerBackdrop()
 
@@ -112,134 +113,138 @@ fun ChaiLiquidBottomTabs(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 18.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Outer Floating Liquid Glass Capsule
+        // Unclipped Outer Container so the lifted selection pill can swell outside the 64.dp bar
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .shadow(
-                    elevation = 14.dp,
-                    shape = capsuleShape,
-                    ambientColor = Color(0x35000000),
-                    spotColor = Color(0x45000000)
-                )
-                .then(
-                    if (isRenderEffectSupported()) {
-                        Modifier.drawBackdrop(
-                            backdrop = backdrop,
-                            shape = { capsuleShape },
-                            effects = {
-                                colorControls(saturation = 1.35f)
-                                blur(16.dp.toPx())
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    lens(
-                                        refractionHeight = 8.dp.toPx(),
-                                        refractionAmount = 10.dp.toPx(),
-                                        depthEffect = true,
-                                        chromaticAberration = true
-                                    )
-                                }
-                            },
-                            highlight = { Highlight.Default },
-                            shadow = { Shadow.Default },
-                            onDrawSurface = {
-                                // Translucent optical glass tint
-                                drawRect(Color(0x380B1220))
-                            },
-                            exportedBackdrop = barGlassLayer
-                        )
-                    } else {
-                        Modifier.background(Color(0xEE0B1220), capsuleShape)
-                    }
-                )
-                .clip(capsuleShape)
-                .border(
-                    width = 0.9.dp,
-                    brush = Brush.verticalGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.52f),
-                            Color.White.copy(alpha = 0.18f),
-                            Color.White.copy(alpha = 0.05f)
-                        )
-                    ),
-                    shape = capsuleShape
-                )
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .height(64.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             val totalTabs = tabs.size.coerceAtLeast(1)
-            val availableWidth = maxWidth
+            val availableWidth = maxWidth - 8.dp
+            val barHeight = maxHeight
             val singleTabWidth = availableWidth / totalTabs
 
             val density = LocalDensity.current
-            LaunchedEffect(singleTabWidth) {
-                pillMotion.stepDp = with(density) { singleTabWidth.toPx() }
+            val singleTabWidthPx = with(density) { singleTabWidth.toPx() }
+            val barHeightPx = with(density) { barHeight.toPx() }
+            val padPx = with(density) { 4.dp.toPx() }
+            val liftExtraW = with(density) { 22.dp.toPx() }
+            val liftExtraH = with(density) { 16.dp.toPx() }
+
+            LaunchedEffect(singleTabWidthPx) {
+                pillMotion.stepDp = singleTabWidthPx
             }
 
-            // Layer 1: Traveling Physical Liquid Glass Selection Pill
-            val isCurrentTabHome = tabs.getOrNull(selectedIndex)?.tab == MainTab.HOME
-            val pillAccentColor = if (isCurrentTabHome) ChaiSaffron else Color.White
-
-            if (isRenderEffectSupported() && !pillMotion.isFlat) {
-                // Lifted Refractive Glass Pill with AGSL Lens
-                GlassSelectionPill(
-                    motion = pillMotion,
-                    fillColor = if (isCurrentTabHome) ChaiSaffron.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.14f),
-                    pageBackdrop = backdrop,
-                    barGlass = barGlassLayer,
-                    tabRow = tabRowLayer,
-                    shape = capsuleShape,
-                    modifier = Modifier
-                        .width(singleTabWidth)
-                        .fillMaxHeight()
-                        .offset(x = singleTabWidth * pillMotion.position)
-                        .padding(horizontal = 2.dp, vertical = 2.dp)
-                )
-            } else {
-                // Flat Settled Pill
-                FlatSelectionPill(
-                    color = if (isCurrentTabHome) ChaiSaffron.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.14f),
-                    shape = capsuleShape,
-                    modifier = Modifier
-                        .width(singleTabWidth)
-                        .fillMaxHeight()
-                        .offset(x = singleTabWidth * pillMotion.position)
-                        .padding(horizontal = 2.dp, vertical = 2.dp)
-                )
-            }
-
-            // Layer 2: Top Specular Bevel Reflection (physical light entry along upper glass edge)
+            // Layer 1: Floating Liquid Glass Capsule Bar Backdrop
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.2.dp)
-                    .align(Alignment.TopCenter)
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.65f),
-                                Color.Transparent
+                    .matchParentSize()
+                    .then(
+                        if (isRenderEffectSupported()) {
+                            Modifier.drawBackdrop(
+                                backdrop = backdrop,
+                                shape = { capsuleShape },
+                                effects = {
+                                    vibrancy()
+                                    colorControls(saturation = 1.45f)
+                                    blur(8.dp.toPx())
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        lens(
+                                            refractionHeight = 12.dp.toPx(),
+                                            refractionAmount = 24.dp.toPx(),
+                                            depthEffect = true,
+                                            chromaticAberration = true
+                                        )
+                                    }
+                                },
+                                highlight = { Highlight.Default },
+                                shadow = { Shadow.Default },
+                                onDrawSurface = {
+                                    drawRect(Color(0x330D111A))
+                                },
+                                exportedBackdrop = barGlassLayer
                             )
-                        )
+                        } else {
+                            Modifier
+                                .background(Color(0xEE0B1220), capsuleShape)
+                                .border(
+                                    width = 0.9.dp,
+                                    brush = Brush.verticalGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.52f),
+                                            Color.White.copy(alpha = 0.18f),
+                                            Color.White.copy(alpha = 0.05f)
+                                        )
+                                    ),
+                                    shape = capsuleShape
+                                )
+                        }
                     )
             )
 
-            // Layer 3: Razor-Sharp Interactive Tab Row (Recorded for lens refraction, rendered crisp foreground)
+            val isCurrentTabHome = tabs.getOrNull(selectedIndex)?.tab == MainTab.HOME
+            val basePillFill = if (isCurrentTabHome) {
+                ChaiSaffron.copy(alpha = 0.24f)
+            } else {
+                Color.White.copy(alpha = 0.16f)
+            }
+
+            // Compute live physical size (rest vs lifted with acceleration squash)
+            val restSize = Size(
+                width = (singleTabWidthPx - padPx).coerceAtLeast(1f),
+                height = (barHeightPx - padPx * 2f).coerceAtLeast(1f)
+            )
+            val liftedSize = Size(
+                width = (restSize.width + liftExtraW).coerceAtLeast(1f),
+                height = (restSize.height + liftExtraH).coerceAtLeast(1f)
+            )
+            val currentPillSize = pillMotion.liveSize(restSize, liftedSize)
+            val pillWidthDp = with(density) { currentPillSize.width.toDp() }
+            val pillHeightDp = with(density) { currentPillSize.height.toDp() }
+
+            // Center coordinates of the pill along the tab bar
+            val centerX = padPx + (pillMotion.position + 0.5f) * singleTabWidthPx
+            val centerY = barHeightPx * 0.5f
+            val offsetX = (centerX - currentPillSize.width * 0.5f).roundToInt()
+            val offsetY = (centerY - currentPillSize.height * 0.5f).roundToInt()
+
+            // Layer 2: Flat Settled Pill (sits behind tab glyphs when settled or handing over)
+            if (!isRenderEffectSupported() || pillMotion.glassPresence < 1f) {
+                val flatAlpha = if (isRenderEffectSupported()) (1f - pillMotion.glassPresence).coerceIn(0f, 1f) else 1f
+                FlatSelectionPill(
+                    color = basePillFill.copy(alpha = basePillFill.alpha * flatAlpha),
+                    shape = capsuleShape,
+                    modifier = Modifier
+                        .offset { IntOffset(offsetX, offsetY) }
+                        .size(width = pillWidthDp, height = pillHeightDp)
+                )
+            }
+
+            // Layer 3: Razor-Sharp Interactive Tab Row (Recorded into tabRowLayer so lifted glass pill refracts it!)
             Row(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
                     .layerBackdrop(tabRowLayer)
-                    .pointerInput(totalTabs) {
+                    .pointerInput(totalTabs, singleTabWidthPx) {
                         detectHorizontalDragGestures(
-                            onDragStart = { pillMotion.startDrag() },
+                            onDragStart = { offset ->
+                                pillMotion.startDrag()
+                                if (singleTabWidthPx > 0f) {
+                                    val touchedSlot = ((offset.x / singleTabWidthPx) - 0.5f)
+                                        .coerceIn(-0.15f, (totalTabs - 1) + 0.15f)
+                                    pillMotion.dragTo(touchedSlot)
+                                }
+                            },
                             onHorizontalDrag = { _, dragAmount ->
-                                val stepPx = singleTabWidth.toPx()
-                                if (stepPx > 0f) {
-                                    pillMotion.dragTo(pillMotion.position + dragAmount / stepPx)
+                                if (singleTabWidthPx > 0f) {
+                                    val nextPos = (pillMotion.position + dragAmount / singleTabWidthPx)
+                                        .coerceIn(-0.18f, (totalTabs - 1) + 0.18f)
+                                    pillMotion.dragTo(nextPos)
                                 }
                             },
                             onDragEnd = {
@@ -285,9 +290,9 @@ fun ChaiLiquidBottomTabs(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
+                                haptics.click()
+                                pillMotion.animateTo(index)
                                 if (selectedTab != item.tab) {
-                                    haptics.click()
-                                    pillMotion.animateTo(index)
                                     onTabSelected(item.tab)
                                 }
                             }
@@ -309,7 +314,7 @@ fun ChaiLiquidBottomTabs(
                                     tint = if (isSelected) {
                                         if (isTabHome) ChaiSaffron else Color.White
                                     } else {
-                                        Color.White.copy(alpha = 0.58f)
+                                        Color.White.copy(alpha = 0.65f)
                                     }
                                 )
 
@@ -333,12 +338,27 @@ fun ChaiLiquidBottomTabs(
                                 color = if (isSelected) {
                                     if (isTabHome) ChaiSaffron else Color.White
                                 } else {
-                                    Color.White.copy(alpha = 0.52f)
+                                    Color.White.copy(alpha = 0.60f)
                                 }
                             )
                         }
                     }
                 }
+            }
+
+            // Layer 4: Lifted Water-Droplet Refractive Glass Selection Pill (sits ABOVE tab row when moving/lifted!)
+            if (isRenderEffectSupported() && !pillMotion.isFlat) {
+                GlassSelectionPill(
+                    motion = pillMotion,
+                    fillColor = basePillFill,
+                    pageBackdrop = backdrop,
+                    barGlass = barGlassLayer,
+                    tabRow = tabRowLayer,
+                    shape = capsuleShape,
+                    modifier = Modifier
+                        .offset { IntOffset(offsetX, offsetY) }
+                        .size(width = pillWidthDp, height = pillHeightDp)
+                )
             }
         }
     }

@@ -1,7 +1,6 @@
 package com.chaipanchayat.app.engine.liquidglass
 
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -30,7 +29,7 @@ fun LiquidGlassBackdrop(
     settings: LiquidGlassSettings,
     modifier: Modifier = Modifier
 ) {
-    if (!settings.ambientOrbs || !ChaiTheme.extended.isLiquidGlass) {
+    if (!ChaiTheme.extended.isLiquidGlass) {
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -41,44 +40,55 @@ fun LiquidGlassBackdrop(
 
     val transition = rememberInfiniteTransition(label = "liquid_orbs_transition")
 
-    // Dynamic orb 1 translation (Cyan / Accent)
+    // Dynamic orb 1 translation (Cyan / Sapphire Accent)
     val orb1X by transition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.8f,
+        initialValue = 0.18f,
+        targetValue = 0.82f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 14000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 13000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "orb1_x"
     )
     val orb1Y by transition.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.45f,
+        initialValue = 0.12f,
+        targetValue = 0.48f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 18000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 16000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "orb1_y"
     )
 
-    // Dynamic orb 2 translation (Saffron / Secondary)
+    // Dynamic orb 2 translation (Saffron / Amber Brand Glow)
     val orb2X by transition.animateFloat(
         initialValue = 0.85f,
-        targetValue = 0.25f,
+        targetValue = 0.22f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 20000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 17000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "orb2_x"
     )
     val orb2Y by transition.animateFloat(
-        initialValue = 0.70f,
-        targetValue = 0.30f,
+        initialValue = 0.72f,
+        targetValue = 0.28f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 16000, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 15000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "orb2_y"
+    )
+
+    // Dynamic orb 3 translation (Bottom Dock Violet/Indigo/Amber Cushion)
+    val orb3X by transition.animateFloat(
+        initialValue = 0.30f,
+        targetValue = 0.70f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 11000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "orb3_x"
     )
 
     val tint = settings.tintStyle
@@ -86,62 +96,63 @@ fun LiquidGlassBackdrop(
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF060910))
+            .background(Color(0xFF050811))
     ) {
         val w = size.width
         val h = size.height
         if (w <= 0f || h <= 0f || w.isNaN() || h.isNaN()) return@Canvas
 
-        // Orb 1: Subtle Atmospheric Cool Lens Glow (Apple glass ambient)
-        val center1 = Offset(orb1X * w, orb1Y * h)
-        val radius1 = (w * 0.95f).coerceAtLeast(360f)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color(0x2838BDF8),
-                    Color(0x120284C7),
-                    Color(0x04000000),
-                    Color.Transparent
+        if (settings.ambientOrbs) {
+            // Orb 1: Atmospheric Cool Lens Glow (Cyan / Indigo)
+            val center1 = Offset(orb1X * w, orb1Y * h)
+            val radius1 = (w * 0.90f).coerceAtLeast(340f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        tint.accentColor.copy(alpha = 0.24f),
+                        Color(0x1E6366F1),
+                        Color.Transparent
+                    ),
+                    center = center1,
+                    radius = radius1
                 ),
-                center = center1,
-                radius = radius1
-            ),
-            radius = radius1,
-            center = center1
-        )
+                radius = radius1,
+                center = center1
+            )
 
-        // Orb 2: Editorial Warm Saffron Flare (Chai Panchayat brand presence)
-        val center2 = Offset(orb2X * w, orb2Y * h)
-        val radius2 = (w * 0.80f).coerceAtLeast(300f)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color(0x2EFF5400),
-                    Color(0x14FF9E00),
-                    Color.Transparent
+            // Orb 2: Editorial Warm Saffron Flare (Chai Panchayat brand presence)
+            val center2 = Offset(orb2X * w, orb2Y * h)
+            val radius2 = (w * 0.82f).coerceAtLeast(300f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0x36FF5400),
+                        Color(0x18FF9E00),
+                        Color.Transparent
+                    ),
+                    center = center2,
+                    radius = radius2
                 ),
-                center = center2,
-                radius = radius2
-            ),
-            radius = radius2,
-            center = center2
-        )
+                radius = radius2,
+                center = center2
+            )
 
-        // Orb 3: Deep Bottom Ambient Cushion (Subtly illuminates floating bottom nav)
-        val center3 = Offset(w * 0.5f, h * 0.94f)
-        val radius3 = (w * 0.95f).coerceAtLeast(380f)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color(0x2038BDF8),
-                    Color(0x101E293B),
-                    Color.Transparent
+            // Orb 3: Rich Bottom Dock Chromatic Cushion (illuminates floating mini-player & bottom tabs)
+            val center3 = Offset(orb3X * w, h * 0.90f)
+            val radius3 = (w * 0.88f).coerceAtLeast(340f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0x307C3AED),
+                        Color(0x220EA5E9),
+                        Color.Transparent
+                    ),
+                    center = center3,
+                    radius = radius3
                 ),
-                center = center3,
-                radius = radius3
-            ),
-            radius = radius3,
-            center = center3
-        )
+                radius = radius3,
+                center = center3
+            )
+        }
     }
 }

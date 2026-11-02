@@ -20,10 +20,13 @@ import androidx.core.content.ContextCompat
 import com.chaipanchayat.app.data.repository.SettingsRepository
 import com.chaipanchayat.app.data.repository.ThemeMode
 import com.chaipanchayat.app.engine.liquidglass.LiquidGlassBackdrop
+import com.chaipanchayat.app.engine.liquidglass.LocalBackdrop
 import com.chaipanchayat.app.ui.navigation.MainAppNavigation
 import com.chaipanchayat.app.ui.theme.ChaiPanchayatTheme
 import com.chaipanchayat.app.utils.DeepLinkManager
 import com.chaipanchayat.app.worker.ChaiNewsNotificationWorker
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 class MainActivity : ComponentActivity() {
 
@@ -92,16 +95,26 @@ class MainActivity : ComponentActivity() {
                 themeMode = themeMode,
                 liquidGlassSettings = glassSettings
             ) {
+                val ambientBackdrop = rememberLayerBackdrop()
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (themeMode == ThemeMode.LIQUID_GLASS) {
-                        LiquidGlassBackdrop(settings = glassSettings)
+                        LiquidGlassBackdrop(
+                            settings = glassSettings,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .layerBackdrop(ambientBackdrop)
+                        )
                     }
-                    MainAppNavigation(
-                        initialArticleId = currentTargetId,
-                        onArticleOpened = {
-                            targetArticleId.value = null
-                        }
-                    )
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        LocalBackdrop provides if (themeMode == ThemeMode.LIQUID_GLASS) ambientBackdrop else null
+                    ) {
+                        MainAppNavigation(
+                            initialArticleId = currentTargetId,
+                            onArticleOpened = {
+                                targetArticleId.value = null
+                            }
+                        )
+                    }
                     com.chaipanchayat.app.engine.liquidglass.ThemeTransitionOverlay()
                 }
             }

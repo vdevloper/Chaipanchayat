@@ -104,7 +104,6 @@ class GlassPillMotion(
     private var running = false
 
     fun animateTo(next: Int) {
-        if (next == index && !travelActive) return
         if (reduceMotion) {
             snapTo(next)
             return
@@ -449,29 +448,30 @@ fun GlassSelectionPill(
             effects = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     lens(
-                        refractionHeight = 8.dp.toPx() * motion.glassPresence,
-                        refractionAmount = 10.dp.toPx() * motion.material,
+                        refractionHeight = 14.dp.toPx() * motion.glassPresence,
+                        refractionAmount = 28.dp.toPx() * motion.material,
+                        depthEffect = true,
                         chromaticAberration = true
                     )
                 }
             },
             highlight = {
-                val alpha = motion.material * rimOf(motion.glassPresence)
+                val alpha = (0.25f + 0.75f * motion.material) * rimOf(motion.glassPresence)
                 if (alpha > 0f) Highlight.Default.copy(alpha = alpha) else null
             },
             shadow = {
                 val alpha = motion.material * rimOf(motion.glassPresence)
                 if (alpha > 0f) Shadow(
-                    radius = 10.dp,
-                    offset = DpOffset(0.dp, 2.dp),
-                    color = Color.Black.copy(alpha = 0.35f)
+                    radius = 14.dp,
+                    offset = DpOffset(0.dp, 4.dp),
+                    color = Color.Black.copy(alpha = 0.42f)
                 ).copy(alpha = alpha) else null
             }
         )
     )
 }
 
-private fun rimOf(presence: Float): Float = ((presence - 0.45f) / 0.55f).coerceIn(0f, 1f)
+private fun rimOf(presence: Float): Float = ((presence - 0.25f) / 0.75f).coerceIn(0f, 1f)
 
 private class SelectionPillBackdrop(
     private val page: Backdrop,

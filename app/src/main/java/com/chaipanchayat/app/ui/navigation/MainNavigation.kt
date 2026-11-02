@@ -336,53 +336,24 @@ fun MainTabsScaffold(
 
     val backdrop = rememberLayerBackdrop()
 
+    val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
+    val pulseTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "video_tab_pulse")
+    val videoBadgeAlpha by pulseTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1.0f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = tween(850, easing = FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "video_badge_alpha"
+    )
+
     Scaffold(
         containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
-            val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
-            val pulseTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "video_tab_pulse")
-            val videoBadgeAlpha by pulseTransition.animateFloat(
-                initialValue = 0.45f,
-                targetValue = 1.0f,
-                animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                    animation = tween(850, easing = FastOutSlowInEasing),
-                    repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-                ),
-                label = "video_badge_alpha"
-            )
-
-            if (isLiquid) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    activeAudioArticle?.let { currentArticle ->
-                        com.chaipanchayat.app.engine.liquidglass.ChaiGlassMiniPlayer(
-                            article = currentArticle,
-                            playState = audioPlayState,
-                            progress = audioProgress,
-                            onPlayPause = { audioReader.toggleCurrent() },
-                            onNext = { audioReader.skipNext() },
-                            onDismiss = { audioReader.dismiss() },
-                            onClick = {
-                                if (currentArticle.postId > 0L) {
-                                    onNavigateToArticle(currentArticle.postId)
-                                } else {
-                                    audioReader.toggleCurrent()
-                                }
-                            },
-                            backdrop = backdrop
-                        )
-                    }
-                    // Floating Translucent Liquid Glass Pill Bar (Kyant0 AndroidLiquidGlass Architecture)
-                    ChaiLiquidBottomTabs(
-                        selectedTab = selectedTab,
-                        onTabSelected = { selectedTab = it },
-                        backdrop = backdrop,
-                        tabs = tabs,
-                        videoBadgeAlpha = videoBadgeAlpha
-                    )
-                }
-            } else {
-                // Obsidian Dark: Clean Grounded Flat Navigation Bar (Untouched AMOLED Style)
+            if (!isLiquid) {
+                // Obsidian Dark / Editorial Light: Clean Grounded Flat Navigation Bar
                 Column {
                     Box(
                         modifier = Modifier
@@ -486,12 +457,19 @@ fun MainTabsScaffold(
             }
         }
     ) { innerPadding ->
-        CompositionLocalProvider(LocalBackdrop provides null) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Layer 1: Recorded Page Backdrop (Ambient Orbs + Scrolling Screen Content)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (isLiquid) Modifier.layerBackdrop(backdrop) else Modifier)
             ) {
+                if (isLiquid) {
+                    com.chaipanchayat.app.engine.liquidglass.LiquidGlassBackdrop(
+                        settings = com.chaipanchayat.app.engine.liquidglass.LiquidGlassEngine.current
+                    )
+                }
+
                 val contentPadding = if (isLiquid) {
                     PaddingValues(
                         top = innerPadding.calculateTopPadding(),
@@ -504,7 +482,7 @@ fun MainTabsScaffold(
                 val videoContentPadding = if (isLiquid) {
                     PaddingValues(
                         top = innerPadding.calculateTopPadding(),
-                        bottom = if (activeAudioArticle != null) 132.dp else 76.dp
+                        bottom = if (activeAudioArticle != null) 144.dp else 84.dp
                     )
                 } else {
                     innerPadding
@@ -555,6 +533,41 @@ fun MainTabsScaffold(
                             modifier = Modifier.padding(contentPadding)
                         )
                     }
+                }
+            }
+
+            // Layer 2: Floating Refractive Liquid Glass Bottom Dock & Mini-Player Overlay
+            if (isLiquid) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                ) {
+                    activeAudioArticle?.let { currentArticle ->
+                        com.chaipanchayat.app.engine.liquidglass.ChaiGlassMiniPlayer(
+                            article = currentArticle,
+                            playState = audioPlayState,
+                            progress = audioProgress,
+                            onPlayPause = { audioReader.toggleCurrent() },
+                            onNext = { audioReader.skipNext() },
+                            onDismiss = { audioReader.dismiss() },
+                            onClick = {
+                                if (currentArticle.postId > 0L) {
+                                    onNavigateToArticle(currentArticle.postId)
+                                } else {
+                                    audioReader.toggleCurrent()
+                                }
+                            },
+                            backdrop = backdrop
+                        )
+                    }
+                    ChaiLiquidBottomTabs(
+                        selectedTab = selectedTab,
+                        onTabSelected = { selectedTab = it },
+                        backdrop = backdrop,
+                        tabs = tabs,
+                        videoBadgeAlpha = videoBadgeAlpha
+                    )
                 }
             }
         }
