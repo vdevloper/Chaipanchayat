@@ -128,8 +128,8 @@ fun ChaiGlassMiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 4.dp)
+            .padding(horizontal = 14.dp)
+            .padding(bottom = 6.dp)
             .scale(pressScale)
             .then(
                 if (isRenderEffectSupported()) {
@@ -138,27 +138,63 @@ fun ChaiGlassMiniPlayer(
                         shape = { shape },
                         effects = {
                             vibrancy()
-                            colorControls(saturation = 1.45f)
-                            blur(8.dp.toPx())
+                            colorControls(
+                                brightness = -0.03f,
+                                contrast = 1.12f,
+                                saturation = 1.65f
+                            )
+                            blur(24.dp.toPx())
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 lens(
-                                    refractionHeight = 12.dp.toPx(),
-                                    refractionAmount = 24.dp.toPx(),
+                                    refractionHeight = 15.dp.toPx(),
+                                    refractionAmount = 32.dp.toPx(),
                                     depthEffect = true,
                                     chromaticAberration = true
                                 )
                             }
                         },
-                        highlight = { Highlight.Default },
+                        highlight = {
+                            Highlight.Default.copy(
+                                width = 1.05.dp,
+                                alpha = 0.86f
+                            )
+                        },
                         shadow = {
                             Shadow(
-                                radius = 12.dp,
-                                offset = DpOffset(0.dp, 3.dp),
-                                color = Color.Black.copy(alpha = 0.38f)
+                                radius = 16.dp,
+                                offset = DpOffset(0.dp, 5.dp),
+                                color = Color.Black.copy(alpha = 0.45f)
                             )
                         },
                         onDrawSurface = {
-                            drawRect(Color(0x330D111A))
+                            if (size.width > 0f && size.height > 0f) {
+                                // 1. Deep Frosted Obsidian-Sapphire Base (prevents raw text bleed-through)
+                                drawRect(Color(0x88080D1A))
+                                // 2. Chromatic Glass Under-Glow (Indigo-Violet -> Warm Saffron-Amber)
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color(0x325B21B6),
+                                            Color(0x201E1B4B),
+                                            Color(0x2EFF5400),
+                                            Color(0x28D97706)
+                                        )
+                                    )
+                                )
+                                // 3. Milky Frosted Diffusion Layer
+                                drawRect(Color(0x16FFFFFF))
+                                // 4. Top Specular Glass Bevel
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.22f),
+                                            Color.White.copy(alpha = 0.05f),
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.24f)
+                                        )
+                                    )
+                                )
+                            }
                         }
                     )
                 } else {

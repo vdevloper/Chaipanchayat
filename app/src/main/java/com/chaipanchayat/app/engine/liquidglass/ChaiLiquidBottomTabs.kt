@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,20 +23,22 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -43,6 +46,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,13 +79,12 @@ data class ChaiTabItem(
 /**
  * Flagship Refractive Liquid Glass Floating Navigation Dock for Chai Panchayat
  * Modeled 1:1 after BitChord & Kyant0/AndroidLiquidGlass:
- * - Unclipped outer container so the lifted GlassSelectionPill swells (+20dp width, +16dp height)
- *   past the top and bottom edges of the capsule dock during travel and drag
- * - Genuine AGSL lens refraction (refractionHeight = 12dp, refractionAmount = 24dp) with depthEffect
- *   and RGB chromatic aberration
- * - Vibrancy + Color saturation boost (1.45x) and crystal blur (8dp) so underlying content bends visibly
- * - Dual layered backdrops (barGlassLayer + tabRowLayer) so the lifted selection pill magnifies and
- *   chromatically refracts the tab icons and Hindi labels underneath it
+ * - Deep frosted backdrop blur (24dp) + vibrancy + color saturation (1.65x) so underlying text
+ *   is diffused into rich, velvety color clouds and never bleeds through unblurred.
+ * - Unclipped outer container so the lifted GlassSelectionPill swells (+26dp width, +18dp height)
+ *   past the top and bottom edges of the capsule dock during travel and drag.
+ * - Genuine AGSL lens refraction (refractionHeight = 16dp, refractionAmount = 34dp) with depthEffect
+ *   and RGB chromatic aberration on both the bar and the continuous 3D selection droplet.
  */
 @Composable
 fun ChaiLiquidBottomTabs(
@@ -100,9 +103,13 @@ fun ChaiLiquidBottomTabs(
     val selectedIndex = tabs.indexOfFirst { it.tab == selectedTab }.coerceAtLeast(0)
 
     val pillMotion = remember { GlassPillMotion(scope, selectedIndex) }
+    var lastHoveredSlot by remember { mutableIntStateOf(selectedIndex) }
 
     LaunchedEffect(selectedIndex) {
-        pillMotion.animateTo(selectedIndex)
+        lastHoveredSlot = selectedIndex
+        if (selectedIndex != pillMotion.index) {
+            pillMotion.animateTo(selectedIndex)
+        }
     }
 
     // Layer backdrops for multi-surface glass refraction
@@ -113,10 +120,10 @@ fun ChaiLiquidBottomTabs(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Unclipped Outer Container so the lifted selection pill can swell outside the 64.dp bar
+        // Unclipped Outer Container so the lifted selection pill swells outside the 64.dp bar
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
@@ -132,14 +139,16 @@ fun ChaiLiquidBottomTabs(
             val singleTabWidthPx = with(density) { singleTabWidth.toPx() }
             val barHeightPx = with(density) { barHeight.toPx() }
             val padPx = with(density) { 4.dp.toPx() }
-            val liftExtraW = with(density) { 22.dp.toPx() }
-            val liftExtraH = with(density) { 16.dp.toPx() }
+            val pillRestExtraW = with(density) { 10.dp.toPx() }
+            val pillRestInsetH = with(density) { 10.dp.toPx() }
+            val liftExtraW = with(density) { 26.dp.toPx() }
+            val liftExtraH = with(density) { 26.dp.toPx() }
 
             LaunchedEffect(singleTabWidthPx) {
                 pillMotion.stepDp = singleTabWidthPx
             }
 
-            // Layer 1: Floating Liquid Glass Capsule Bar Backdrop
+            // Layer 1: Floating Frosted & Refractive Liquid Glass Capsule Bar Backdrop
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -150,29 +159,71 @@ fun ChaiLiquidBottomTabs(
                                 shape = { capsuleShape },
                                 effects = {
                                     vibrancy()
-                                    colorControls(saturation = 1.45f)
-                                    blur(8.dp.toPx())
+                                    colorControls(
+                                        brightness = -0.03f,
+                                        contrast = 1.12f,
+                                        saturation = 1.65f
+                                    )
+                                    blur(24.dp.toPx())
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                         lens(
-                                            refractionHeight = 12.dp.toPx(),
-                                            refractionAmount = 24.dp.toPx(),
+                                            refractionHeight = 16.dp.toPx(),
+                                            refractionAmount = 34.dp.toPx(),
                                             depthEffect = true,
                                             chromaticAberration = true
                                         )
                                     }
                                 },
-                                highlight = { Highlight.Default },
-                                shadow = { Shadow.Default },
+                                highlight = {
+                                    Highlight.Default.copy(
+                                        width = 1.1.dp,
+                                        alpha = 0.88f
+                                    )
+                                },
+                                shadow = {
+                                    Shadow(
+                                        radius = 18.dp,
+                                        offset = DpOffset(0.dp, 6.dp),
+                                        color = Color.Black.copy(alpha = 0.48f)
+                                    )
+                                },
                                 onDrawSurface = {
-                                    drawRect(Color(0x330D111A))
+                                    if (size.isSpecified && size.width > 0f && size.height > 0f) {
+                                        // 1. Deep Frosted Obsidian-Sapphire Base (blocks raw text bleed-through)
+                                        drawRect(Color(0x88080D1A))
+                                        // 2. BitChord Chromatic Glass Cushion (Indigo-Violet -> Chai Saffron -> Warm Amber)
+                                        drawRect(
+                                            brush = Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    Color(0x305B21B6),
+                                                    Color(0x221E1B4B),
+                                                    Color(0x2AFF5400),
+                                                    Color(0x2ED97706)
+                                                )
+                                            )
+                                        )
+                                        // 3. Milky Frosted Diffusion Layer
+                                        drawRect(Color(0x16FFFFFF))
+                                        // 4. Upper Specular Glass Bevel & Lower Depth Vignette
+                                        drawRect(
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.White.copy(alpha = 0.22f),
+                                                    Color.White.copy(alpha = 0.05f),
+                                                    Color.Transparent,
+                                                    Color.Black.copy(alpha = 0.25f)
+                                                )
+                                            )
+                                        )
+                                    }
                                 },
                                 exportedBackdrop = barGlassLayer
                             )
                         } else {
                             Modifier
-                                .background(Color(0xEE0B1220), capsuleShape)
+                                .background(Color(0xF00B1220), capsuleShape)
                                 .border(
-                                    width = 0.9.dp,
+                                    width = 1.dp,
                                     brush = Brush.verticalGradient(
                                         listOf(
                                             Color.White.copy(alpha = 0.52f),
@@ -186,17 +237,18 @@ fun ChaiLiquidBottomTabs(
                     )
             )
 
-            val isCurrentTabHome = tabs.getOrNull(selectedIndex)?.tab == MainTab.HOME
+            val activeSlotIndex = pillMotion.position.roundToInt().coerceIn(0, totalTabs - 1)
+            val isCurrentTabHome = tabs.getOrNull(activeSlotIndex)?.tab == MainTab.HOME
             val basePillFill = if (isCurrentTabHome) {
-                ChaiSaffron.copy(alpha = 0.24f)
+                ChaiSaffron.copy(alpha = 0.30f)
             } else {
-                Color.White.copy(alpha = 0.16f)
+                Color(0x42A5B4FC) // Luminous crystal indigo-ice tint
             }
 
-            // Compute live physical size (rest vs lifted with acceleration squash)
+            // Compute live physical capsule size (wide capsule at rest, oversized water-droplet when lifted)
             val restSize = Size(
-                width = (singleTabWidthPx - padPx).coerceAtLeast(1f),
-                height = (barHeightPx - padPx * 2f).coerceAtLeast(1f)
+                width = (singleTabWidthPx + pillRestExtraW).coerceAtLeast(1f),
+                height = (barHeightPx - pillRestInsetH).coerceAtLeast(1f)
             )
             val liftedSize = Size(
                 width = (restSize.width + liftExtraW).coerceAtLeast(1f),
@@ -212,11 +264,10 @@ fun ChaiLiquidBottomTabs(
             val offsetX = (centerX - currentPillSize.width * 0.5f).roundToInt()
             val offsetY = (centerY - currentPillSize.height * 0.5f).roundToInt()
 
-            // Layer 2: Flat Settled Pill (sits behind tab glyphs when settled or handing over)
-            if (!isRenderEffectSupported() || pillMotion.glassPresence < 1f) {
-                val flatAlpha = if (isRenderEffectSupported()) (1f - pillMotion.glassPresence).coerceIn(0f, 1f) else 1f
+            // Layer 2: Pre-Android 12 Fallback Pill
+            if (!isRenderEffectSupported()) {
                 FlatSelectionPill(
-                    color = basePillFill.copy(alpha = basePillFill.alpha * flatAlpha),
+                    color = basePillFill,
                     shape = capsuleShape,
                     modifier = Modifier
                         .offset { IntOffset(offsetX, offsetY) }
@@ -224,7 +275,7 @@ fun ChaiLiquidBottomTabs(
                 )
             }
 
-            // Layer 3: Razor-Sharp Interactive Tab Row (Recorded into tabRowLayer so lifted glass pill refracts it!)
+            // Layer 3: Razor-Sharp Interactive Tab Row (Recorded into tabRowLayer so glass pill refracts it!)
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -236,14 +287,21 @@ fun ChaiLiquidBottomTabs(
                                 pillMotion.startDrag()
                                 if (singleTabWidthPx > 0f) {
                                     val touchedSlot = ((offset.x / singleTabWidthPx) - 0.5f)
-                                        .coerceIn(-0.15f, (totalTabs - 1) + 0.15f)
+                                        .coerceIn(-0.12f, (totalTabs - 1) + 0.12f)
+                                    lastHoveredSlot = touchedSlot.roundToInt().coerceIn(0, totalTabs - 1)
+                                    haptics.click()
                                     pillMotion.dragTo(touchedSlot)
                                 }
                             },
                             onHorizontalDrag = { _, dragAmount ->
                                 if (singleTabWidthPx > 0f) {
                                     val nextPos = (pillMotion.position + dragAmount / singleTabWidthPx)
-                                        .coerceIn(-0.18f, (totalTabs - 1) + 0.18f)
+                                        .coerceIn(-0.15f, (totalTabs - 1) + 0.15f)
+                                    val hoveredSlot = nextPos.roundToInt().coerceIn(0, totalTabs - 1)
+                                    if (hoveredSlot != lastHoveredSlot) {
+                                        lastHoveredSlot = hoveredSlot
+                                        haptics.click()
+                                    }
                                     pillMotion.dragTo(nextPos)
                                 }
                             },
@@ -266,10 +324,19 @@ fun ChaiLiquidBottomTabs(
                 tabs.forEachIndexed { index, item ->
                     val isSelected = selectedTab == item.tab
                     val isTabHome = item.tab == MainTab.HOME
+                    val tabInteractionSource = remember { MutableInteractionSource() }
+
+                    LaunchedEffect(tabInteractionSource) {
+                        tabInteractionSource.interactions.collect { interaction ->
+                            if (interaction is PressInteraction.Press) {
+                                pillMotion.onPress(index)
+                            }
+                        }
+                    }
 
                     val iconScale by animateFloatAsState(
-                        targetValue = if (isSelected) (if (isTabHome) 1.16f else 1.10f) else 1.0f,
-                        animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f),
+                        targetValue = if (isSelected) (if (isTabHome) 1.18f else 1.12f) else 1.0f,
+                        animationSpec = spring(dampingRatio = 0.55f, stiffness = 480f),
                         label = "tab_scale_${item.tab.name}"
                     )
 
@@ -287,7 +354,7 @@ fun ChaiLiquidBottomTabs(
                             .fillMaxHeight()
                             .clip(capsuleShape)
                             .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
+                                interactionSource = tabInteractionSource,
                                 indication = null
                             ) {
                                 haptics.click()
@@ -314,7 +381,7 @@ fun ChaiLiquidBottomTabs(
                                     tint = if (isSelected) {
                                         if (isTabHome) ChaiSaffron else Color.White
                                     } else {
-                                        Color.White.copy(alpha = 0.65f)
+                                        Color.White.copy(alpha = 0.72f)
                                     }
                                 )
 
@@ -332,13 +399,13 @@ fun ChaiLiquidBottomTabs(
                             Text(
                                 text = tabTitle,
                                 fontFamily = InterFamily,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                 fontSize = 10.5.sp,
                                 letterSpacing = 0.15.sp,
                                 color = if (isSelected) {
                                     if (isTabHome) ChaiSaffron else Color.White
                                 } else {
-                                    Color.White.copy(alpha = 0.60f)
+                                    Color.White.copy(alpha = 0.68f)
                                 }
                             )
                         }
@@ -346,8 +413,8 @@ fun ChaiLiquidBottomTabs(
                 }
             }
 
-            // Layer 4: Lifted Water-Droplet Refractive Glass Selection Pill (sits ABOVE tab row when moving/lifted!)
-            if (isRenderEffectSupported() && !pillMotion.isFlat) {
+            // Layer 4: Continuous 3D Water-Droplet Refractive Glass Selection Pill
+            if (isRenderEffectSupported()) {
                 GlassSelectionPill(
                     motion = pillMotion,
                     fillColor = basePillFill,

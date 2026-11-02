@@ -59,7 +59,9 @@ private class LayerBackdropNode(
             backdrop.isRecording = true
             try {
                 recordLayer(this, backdrop.graphicsLayer) {
-                    this@draw.drawContent()
+                    with(backdrop) {
+                        this@draw.onDraw()
+                    }
                 }
                 backdrop.isRecorded = true
             } catch (_: Throwable) {

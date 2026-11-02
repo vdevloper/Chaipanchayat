@@ -31,9 +31,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -69,40 +69,58 @@ fun ChaiGlassHeader(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isGlass = ChaiTheme.extended.isLiquidGlass
-    val isLayerRecording = (backdrop as? com.kyant.backdrop.backdrops.LayerBackdrop)?.let {
-        it.isRecording || !it.isRecorded
-    } ?: false
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .then(
-                if (isGlass && isRenderEffectSupported() && !isLayerRecording) {
+                if (isGlass && isRenderEffectSupported()) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { shape },
                         effects = {
                             vibrancy()
-                            colorControls(saturation = 1.45f)
-                            blur(9.dp.toPx())
+                            colorControls(
+                                brightness = -0.03f,
+                                contrast = 1.10f,
+                                saturation = 1.60f
+                            )
+                            blur(24.dp.toPx())
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 lens(
-                                    refractionHeight = 12.dp.toPx(),
-                                    refractionAmount = 24.dp.toPx(),
+                                    refractionHeight = 15.dp.toPx(),
+                                    refractionAmount = 30.dp.toPx(),
                                     depthEffect = true,
                                     chromaticAberration = true
                                 )
                             }
                         },
-                        highlight = { Highlight.Default },
+                        highlight = {
+                            Highlight.Default.copy(
+                                width = 1.dp,
+                                alpha = 0.85f
+                            )
+                        },
                         shadow = { Shadow.Default },
                         onDrawSurface = {
-                            drawRect(Color(0x360B101B))
+                            if (size.isSpecified && size.width > 0f && size.height > 0f) {
+                                drawRect(Color(0x82080D1A))
+                                drawRect(Color(0x14FFFFFF))
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.16f),
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.22f)
+                                        )
+                                    )
+                                )
+                            }
                         }
                     )
                 } else if (isGlass) {
                     Modifier
-                        .background(Color(0xD80B101B), shape)
+                        .background(Color(0xE00B101B), shape)
                         .border(
                             width = 0.8.dp,
                             brush = Brush.verticalGradient(
@@ -132,9 +150,9 @@ fun ChaiGlassHeader(
                     .background(
                         Brush.horizontalGradient(
                             listOf(
-                                Color.White.copy(alpha = 0.10f),
-                                Color.White.copy(alpha = 0.45f),
-                                Color.White.copy(alpha = 0.10f)
+                                Color.White.copy(alpha = 0.12f),
+                                Color.White.copy(alpha = 0.50f),
+                                Color.White.copy(alpha = 0.12f)
                             )
                         )
                     )
@@ -151,7 +169,7 @@ fun ChaiGlassHeader(
 fun Modifier.liquidGlass(
     shape: CornerBasedShape,
     surfaceTint: Color? = null,
-    blurRadiusDp: Dp = 8.dp
+    blurRadiusDp: Dp = 18.dp
 ): Modifier {
     val isGlass = ChaiTheme.extended.isLiquidGlass
     if (!isGlass || !isRenderEffectSupported()) {
@@ -162,24 +180,21 @@ fun Modifier.liquidGlass(
     }
 
     val backdrop = LocalBackdrop.current
-    val tint = surfaceTint ?: Color(0x330D111A)
+    val tint = surfaceTint ?: Color(0x6E0B101C)
 
-    val isLayerRecording = (backdrop as? com.kyant.backdrop.backdrops.LayerBackdrop)?.let {
-        it.isRecording || !it.isRecorded
-    } ?: false
-    return if (backdrop != null && !isLayerRecording) {
+    return if (backdrop != null) {
         this
             .drawBackdrop(
                 backdrop = backdrop,
                 shape = { shape },
                 effects = {
                     vibrancy()
-                    colorControls(saturation = 1.45f)
+                    colorControls(saturation = 1.55f)
                     blur(blurRadiusDp.value.dp.toPx())
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         lens(
-                            refractionHeight = 10.dp.toPx(),
-                            refractionAmount = 20.dp.toPx(),
+                            refractionHeight = 12.dp.toPx(),
+                            refractionAmount = 24.dp.toPx(),
                             depthEffect = true,
                             chromaticAberration = true
                         )
@@ -189,6 +204,7 @@ fun Modifier.liquidGlass(
                 shadow = null,
                 onDrawSurface = {
                     drawRect(color = tint)
+                    drawRect(color = Color(0x12FFFFFF))
                 }
             )
             .clip(shape)
@@ -268,7 +284,7 @@ fun LiquidGlassPanel(
     )
 
     val surfaceColor = if (isGlass) {
-        settings.tintStyle.surfaceColor.copy(alpha = (settings.frostOpacity * 0.55f).coerceIn(0.18f, 0.42f))
+        settings.tintStyle.surfaceColor.copy(alpha = (settings.frostOpacity * 0.72f).coerceIn(0.42f, 0.74f))
     } else {
         extended.surfaceSecondary
     }
@@ -276,26 +292,22 @@ fun LiquidGlassPanel(
     val rimBrush = if (isGlass) settings.createRimBrush() else Brush.linearGradient(listOf(extended.border, extended.border))
     val specularBrush = if (isGlass) settings.createSpecularBevelBrush() else null
 
-    val isLayerRecording = (backdrop as? com.kyant.backdrop.backdrops.LayerBackdrop)?.let {
-        it.isRecording || !it.isRecorded
-    } ?: false
-
     Box(
         modifier = modifier
             .scale(pressScale)
             .then(
-                if (isGlass && isRenderEffectSupported() && backdrop != null && !isLayerRecording) {
+                if (isGlass && isRenderEffectSupported() && backdrop != null) {
                     Modifier.drawBackdrop(
                         backdrop = backdrop,
                         shape = { shape },
                         effects = {
                             vibrancy()
-                            colorControls(saturation = 1.38f)
-                            blur(10.dp.toPx())
+                            colorControls(saturation = 1.48f)
+                            blur(16.dp.toPx())
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 lens(
-                                    refractionHeight = 8.dp.toPx(),
-                                    refractionAmount = 16.dp.toPx(),
+                                    refractionHeight = 10.dp.toPx(),
+                                    refractionAmount = 20.dp.toPx(),
                                     depthEffect = true,
                                     chromaticAberration = true
                                 )
@@ -305,6 +317,7 @@ fun LiquidGlassPanel(
                         shadow = null,
                         onDrawSurface = {
                             drawRect(surfaceColor)
+                            drawRect(Color(0x10FFFFFF))
                         }
                     )
                 } else {

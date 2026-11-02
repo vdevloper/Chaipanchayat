@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CornerBasedShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -27,7 +26,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.Capsule
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
@@ -40,9 +38,10 @@ import kotlin.math.sign
 
 /**
  * Spring-driven selection pill physics ported from BitChord and Kyant0/backdrop:
- * - Tap lifts the pill across under-damped springs, overshooting raised size and rebounding.
- * - Acceleration-driven squash: expands in travel direction, squashes on deceleration.
- * - AGSL Lens refraction during travel, refracting the exported bar glass and underlying page.
+ * - Tap or press lifts the pill across under-damped springs, overshooting raised size and rebounding.
+ * - Acceleration-driven squash: expands in travel direction, squashes elastically on deceleration.
+ * - Continuous AGSL Lens refraction both at rest and during travel, refracting the exported bar glass,
+ *   tab glyphs, and underlying page with RGB chromatic dispersion.
  * - Zero crash guarantee: full isSpecified validation on all sizes and coordinates.
  */
 @Stable
@@ -84,6 +83,7 @@ class GlassPillMotion(
     private var travelActive = false
 
     private var lifted = false
+    private var liftHoldRemaining = 0.0
     private var liftXPos = 0.0
     private var liftXVel = 0.0
     private var liftYPos = 0.0
@@ -103,6 +103,24 @@ class GlassPillMotion(
 
     private var running = false
 
+    /**
+     * Immediately swells the liquid droplet when the user presses down on a tab.
+     */
+    fun onPress(targetIndex: Int) {
+        if (reduceMotion) return
+        lifted = true
+        liftHoldRemaining = 0.26
+        if (targetIndex != index) {
+            animateTo(targetIndex)
+        } else {
+            // Give an elastic upward droplet impulse even when pressing the active tab
+            liftXVel = 3.2
+            liftYVel = 3.8
+            isFlat = false
+            start()
+        }
+    }
+
     fun animateTo(next: Int) {
         if (reduceMotion) {
             snapTo(next)
@@ -111,9 +129,16 @@ class GlassPillMotion(
         index = next
         travelActive = true
         lifted = true
+        liftHoldRemaining = 0.28
         travelFrom = travelPos
         travelTarget = next.toDouble()
-        travelSign = signOfTravel(travelTarget - travelFrom)
+        val span = travelTarget - travelFrom
+        travelSign = signOfTravel(span)
+        // Inject initial droplet lift velocity so short/adjacent hops visibly swell
+        if (liftYPos < 0.35) {
+            liftXVel = 2.8
+            liftYVel = 3.4
+        }
         isFlat = false
         start()
     }
@@ -127,6 +152,7 @@ class GlassPillMotion(
         travelActive = false
         dragging = false
         lifted = false
+        liftHoldRemaining = 0.0
         liftXPos = 0.0; liftXVel = 0.0
         liftYPos = 0.0; liftYVel = 0.0
         liftPos = 0.0; liftVel = 0.0
@@ -143,6 +169,7 @@ class GlassPillMotion(
         dragging = true
         travelActive = false
         lifted = !reduceMotion
+        liftHoldRemaining = 0.20
         travelSign = 0.0
         dragFollow = travelPos
         dragTarget = travelPos
@@ -165,6 +192,8 @@ class GlassPillMotion(
             return
         }
         travelActive = true
+        lifted = true
+        liftHoldRemaining = 0.18
         travelPos = from
         travelVel = 0.0
         travelFrom = from
@@ -181,7 +210,7 @@ class GlassPillMotion(
             try {
                 while (true) {
                     val now = withFrameNanos { it }
-                    val dt = if (last < 0) 0.0 else (now - last) / 1e9
+                    val dt = if (last < 0) 0.0 else ((now - last) / 1e9).coerceAtMost(0.05)
                     last = now
                     if (!tick(dt, now / 1e9)) break
                 }
@@ -192,13 +221,17 @@ class GlassPillMotion(
     }
 
     private fun tick(dt: Double, now: Double): Boolean {
+        if (liftHoldRemaining > 0.0) {
+            liftHoldRemaining = (liftHoldRemaining - dt).coerceAtLeast(0.0)
+        }
+
         // 1) Travel spring
         var travelSettled = true
         if (travelActive) {
             val r = springStep(travelPos, travelVel, travelTarget, dt, TRAVEL_STIFFNESS, TRAVEL_DAMPING)
             travelPos = r.first
             travelVel = r.second
-            travelSettled = abs(travelPos - travelTarget) < 0.003 && abs(travelVel) < 0.05
+            travelSettled = abs(travelPos - travelTarget) < 0.002 && abs(travelVel) < 0.03
             if (travelSettled) {
                 travelPos = travelTarget
                 travelVel = 0.0
@@ -214,8 +247,8 @@ class GlassPillMotion(
             }
         }
 
-        // 3) Physical lift, held for trip and released on landing
-        if (!dragging && (travelSettled || travelProgress() >= HANDOVER_START)) {
+        // 3) Physical lift: held during drag and minimum droplet swell duration, then released smoothly
+        if (!dragging && liftHoldRemaining <= 0.0 && (travelSettled || travelProgress() >= HANDOVER_START)) {
             lifted = false
         }
         val liftTarget = if (lifted) 1.0 else 0.0
@@ -256,7 +289,7 @@ class GlassPillMotion(
         if (abs(handoverTarget - handover) < 0.002) handover = handoverTarget
 
         val settled = !travelActive && !dragging && liftSettled &&
-            abs(squash) < 0.0005 && handover >= 1.0
+            liftHoldRemaining <= 0.0 && abs(squash) < 0.0005 && handover >= 1.0
         if (settled) {
             squashModel.stop()
             squash = 0.0
@@ -293,21 +326,21 @@ class GlassPillMotion(
     }
 
     private companion object {
-        const val TRAVEL_STIFFNESS = 300.0
-        const val TRAVEL_DAMPING = 32.0
+        const val TRAVEL_STIFFNESS = 250.0
+        const val TRAVEL_DAMPING = 22.0
 
-        const val LIFT_STIFFNESS = 260.0
-        const val LIFT_DAMPING_X = 19.5
-        const val LIFT_DAMPING_Y = 22.5
+        const val LIFT_STIFFNESS = 340.0
+        const val LIFT_DAMPING_X = 15.5
+        const val LIFT_DAMPING_Y = 17.5
 
-        const val MATERIAL_STIFFNESS = 1000.0
-        const val MATERIAL_DAMPING = 63.3
+        const val MATERIAL_STIFFNESS = 850.0
+        const val MATERIAL_DAMPING = 48.0
 
-        const val HANDOVER_START = 0.90
-        const val HANDOVER_TAU = 0.09
-        const val GLASS_RETURN_TAU = 0.05
-        const val FOLLOW_TAU = 0.05
-        const val SIGN_TAU = 0.25
+        const val HANDOVER_START = 0.88
+        const val HANDOVER_TAU = 0.11
+        const val GLASS_RETURN_TAU = 0.04
+        const val FOLLOW_TAU = 0.038
+        const val SIGN_TAU = 0.22
 
         fun springStep(
             x: Double,
@@ -397,10 +430,10 @@ private class PillSquashModel {
     }
 
     private companion object {
-        const val SAMPLE_WINDOW = 0.3
-        const val SENSITIVITY = 0.00008
-        const val MAX_DEFORMATION = 0.12
-        const val RESPONSE_TIME = 0.18
+        const val SAMPLE_WINDOW = 0.25
+        const val SENSITIVITY = 0.00014
+        const val MAX_DEFORMATION = 0.16
+        const val RESPONSE_TIME = 0.14
     }
 }
 
@@ -412,13 +445,23 @@ fun FlatSelectionPill(
 ) {
     Box(
         modifier = modifier
-            .background(color, shape)
-            .border(
-                width = 0.9.dp,
+            .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        color.copy(alpha = 0.70f),
-                        color.copy(alpha = 0.20f)
+                        Color.White.copy(alpha = 0.22f),
+                        color,
+                        color.copy(alpha = (color.alpha * 1.15f).coerceAtMost(1f))
+                    )
+                ),
+                shape = shape
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.65f),
+                        color.copy(alpha = 0.45f),
+                        Color.White.copy(alpha = 0.25f)
                     )
                 ),
                 shape = shape
@@ -426,6 +469,12 @@ fun FlatSelectionPill(
     )
 }
 
+/**
+ * 3D Refractive Water-Droplet Selection Pill
+ * Active continuously on Android 12+ so the active tab is always framed inside a convex,
+ * specular, refractive liquid glass capsule that swells into an oversized water droplet
+ * during tap and drag motions.
+ */
 @Composable
 fun GlassSelectionPill(
     motion: GlassPillMotion,
@@ -438,7 +487,8 @@ fun GlassSelectionPill(
 ) {
     val backdrop = remember(pageBackdrop, barGlass, tabRow, fillColor) {
         SelectionPillBackdrop(pageBackdrop, barGlass, tabRow) {
-            fillColor.copy(alpha = fillColor.alpha * (1f - motion.material))
+            val liftMix = motion.material.coerceIn(0f, 1f)
+            fillColor.copy(alpha = (fillColor.alpha * (1f - 0.35f * liftMix)).coerceIn(0.10f, 0.45f))
         }
     }
     Box(
@@ -447,31 +497,50 @@ fun GlassSelectionPill(
             shape = { shape },
             effects = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val liftProgress = motion.glassPresence.coerceIn(0f, 1f)
+                    val matProgress = motion.material.coerceIn(0f, 1f)
                     lens(
-                        refractionHeight = 14.dp.toPx() * motion.glassPresence,
-                        refractionAmount = 28.dp.toPx() * motion.material,
+                        refractionHeight = (10.dp.toPx() + 10.dp.toPx() * liftProgress),
+                        refractionAmount = (20.dp.toPx() + 24.dp.toPx() * matProgress),
                         depthEffect = true,
                         chromaticAberration = true
                     )
                 }
             },
             highlight = {
-                val alpha = (0.25f + 0.75f * motion.material) * rimOf(motion.glassPresence)
-                if (alpha > 0f) Highlight.Default.copy(alpha = alpha) else null
+                val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
+                Highlight.Default.copy(
+                    width = (0.9f + 0.6f * liftBoost).dp,
+                    alpha = (0.72f + 0.28f * liftBoost).coerceIn(0f, 1f)
+                )
             },
             shadow = {
-                val alpha = motion.material * rimOf(motion.glassPresence)
-                if (alpha > 0f) Shadow(
-                    radius = 14.dp,
-                    offset = DpOffset(0.dp, 4.dp),
-                    color = Color.Black.copy(alpha = 0.42f)
-                ).copy(alpha = alpha) else null
+                val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
+                Shadow(
+                    radius = (8f + 10f * liftBoost).dp,
+                    offset = DpOffset(0.dp, (2f + 4f * liftBoost).dp),
+                    color = Color.Black.copy(alpha = 0.28f + 0.24f * liftBoost)
+                )
+            },
+            onDrawSurface = {
+                if (size.isSpecified && size.width > 0f && size.height > 0f) {
+                    val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
+                    // Upper convex liquid dome reflection
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.28f + 0.14f * liftBoost),
+                                Color.White.copy(alpha = 0.06f + 0.05f * liftBoost),
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.10f + 0.08f * liftBoost)
+                            )
+                        )
+                    )
+                }
             }
         )
     )
 }
-
-private fun rimOf(presence: Float): Float = ((presence - 0.25f) / 0.75f).coerceIn(0f, 1f)
 
 private class SelectionPillBackdrop(
     private val page: Backdrop,

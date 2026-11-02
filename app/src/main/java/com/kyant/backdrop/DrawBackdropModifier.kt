@@ -329,6 +329,8 @@ private class DrawBackdropNode(
     override fun ContentDrawScope.draw() {
         if (effectScope.update(this)) {
             observeEffects()
+        } else if (isRenderEffectSupported() && graphicsLayer?.renderEffect == null && size.isSpecified && size.width > 0f && size.height > 0f) {
+            updateEffects()
         }
 
         onDrawBehind?.invoke(this)
@@ -337,16 +339,20 @@ private class DrawBackdropNode(
         drawContent()
         onDrawFront?.invoke(this)
 
-        exportedBackdrop?.graphicsLayer?.let { layer ->
+        exportedBackdrop?.let { exported ->
+            exported.isRecording = true
             try {
-                recordLayer(this, layer) {
+                recordLayer(this, exported.graphicsLayer) {
                     onDrawBehind?.invoke(this)
                     this@DrawBackdropNode.graphicsLayer?.let { drawLayer(it) }
                     onDrawSurface?.invoke(this)
                     onDrawFront?.invoke(this)
                 }
+                exported.isRecorded = true
             } catch (_: Throwable) {
-                // Ignore recording error for exported backdrop
+                exported.isRecorded = false
+            } finally {
+                exported.isRecording = false
             }
         }
     }
@@ -384,10 +390,11 @@ private class DrawBackdropNode(
 
         try {
             effectScope.apply(effects)
-            graphicsLayer?.renderEffect = effectScope.renderEffect
-            padding = effectScope.padding
         } catch (_: Throwable) {
             // Graceful fallback
+        } finally {
+            graphicsLayer?.renderEffect = effectScope.renderEffect
+            padding = effectScope.padding
         }
     }
 
