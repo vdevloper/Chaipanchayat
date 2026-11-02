@@ -488,7 +488,7 @@ fun GlassSelectionPill(
     val backdrop = remember(pageBackdrop, barGlass, tabRow, fillColor) {
         SelectionPillBackdrop(pageBackdrop, barGlass, tabRow) {
             val liftMix = motion.material.coerceIn(0f, 1f)
-            fillColor.copy(alpha = (fillColor.alpha * (1f - 0.35f * liftMix)).coerceIn(0.10f, 0.45f))
+            fillColor.copy(alpha = (fillColor.alpha * (1f - 0.30f * liftMix)).coerceIn(0.14f, 0.48f))
         }
     }
     Box(
@@ -500,8 +500,8 @@ fun GlassSelectionPill(
                     val liftProgress = motion.glassPresence.coerceIn(0f, 1f)
                     val matProgress = motion.material.coerceIn(0f, 1f)
                     lens(
-                        refractionHeight = (10.dp.toPx() + 10.dp.toPx() * liftProgress),
-                        refractionAmount = (20.dp.toPx() + 24.dp.toPx() * matProgress),
+                        refractionHeight = (12.dp.toPx() + 10.dp.toPx() * liftProgress),
+                        refractionAmount = (24.dp.toPx() + 24.dp.toPx() * matProgress),
                         depthEffect = true,
                         chromaticAberration = true
                     )
@@ -510,29 +510,29 @@ fun GlassSelectionPill(
             highlight = {
                 val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
                 Highlight.Default.copy(
-                    width = (0.9f + 0.6f * liftBoost).dp,
-                    alpha = (0.72f + 0.28f * liftBoost).coerceIn(0f, 1f)
+                    width = (1.1f + 0.6f * liftBoost).dp,
+                    alpha = (0.85f + 0.15f * liftBoost).coerceIn(0f, 1f)
                 )
             },
             shadow = {
                 val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
                 Shadow(
-                    radius = (8f + 10f * liftBoost).dp,
-                    offset = DpOffset(0.dp, (2f + 4f * liftBoost).dp),
-                    color = Color.Black.copy(alpha = 0.28f + 0.24f * liftBoost)
+                    radius = (10f + 10f * liftBoost).dp,
+                    offset = DpOffset(0.dp, (3f + 4f * liftBoost).dp),
+                    color = Color.Black.copy(alpha = 0.34f + 0.22f * liftBoost)
                 )
             },
             onDrawSurface = {
                 if (size.isSpecified && size.width > 0f && size.height > 0f) {
                     val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
-                    // Upper convex liquid dome reflection
+                    // Upper convex liquid dome reflection & lower inner rim glow
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.28f + 0.14f * liftBoost),
-                                Color.White.copy(alpha = 0.06f + 0.05f * liftBoost),
+                                Color.White.copy(alpha = 0.34f + 0.12f * liftBoost),
+                                Color.White.copy(alpha = 0.10f + 0.04f * liftBoost),
                                 Color.Transparent,
-                                Color.White.copy(alpha = 0.10f + 0.08f * liftBoost)
+                                Color.White.copy(alpha = 0.14f + 0.08f * liftBoost)
                             )
                         )
                     )

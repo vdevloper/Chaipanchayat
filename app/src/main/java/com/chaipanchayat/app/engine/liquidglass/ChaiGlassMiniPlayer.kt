@@ -128,8 +128,8 @@ fun ChaiGlassMiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .padding(bottom = 6.dp)
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 8.dp)
             .scale(pressScale)
             .then(
                 if (isRenderEffectSupported()) {
