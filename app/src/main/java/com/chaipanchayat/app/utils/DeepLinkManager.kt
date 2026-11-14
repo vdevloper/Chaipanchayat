@@ -73,12 +73,20 @@ object DeepLinkManager {
         return null
     }
 
+    private val APP_LINK_HOSTS = setOf(
+        "gen-lang-client-0700030242.web.app",
+        "gen-lang-client-0700030242.firebaseapp.com"
+    )
+
     /**
-     * Parses article ID from Uri like:
+     * Parses article ID from app-only deep link Uris:
      * - chaipanchayat://post/1234
      * - chaipanchayat://post?id=1234
-     * - https://chaipanchayat.com/?p=1234
-     * - https://chaipanchayat.com/post/1234
+     * - https://gen-lang-client-0700030242.web.app/post/1234
+     * - https://gen-lang-client-0700030242.firebaseapp.com/post/1234
+     *
+     * Note: Official website links (https://chaipanchayat.com/...) are intentionally excluded
+     * so they always open in the user's web browser rather than inside the app.
      */
     fun parseArticleIdFromUri(uri: Uri): Long? {
         val scheme = uri.scheme?.lowercase()
@@ -102,8 +110,8 @@ object DeepLinkManager {
             if (hostAsNum != null && hostAsNum > 0) return hostAsNum
         }
 
-        // Handle standard http/https web links (clickable in WhatsApp, Telegram, etc.)
-        if (scheme == "http" || scheme == "https") {
+        // Handle dedicated Smart In-App Links only (never intercept chaipanchayat.com web links)
+        if ((scheme == "http" || scheme == "https") && host in APP_LINK_HOSTS) {
             val queryId = uri.getQueryParameter("p")?.toLongOrNull()
                 ?: uri.getQueryParameter("id")?.toLongOrNull()
                 ?: uri.getQueryParameter("post_id")?.toLongOrNull()
@@ -157,17 +165,16 @@ object DeepLinkManager {
             return storedReferrerId
         }
 
-        // 2. Check Clipboard for Chai Panchayat shared links
+        // 2. Check Clipboard for dedicated in-app links only
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             if (clipboard != null && clipboard.hasPrimaryClip()) {
                 val clipData = clipboard.primaryClip
                 if (clipData != null && clipData.itemCount > 0) {
                     val clipText = clipData.getItemAt(0)?.text?.toString().orEmpty()
-                    if (clipText.contains("chaipanchayat") || clipText.contains("post_id=") || clipText.contains("web.app") || clipText.contains("firebaseapp")) {
-                        val customMatch = Regex("""(?:chaipanchayat://post/|\?p=|/post/)(\d+)""").find(clipText)
+                    if (clipText.contains("chaipanchayat://") || clipText.contains("web.app/post/") || clipText.contains("firebaseapp.com/post/")) {
+                        val customMatch = Regex("""(?:chaipanchayat://(?:post|article)/|(?:web\.app|firebaseapp\.com)/post/)(\d+)""").find(clipText)
                         val candidateId = customMatch?.groupValues?.getOrNull(1)?.toLongOrNull()
-                            ?: parseArticleIdFromReferrer(clipText)
 
                         if (candidateId != null && candidateId > 0) {
                             val lastHandled = prefs.getLong(KEY_LAST_HANDLED_ID, -1L)
