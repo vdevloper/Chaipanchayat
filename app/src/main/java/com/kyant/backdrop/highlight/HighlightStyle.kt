@@ -62,7 +62,8 @@ interface HighlightStyle {
                     DefaultHighlightShaderString
                 ).apply {
                     setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape))
+                    val radii = getCornerRadii(shape)
+                    setFloatUniform("cornerRadii", radii[0], radii[1], radii[2], radii[3])
                     setColorUniform("color", color.copy(alpha = 1f))
                     setFloatUniform("angle", angle * (PI / 180f).toFloat())
                     setFloatUniform("falloff", falloff)
@@ -94,7 +95,8 @@ interface HighlightStyle {
                     AmbientHighlightShaderString
                 ).apply {
                     setFloatUniform("size", size.width, size.height)
-                    setFloatUniform("cornerRadii", getCornerRadii(shape))
+                    val radii = getCornerRadii(shape)
+                    setFloatUniform("cornerRadii", radii[0], radii[1], radii[2], radii[3])
                     setFloatUniform("angle", 45f * (PI / 180f).toFloat())
                     setFloatUniform("falloff", 1f)
                 }

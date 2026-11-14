@@ -3,6 +3,7 @@ package com.chaipanchayat.app.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import com.chaipanchayat.app.engine.liquidglass.GlassBlurDepth
+import com.chaipanchayat.app.engine.liquidglass.GlassSubMode
 import com.chaipanchayat.app.engine.liquidglass.GlassTintStyle
 import com.chaipanchayat.app.engine.liquidglass.LiquidGlassSettings
 import kotlinx.coroutines.Dispatchers
@@ -73,17 +74,18 @@ class SettingsRepository(private val context: Context) {
     )
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
-    // Liquid Glass Advanced Engine Settings
+    // Liquid Glass Engine Settings (Dark Glass & Light Glass submodes)
     private val _liquidGlassSettings = MutableStateFlow(
         LiquidGlassSettings(
+            subMode = GlassSubMode.fromKey(prefs.getString(KEY_GLASS_SUB_MODE, GlassSubMode.DARK.key)),
             tintStyle = GlassTintStyle.fromKey(prefs.getString(KEY_GLASS_TINT, GlassTintStyle.CRYSTAL_CYAN.key) ?: GlassTintStyle.CRYSTAL_CYAN.key),
-            blurDepth = GlassBlurDepth.fromKey(prefs.getString(KEY_GLASS_BLUR, GlassBlurDepth.BALANCED.key) ?: GlassBlurDepth.BALANCED.key),
-            frostOpacity = prefs.getFloat(KEY_GLASS_FROST_OPACITY, 0.76f),
+            blurDepth = GlassBlurDepth.fromKey(prefs.getString(KEY_GLASS_BLUR, GlassBlurDepth.DEEP.key) ?: GlassBlurDepth.DEEP.key),
+            frostOpacity = prefs.getFloat(KEY_GLASS_FROST_OPACITY, 0.62f),
             chromaticRim = prefs.getBoolean(KEY_GLASS_CHROMATIC_RIM, true),
             specularShimmer = prefs.getBoolean(KEY_GLASS_SHIMMER, true),
             touchPhysics = prefs.getBoolean(KEY_GLASS_TOUCH_PHYSICS, true),
             ambientOrbs = prefs.getBoolean(KEY_GLASS_AMBIENT_ORBS, true),
-            specularIntensity = prefs.getFloat(KEY_GLASS_SPECULAR_INTENSITY, 0.70f)
+            specularIntensity = prefs.getFloat(KEY_GLASS_SPECULAR_INTENSITY, 0.55f)
         )
     )
     val liquidGlassSettings: StateFlow<LiquidGlassSettings> = _liquidGlassSettings.asStateFlow()
@@ -212,10 +214,15 @@ class SettingsRepository(private val context: Context) {
         _themeMode.value = mode
     }
 
+    fun setGlassSubMode(subMode: GlassSubMode) {
+        updateLiquidGlassSettings { it.copy(subMode = subMode) }
+    }
+
     fun updateLiquidGlassSettings(transform: (LiquidGlassSettings) -> LiquidGlassSettings) {
         val updated = transform(_liquidGlassSettings.value)
         _liquidGlassSettings.value = updated
         prefs.edit()
+            .putString(KEY_GLASS_SUB_MODE, updated.subMode.key)
             .putString(KEY_GLASS_TINT, updated.tintStyle.key)
             .putString(KEY_GLASS_BLUR, updated.blurDepth.key)
             .putFloat(KEY_GLASS_FROST_OPACITY, updated.frostOpacity)
@@ -394,6 +401,7 @@ class SettingsRepository(private val context: Context) {
         private const val KEY_OFFLINE_QUICK_PACK = "offline_quick_pack_enabled"
         private const val KEY_OFFLINE_QUICK_PACK_COUNT = "offline_quick_pack_count"
 
+        private const val KEY_GLASS_SUB_MODE = "glass_sub_mode_v1"
         private const val KEY_GLASS_TINT = "glass_tint_flavor"
         private const val KEY_GLASS_BLUR = "glass_blur_depth"
         private const val KEY_GLASS_FROST_OPACITY = "glass_frost_opacity"

@@ -150,11 +150,22 @@ class NewsRepository private constructor(private val cacheDao: PostCacheDao?) {
         }
 
         // 5. Server has new content or we have no local cache: fetch full feed
-        val freshPosts = WordPressApiClient.fetchPosts(
-            categoryId = catId,
-            perPage = 15,
-            forceNetwork = forceRefresh
-        )
+        val fetched = try {
+            WordPressApiClient.fetchPosts(
+                categoryId = catId,
+                perPage = 15,
+                forceNetwork = forceRefresh
+            )
+        } catch (e: Exception) {
+            if (!localCached.isNullOrEmpty()) return@withLock localCached
+            throw e
+        }
+
+        val freshPosts = if (fetched.isEmpty() && !localCached.isNullOrEmpty()) {
+            localCached
+        } else {
+            fetched
+        }
 
         // Save to in-memory cache
         if (catId == null) {

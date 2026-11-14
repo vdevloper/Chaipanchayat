@@ -1,8 +1,6 @@
 package com.chaipanchayat.app.ui.components
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -21,15 +19,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,21 +38,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.model.WPPost
-import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
+import com.chaipanchayat.app.engine.liquidglass.liquidGlassRim
 import com.chaipanchayat.app.ui.theme.ChaiCrimson
+import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
+import com.chaipanchayat.app.ui.theme.NotoSerifFamily
+import com.chaipanchayat.app.utils.rememberChaiHaptics
+import com.kyant.backdrop.Capsule
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalAnimationApi::class)
+/**
+ * Breaking News Live Ticker Strip
+ * Cycles through top headlines with vertical slide transition.
+ * In Liquid Glass mode, features a 3D convex Crimson-Saffron Glass Flash News capsule with specular shader rim.
+ */
 @Composable
 fun BreakingNewsTicker(
     posts: List<WPPost>,
@@ -66,97 +71,143 @@ fun BreakingNewsTicker(
 ) {
     if (posts.isEmpty()) return
 
+    val haptics = rememberChaiHaptics()
     var currentIndex by remember { mutableIntStateOf(0) }
 
-    // Auto-cycle ticker every 6.5 seconds (calm reading pace, avoids sensory overload)
-    LaunchedEffect(posts) {
-        while (true) {
-            delay(6500)
-            if (posts.isNotEmpty()) {
+    LaunchedEffect(posts.size) {
+        if (posts.size > 1) {
+            while (true) {
+                delay(4200)
                 currentIndex = (currentIndex + 1) % posts.size
             }
         }
     }
 
-    val currentPost = posts.getOrNull(currentIndex) ?: return
+    val safeIndex = currentIndex.coerceIn(0, posts.lastIndex)
+    val currentPost = posts[safeIndex]
 
-    // Gentle, non-distracting breath animation for LIVE badge (no harsh scaling)
-    val infiniteTransition = rememberInfiniteTransition(label = "beacon_breathe")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
+    val infiniteTransition = rememberInfiniteTransition(label = "live_pulse")
+    val dotAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = FastOutSlowInEasing),
+            animation = tween(750),
             repeatMode = RepeatMode.Reverse
         ),
         label = "pulse_alpha"
     )
 
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val capsuleShape = remember { Capsule() }
+
     Surface(
-        color = ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.65f),
+        color = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onPostClick(currentPost.id) }
+            .clickable {
+                haptics.click()
+                onPostClick(currentPost.id)
+            }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 7.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Calm Live Indicator Pill
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(ChaiCrimson)
-                    .padding(horizontal = 5.5.dp, vertical = 2.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+            // Live Flash News Badge
+            if (isLiquid) {
+                Box(
+                    modifier = Modifier
+                        .clip(capsuleShape)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                listOf(
+                                    ChaiCrimson.copy(alpha = 0.88f),
+                                    ChaiSaffron.copy(alpha = 0.85f)
+                                )
+                            ),
+                            shape = capsuleShape
+                        )
+                        .background(
+                            brush = Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.34f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.18f)
+                                )
+                            ),
+                            shape = capsuleShape
+                        )
+                        .liquidGlassRim(capsuleShape)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .background(Color.White.copy(alpha = pulseAlpha), CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(3.5.dp))
-                    Text(
-                        text = "Flash News",
-                        color = Color.White,
-                        fontFamily = InterFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 9.5.sp,
-                        letterSpacing = 0.5.sp
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .alpha(dotAlpha)
+                                .background(Color.White, CircleShape)
+                        )
+                        Text(
+                            text = "Flash News",
+                            color = Color.White,
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 10.5.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = ChaiCrimson
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .alpha(dotAlpha)
+                                .background(Color.White, CircleShape)
+                        )
+                        Text(
+                            text = "Flash News",
+                            color = Color.White,
+                            fontFamily = InterFamily,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 10.sp,
+                            letterSpacing = 0.6.sp
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            // Smooth crossfade headline animation (smooth, no jarring slides)
+            // Animated Headline
             AnimatedContent(
                 targetState = currentPost,
                 transitionSpec = {
-                    (slideInVertically(
-                        initialOffsetY = { it / 2 },
-                        animationSpec = tween(420, easing = FastOutSlowInEasing)
-                    ) + fadeIn(tween(380))) togetherWith
-                    (slideOutVertically(
-                        targetOffsetY = { -it / 2 },
-                        animationSpec = tween(350, easing = FastOutSlowInEasing)
-                    ) + fadeOut(tween(280)))
+                    (slideInVertically { height -> height } + fadeIn(tween(260))) togetherWith
+                            (slideOutVertically { height -> -height } + fadeOut(tween(220)))
                 },
                 modifier = Modifier.weight(1f),
                 label = "ticker_headline"
-            ) { targetPost ->
+            ) { post ->
                 Text(
-                    text = translatedTitles[targetPost.id] ?: targetPost.cleanTitle,
-                    fontFamily = InterFamily,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 12.5.sp,
+                    text = translatedTitles[post.id] ?: post.cleanTitle,
                     color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = NotoSerifFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -165,10 +216,10 @@ fun BreakingNewsTicker(
             Spacer(modifier = Modifier.width(6.dp))
 
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = ChaiTheme.extended.muted.copy(alpha = 0.7f),
-                modifier = Modifier.size(10.dp)
+                tint = ChaiTheme.extended.textSecondary,
+                modifier = Modifier.size(16.dp)
             )
         }
     }

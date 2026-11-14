@@ -5,18 +5,22 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import com.chaipanchayat.app.data.repository.SettingsRepository
 import com.chaipanchayat.app.data.repository.ThemeMode
 import com.chaipanchayat.app.engine.liquidglass.LiquidGlassBackdrop
@@ -40,7 +44,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+        }
 
         // Create notification channel safely
         runCatching {
@@ -90,6 +107,14 @@ class MainActivity : ComponentActivity() {
             val themeMode by settingsRepo.themeMode.collectAsState()
             val glassSettings by settingsRepo.liquidGlassSettings.collectAsState()
             val currentTargetId by targetArticleId
+
+            SideEffect {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                val useDarkIcons = themeMode == ThemeMode.LIGHT ||
+                    (themeMode == ThemeMode.LIQUID_GLASS && glassSettings.isLightGlass)
+                controller.isAppearanceLightStatusBars = useDarkIcons
+                controller.isAppearanceLightNavigationBars = useDarkIcons
+            }
 
             ChaiPanchayatTheme(
                 themeMode = themeMode,

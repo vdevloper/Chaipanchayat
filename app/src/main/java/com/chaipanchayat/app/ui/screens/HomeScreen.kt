@@ -83,6 +83,7 @@ import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.LocalChaiStrings
 import androidx.compose.ui.layout.onSizeChanged
+import com.chaipanchayat.app.engine.liquidglass.liquidGlass
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import kotlinx.coroutines.launch
@@ -332,13 +333,32 @@ fun HomeScreen(
                                         )
                                     }
 
-                                    Text(
-                                        text = "${posts.size} लेख",
-                                        color = ChaiTheme.extended.muted,
-                                        fontFamily = InterFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
-                                    )
+                                    if (isLiquid) {
+                                        Box(
+                                            modifier = Modifier
+                                                .liquidGlass(
+                                                    shape = com.kyant.backdrop.Capsule(),
+                                                    blurRadiusDp = 16.dp
+                                                )
+                                                .padding(horizontal = 10.dp, vertical = 3.5.dp)
+                                        ) {
+                                            Text(
+                                                text = "${posts.size} लेख",
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontFamily = InterFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.5.sp
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            text = "${posts.size} लेख",
+                                            color = ChaiTheme.extended.muted,
+                                            fontFamily = InterFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                 }
                             }
 
@@ -388,23 +408,34 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        val headerCapsule = remember { com.kyant.backdrop.Capsule() }
+
                         // Universal Language Switcher Pill
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = if (isLiquid) Color(0x38FFFFFF) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.9f),
-                            border = androidx.compose.foundation.BorderStroke(
+                            color = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.9f),
+                            border = if (isLiquid) null else androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border.copy(alpha = 0.6f)
+                                ChaiTheme.extended.border.copy(alpha = 0.6f)
                             ),
                             modifier = Modifier
                                 .height(36.dp)
+                                .then(
+                                    if (isLiquid) {
+                                        Modifier.liquidGlass(
+                                            shape = headerCapsule,
+                                            blurRadiusDp = 18.dp,
+                                            backdrop = homeFeedBackdrop
+                                        )
+                                    } else Modifier
+                                )
                                 .clickable { showLanguagePicker = true }
                                 .testTag("header-language-button")
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Language,
@@ -426,7 +457,7 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.ArrowDropDown,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                                     modifier = Modifier.size(14.dp)
                                 )
                             }
@@ -435,12 +466,22 @@ fun HomeScreen(
                         // Search Action Button
                         Surface(
                             shape = CircleShape,
-                            color = if (isLiquid) Color(0x38FFFFFF) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
-                            border = androidx.compose.foundation.BorderStroke(
+                            color = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
+                            border = if (isLiquid) null else androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border.copy(alpha = 0.5f)
+                                ChaiTheme.extended.border.copy(alpha = 0.5f)
                             ),
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier
+                                .size(38.dp)
+                                .then(
+                                    if (isLiquid) {
+                                        Modifier.liquidGlass(
+                                            shape = CircleShape,
+                                            blurRadiusDp = 18.dp,
+                                            backdrop = homeFeedBackdrop
+                                        )
+                                    } else Modifier
+                                )
                         ) {
                             IconButton(
                                 onClick = onNavigateToSearch,
@@ -458,12 +499,22 @@ fun HomeScreen(
                         // Refresh Button with Spin Effect
                         Surface(
                             shape = CircleShape,
-                            color = if (isLiquid) Color(0x38FFFFFF) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
-                            border = androidx.compose.foundation.BorderStroke(
+                            color = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.8f),
+                            border = if (isLiquid) null else androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border.copy(alpha = 0.5f)
+                                ChaiTheme.extended.border.copy(alpha = 0.5f)
                             ),
-                            modifier = Modifier.size(38.dp)
+                            modifier = Modifier
+                                .size(38.dp)
+                                .then(
+                                    if (isLiquid) {
+                                        Modifier.liquidGlass(
+                                            shape = CircleShape,
+                                            blurRadiusDp = 18.dp,
+                                            backdrop = homeFeedBackdrop
+                                        )
+                                    } else Modifier
+                                )
                         ) {
                             IconButton(
                                 onClick = {
@@ -505,7 +556,9 @@ fun HomeScreen(
             // Global Feed Translation Status & 1-Tap Original Hindi Toggle
             if (currentAppLang != com.chaipanchayat.app.data.model.AppLanguage.HINDI) {
                 Surface(
-                    color = if (isLiquid) Color(0x380D111A) else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.95f),
+                    color = if (isLiquid) {
+                        if (ChaiTheme.extended.isLightGlass) Color(0x120F172A) else Color(0x38161618)
+                    } else ChaiTheme.extended.surfaceSecondary.copy(alpha = 0.95f),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp),
@@ -583,7 +636,8 @@ fun HomeScreen(
                 chips = chipItems,
                 selectedId = selectedCategoryId,
                 onSelect = { selectedCategoryId = it },
-                isLoading = categories.isEmpty() && isLoading
+                isLoading = categories.isEmpty() && isLoading,
+                backdrop = homeFeedBackdrop
             )
 
             if (!isLiquid) {

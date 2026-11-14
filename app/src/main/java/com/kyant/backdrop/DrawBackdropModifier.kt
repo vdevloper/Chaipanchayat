@@ -294,9 +294,9 @@ private class DrawBackdropNode(
 
             if (w > 0 && h > 0) {
                 try {
-                    recordLayer(
-                        this,
-                        layer,
+                    layer.record(
+                        density = this,
+                        layoutDirection = layoutDirection,
                         size = IntSize(w, h),
                         block = recordBackdropBlock
                     )
@@ -340,19 +340,27 @@ private class DrawBackdropNode(
         onDrawFront?.invoke(this)
 
         exportedBackdrop?.let { exported ->
-            exported.isRecording = true
-            try {
-                recordLayer(this, exported.graphicsLayer) {
-                    onDrawBehind?.invoke(this)
-                    this@DrawBackdropNode.graphicsLayer?.let { drawLayer(it) }
-                    onDrawSurface?.invoke(this)
-                    onDrawFront?.invoke(this)
+            val w = if (size.isSpecified && !size.width.isNaN()) size.width.toInt() else 0
+            val h = if (size.isSpecified && !size.height.isNaN()) size.height.toInt() else 0
+            if (w > 0 && h > 0) {
+                exported.isRecording = true
+                try {
+                    exported.graphicsLayer.record(
+                        density = this,
+                        layoutDirection = layoutDirection,
+                        size = IntSize(w, h)
+                    ) {
+                        onDrawBehind?.invoke(this)
+                        this@DrawBackdropNode.graphicsLayer?.let { drawLayer(it) }
+                        onDrawSurface?.invoke(this)
+                        onDrawFront?.invoke(this)
+                    }
+                    exported.isRecorded = true
+                } catch (_: Throwable) {
+                    exported.isRecorded = false
+                } finally {
+                    exported.isRecording = false
                 }
-                exported.isRecorded = true
-            } catch (_: Throwable) {
-                exported.isRecorded = false
-            } finally {
-                exported.isRecording = false
             }
         }
     }

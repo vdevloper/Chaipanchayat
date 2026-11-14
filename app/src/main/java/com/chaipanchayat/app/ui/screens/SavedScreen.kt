@@ -56,6 +56,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.chaipanchayat.app.data.model.BookmarkEntity
 import com.chaipanchayat.app.data.repository.BookmarkRepository
+import com.chaipanchayat.app.engine.liquidglass.liquidGlassCard
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
@@ -171,13 +172,14 @@ fun SavedScreen(
                 .fillMaxWidth()
                 .onSizeChanged { size -> headerHeightPx = size.height }
         ) {
-            // Top Brand Ribbon
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(ChaiBrandGradient)
-            )
+            if (!isLiquid) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(ChaiBrandGradient)
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -248,20 +250,21 @@ fun SavedArticleCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1.0f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        targetValue = if (isPressed) 0.975f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.52f, stiffness = 420f),
         label = "saved_scale"
     )
 
-    val cardShape = RoundedCornerShape(14.dp)
-    val thumbShape = RoundedCornerShape(10.dp)
-
     val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = if (isLiquid) RoundedCornerShape(18.dp) else RoundedCornerShape(14.dp)
+    val thumbShape = if (isLiquid) RoundedCornerShape(12.dp) else RoundedCornerShape(10.dp)
 
     Card(
         shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 3.dp else 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 0.dp else 1.dp),
         modifier = modifier
             .testTag("saved-card-${bookmark.id}")
             .fillMaxWidth()
@@ -269,10 +272,9 @@ fun SavedArticleCard(
             .scale(scale)
             .then(
                 if (isLiquid) {
-                    Modifier.border(
-                        width = 1.dp,
-                        brush = ChaiTheme.extended.glassBorderBrush,
-                        shape = cardShape
+                    Modifier.liquidGlassCard(
+                        shape = cardShape,
+                        blurRadiusDp = 22.dp
                     )
                 } else {
                     Modifier.border(
@@ -299,6 +301,15 @@ fun SavedArticleCard(
                 modifier = Modifier
                     .size(width = 100.dp, height = 75.dp)
                     .clip(thumbShape)
+                    .then(
+                        if (isLiquid) {
+                            Modifier.border(
+                                0.8.dp,
+                                if (ChaiTheme.extended.isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.25f),
+                                thumbShape
+                            )
+                        } else Modifier
+                    )
                     .background(ChaiTheme.extended.skeleton)
             ) {
                 if (!bookmark.image.isNullOrBlank()) {
@@ -354,9 +365,16 @@ fun SavedArticleCard(
                 )
             }
 
+            val isLightGlass = ChaiTheme.extended.isLightGlass
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
+                color = if (isLiquid) {
+                    if (isLightGlass) Color(0x100F172A) else Color.White.copy(alpha = 0.14f)
+                } else MaterialTheme.colorScheme.surface,
+                border = if (isLiquid) androidx.compose.foundation.BorderStroke(
+                    0.8.dp,
+                    if (isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.28f)
+                ) else null,
                 modifier = Modifier.size(32.dp)
             ) {
                 IconButton(
@@ -366,7 +384,7 @@ fun SavedArticleCard(
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Remove bookmark",
-                        tint = ChaiTheme.extended.muted,
+                        tint = ChaiTheme.extended.textSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                 }

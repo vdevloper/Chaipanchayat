@@ -13,7 +13,7 @@ fun BackdropEffectScope.blur(
     if (!isRenderEffectSupported()) return
     if (radius <= 0f) return
 
-    if (edgeTreatment != TileMode.Clamp || renderEffect != null) {
+    if (edgeTreatment != TileMode.Clamp) {
         if (radius > padding) {
             padding = radius
         }

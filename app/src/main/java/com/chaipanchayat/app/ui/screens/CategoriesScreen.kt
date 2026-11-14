@@ -74,9 +74,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import com.chaipanchayat.app.data.model.WPCategory
 import com.chaipanchayat.app.data.model.WPTag
 import com.chaipanchayat.app.data.repository.NewsRepository
+import com.chaipanchayat.app.engine.liquidglass.liquidGlass
+import com.chaipanchayat.app.engine.liquidglass.liquidGlassCard
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
@@ -302,13 +306,14 @@ fun CategoriesScreen(
                 .fillMaxWidth()
                 .onSizeChanged { headerHeightPx = it.height }
         ) {
-            // Top Brand Ribbon
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(ChaiBrandGradient)
-            )
+            if (!isLiquid) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(ChaiBrandGradient)
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -377,10 +382,14 @@ fun CategoriesScreen(
 
                         Surface(
                             shape = CircleShape,
-                            color = if (isLiquid) Color(0x38FFFFFF) else ChaiTheme.extended.surfaceSecondary,
+                            color = if (isLiquid) {
+                                if (ChaiTheme.extended.isLightGlass) Color(0x120F172A) else Color(0x38FFFFFF)
+                            } else ChaiTheme.extended.surfaceSecondary,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border
+                                if (isLiquid) {
+                                    if (ChaiTheme.extended.isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.35f)
+                                } else ChaiTheme.extended.border
                             )
                         ) {
                             Text(
@@ -398,67 +407,87 @@ fun CategoriesScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Editorial Segmented Switcher (Categories vs Tags)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            if (isLiquid) Color(0x330D111A) else ChaiTheme.extended.surfaceSecondary,
-                            RoundedCornerShape(10.dp)
+                if (isLiquid) {
+                    val segmentItems = remember {
+                        listOf(
+                            com.chaipanchayat.app.engine.liquidglass.LiquidSegmentItem(
+                                title = "विषय (Categories)",
+                                icon = Icons.Outlined.Article,
+                                testTag = "segment-categories"
+                            ),
+                            com.chaipanchayat.app.engine.liquidglass.LiquidSegmentItem(
+                                title = "टैग्स व सेक्शन्स (Tags)",
+                                icon = Icons.Outlined.Tag,
+                                testTag = "segment-tags"
+                            )
                         )
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (selectedTabIndex == 0) {
-                            if (isLiquid) Color.White.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surface
-                        } else Color.Transparent,
-                        border = if (selectedTabIndex == 0) androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border
-                        ) else null,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTabIndex = 0 }
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = "विषय (Categories)",
-                                fontFamily = InterFamily,
-                                fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 12.5.sp,
-                                color = if (selectedTabIndex == 0) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary
-                            )
-                        }
                     }
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (selectedTabIndex == 1) {
-                            if (isLiquid) Color.White.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surface
-                        } else Color.Transparent,
-                        border = if (selectedTabIndex == 1) androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isLiquid) Color.White.copy(alpha = 0.35f) else ChaiTheme.extended.border
-                        ) else null,
+                    com.chaipanchayat.app.engine.liquidglass.LiquidGlassSegmentedTabs(
+                        items = segmentItems,
+                        selectedIndex = selectedTabIndex,
+                        onSelect = { selectedTabIndex = it },
+                        backdrop = categoriesFeedBackdrop,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .clickable { selectedTabIndex = 1 }
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = "टैग्स व सेक्शन्स (Tags)",
-                                fontFamily = InterFamily,
-                                fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 12.5.sp,
-                                color = if (selectedTabIndex == 1) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary
+                            .fillMaxWidth()
+                            .background(
+                                ChaiTheme.extended.surfaceSecondary,
+                                RoundedCornerShape(10.dp)
                             )
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (selectedTabIndex == 0) MaterialTheme.colorScheme.surface else Color.Transparent,
+                            border = if (selectedTabIndex == 0) androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                ChaiTheme.extended.border
+                            ) else null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedTabIndex = 0 }
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = "विषय (Categories)",
+                                    fontFamily = InterFamily,
+                                    fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 12.5.sp,
+                                    color = if (selectedTabIndex == 0) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (selectedTabIndex == 1) MaterialTheme.colorScheme.surface else Color.Transparent,
+                            border = if (selectedTabIndex == 1) androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                ChaiTheme.extended.border
+                            ) else null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { selectedTabIndex = 1 }
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = "टैग्स व सेक्शन्स (Tags)",
+                                    fontFamily = InterFamily,
+                                    fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 12.5.sp,
+                                    color = if (selectedTabIndex == 1) ChaiTheme.extended.brandText else ChaiTheme.extended.textSecondary
+                                )
+                            }
                         }
                     }
                 }
@@ -472,7 +501,7 @@ fun CategoriesScreen(
                     placeholder = {
                         Text(
                             text = if (selectedTabIndex == 0) "विषय खोजें (उदा. राजनीति, खेल, अपराध)..." else "टैग खोजें...",
-                            color = ChaiTheme.extended.muted,
+                            color = ChaiTheme.extended.textSecondary,
                             fontFamily = InterFamily,
                             fontSize = 13.sp
                         )
@@ -481,7 +510,7 @@ fun CategoriesScreen(
                         Icon(
                             imageVector = Icons.Outlined.Search,
                             contentDescription = "Search categories",
-                            tint = ChaiTheme.extended.muted,
+                            tint = if (isLiquid) ChaiSaffron else ChaiTheme.extended.muted,
                             modifier = Modifier.size(19.dp)
                         )
                     },
@@ -491,23 +520,32 @@ fun CategoriesScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.Close,
                                     contentDescription = "Clear search",
-                                    tint = ChaiTheme.extended.muted,
+                                    tint = ChaiTheme.extended.textSecondary,
                                     modifier = Modifier.size(17.dp)
                                 )
                             }
                         }
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = if (isLiquid) RoundedCornerShape(24.dp) else RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = ChaiSaffron,
-                        unfocusedBorderColor = if (isLiquid) Color.White.copy(alpha = 0.25f) else ChaiTheme.extended.border,
-                        focusedContainerColor = if (isLiquid) Color(0x330D111A) else ChaiTheme.extended.surfaceSecondary,
-                        unfocusedContainerColor = if (isLiquid) Color(0x330D111A) else ChaiTheme.extended.surfaceSecondary,
+                        unfocusedBorderColor = if (isLiquid) Color.Transparent else ChaiTheme.extended.border,
+                        focusedContainerColor = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
+                        unfocusedContainerColor = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
                         cursorColor = ChaiSaffron
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(
+                            if (isLiquid) {
+                                Modifier.liquidGlass(
+                                    shape = RoundedCornerShape(24.dp),
+                                    blurRadiusDp = 18.dp,
+                                    backdrop = categoriesFeedBackdrop
+                                )
+                            } else Modifier
+                        )
                         .testTag("categories-search-input")
                 )
 
@@ -524,7 +562,14 @@ private fun CategoryIndexRow(
 ) {
     val style = remember(category.name) { getCategoryIconStyle(category.name) }
     val isLiquid = ChaiTheme.extended.isLiquidGlass
-    val cardShape = RoundedCornerShape(16.dp)
+    val cardShape = RoundedCornerShape(18.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isPressed) 0.975f else 1.0f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.52f, stiffness = 420f),
+        label = "cat_row_scale_${category.id}"
+    )
 
     Row(
         modifier = Modifier
@@ -533,18 +578,17 @@ private fun CategoryIndexRow(
             .then(
                 if (isLiquid) {
                     Modifier
-                        .padding(horizontal = 16.dp, vertical = 5.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                listOf(
-                                    style.iconTint.copy(alpha = 0.32f),
-                                    style.iconTint.copy(alpha = 0.12f),
-                                    Color(0x330D111A)
-                                )
-                            ),
-                            shape = cardShape
+                        .padding(horizontal = 16.dp, vertical = 5.5.dp)
+                        .liquidGlassCard(
+                            shape = cardShape,
+                            accentColor = style.iconTint,
+                            blurRadiusDp = 22.dp
                         )
-                        .clickable(onClick = onClick)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClick = onClick
+                        )
                         .padding(horizontal = 16.dp, vertical = 14.dp)
                 } else {
                     Modifier
@@ -555,17 +599,35 @@ private fun CategoryIndexRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Compact Icon Container
+        val isLightGlass = ChaiTheme.extended.isLightGlass
         Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = style.iconTint.copy(alpha = if (isLiquid) 0.24f else 0.12f),
-            border = androidx.compose.foundation.BorderStroke(0.8.dp, style.iconTint.copy(alpha = 0.45f)),
-            modifier = Modifier.size(40.dp)
+            shape = RoundedCornerShape(12.dp),
+            color = style.iconTint.copy(alpha = if (isLiquid) (if (isLightGlass) 0.16f else 0.28f) else 0.12f),
+            border = androidx.compose.foundation.BorderStroke(
+                if (isLiquid) 1.dp else 0.8.dp,
+                if (isLiquid && !isLightGlass) Color.White.copy(alpha = 0.36f) else style.iconTint.copy(alpha = 0.45f)
+            ),
+            modifier = Modifier.size(42.dp)
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.then(
+                    if (isLiquid) {
+                        Modifier.background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = if (isLightGlass) 0.45f else 0.28f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                    } else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = style.icon,
                     contentDescription = null,
-                    tint = style.iconTint,
+                    tint = if (isLiquid && !isLightGlass) Color.White else style.iconTint,
                     modifier = Modifier.size(21.dp)
                 )
             }
@@ -585,20 +647,24 @@ private fun CategoryIndexRow(
 
         // Article Count Pill
         Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = if (isLiquid) Color.White.copy(alpha = 0.12f) else ChaiTheme.extended.surfaceSecondary,
+            shape = RoundedCornerShape(10.dp),
+            color = if (isLiquid) {
+                if (isLightGlass) Color(0x100F172A) else Color.White.copy(alpha = 0.14f)
+            } else ChaiTheme.extended.surfaceSecondary,
             border = androidx.compose.foundation.BorderStroke(
-                0.6.dp,
-                if (isLiquid) Color.White.copy(alpha = 0.25f) else ChaiTheme.extended.border
+                0.8.dp,
+                if (isLiquid) {
+                    if (isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.30f)
+                } else ChaiTheme.extended.border
             )
         ) {
             Text(
                 text = "${category.count} लेख",
-                color = if (isLiquid) Color.White.copy(alpha = 0.90f) else ChaiTheme.extended.textSecondary,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontFamily = InterFamily,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.5.dp)
             )
         }
 
@@ -620,7 +686,7 @@ private fun TagIndexRow(
     onClick: () -> Unit
 ) {
     val isLiquid = ChaiTheme.extended.isLiquidGlass
-    val cardShape = RoundedCornerShape(16.dp)
+    val cardShape = RoundedCornerShape(18.dp)
 
     Row(
         modifier = Modifier
@@ -629,16 +695,11 @@ private fun TagIndexRow(
             .then(
                 if (isLiquid) {
                     Modifier
-                        .padding(horizontal = 16.dp, vertical = 5.dp)
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                listOf(
-                                    ChaiSaffron.copy(alpha = 0.28f),
-                                    ChaiSaffron.copy(alpha = 0.10f),
-                                    Color(0x330D111A)
-                                )
-                            ),
-                            shape = cardShape
+                        .padding(horizontal = 16.dp, vertical = 5.5.dp)
+                        .liquidGlassCard(
+                            shape = cardShape,
+                            accentColor = ChaiSaffron,
+                            blurRadiusDp = 22.dp
                         )
                         .clickable(onClick = onClick)
                         .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -650,17 +711,35 @@ private fun TagIndexRow(
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val isLightGlass = ChaiTheme.extended.isLightGlass
         Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = ChaiSaffron.copy(alpha = if (isLiquid) 0.22f else 0.12f),
-            border = androidx.compose.foundation.BorderStroke(0.8.dp, ChaiSaffron.copy(alpha = 0.45f)),
-            modifier = Modifier.size(40.dp)
+            shape = RoundedCornerShape(12.dp),
+            color = ChaiSaffron.copy(alpha = if (isLiquid) (if (isLightGlass) 0.16f else 0.28f) else 0.12f),
+            border = androidx.compose.foundation.BorderStroke(
+                if (isLiquid) 1.dp else 0.8.dp,
+                if (isLiquid && !isLightGlass) Color.White.copy(alpha = 0.36f) else ChaiSaffron.copy(alpha = 0.45f)
+            ),
+            modifier = Modifier.size(42.dp)
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.then(
+                    if (isLiquid) {
+                        Modifier.background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = if (isLightGlass) 0.45f else 0.28f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                    } else Modifier
+                ),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
                     imageVector = Icons.Outlined.Tag,
                     contentDescription = null,
-                    tint = ChaiTheme.extended.brandText,
+                    tint = if (isLiquid && !isLightGlass) Color.White else ChaiTheme.extended.brandText,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -678,20 +757,24 @@ private fun TagIndexRow(
         )
 
         Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = if (isLiquid) Color.White.copy(alpha = 0.12f) else ChaiTheme.extended.surfaceSecondary,
+            shape = RoundedCornerShape(10.dp),
+            color = if (isLiquid) {
+                if (isLightGlass) Color(0x100F172A) else Color.White.copy(alpha = 0.14f)
+            } else ChaiTheme.extended.surfaceSecondary,
             border = androidx.compose.foundation.BorderStroke(
-                0.6.dp,
-                if (isLiquid) Color.White.copy(alpha = 0.25f) else ChaiTheme.extended.border
+                0.8.dp,
+                if (isLiquid) {
+                    if (isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.30f)
+                } else ChaiTheme.extended.border
             )
         ) {
             Text(
                 text = "${tag.count} लेख",
-                color = if (isLiquid) Color.White.copy(alpha = 0.90f) else ChaiTheme.extended.textSecondary,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontFamily = InterFamily,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.5.dp)
             )
         }
 

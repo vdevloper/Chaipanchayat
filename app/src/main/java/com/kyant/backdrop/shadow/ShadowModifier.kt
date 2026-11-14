@@ -70,6 +70,8 @@ internal class ShadowNode(
     private var shadowLayer: GraphicsLayer? = null
 
     private val paint = Paint()
+    private var cachedShadowSize: IntSize = IntSize.Zero
+    private var cachedShadow: Shadow? = null
 
     override fun ContentDrawScope.draw() {
         drawContent()
@@ -90,24 +92,30 @@ internal class ShadowNode(
                     ceil(size.width + radius * 4f + offsetX).toInt().coerceAtLeast(1),
                     ceil(size.height + radius * 4f + offsetY).toInt().coerceAtLeast(1)
                 )
-                val outline = try {
-                    shapeProvider.shape.createOutline(size, layoutDirection, density)
-                } catch (_: Throwable) {
-                    null
-                } ?: return
-
-                configurePaint(shadow)
 
                 shadowLayer.alpha = shadow.alpha
                 shadowLayer.blendMode = shadow.blendMode
-                shadowLayer.record(shadowSize) {
-                    translate(radius * 2f + offsetX, radius * 2f + offsetY) {
-                        val canvas = drawContext.canvas
-                        canvas.drawOutline(outline, paint)
-                        canvas.translate(-offsetX, -offsetY)
-                        canvas.drawOutline(outline, ShadowMaskPaint)
-                        canvas.translate(offsetX, offsetY)
+
+                if (shadowSize != cachedShadowSize || shadow != cachedShadow) {
+                    val outline = try {
+                        shapeProvider.shape.createOutline(size, layoutDirection, density)
+                    } catch (_: Throwable) {
+                        null
+                    } ?: return
+
+                    configurePaint(shadow)
+
+                    shadowLayer.record(shadowSize) {
+                        translate(radius * 2f + offsetX, radius * 2f + offsetY) {
+                            val canvas = drawContext.canvas
+                            canvas.drawOutline(outline, paint)
+                            canvas.translate(-offsetX, -offsetY)
+                            canvas.drawOutline(outline, ShadowMaskPaint)
+                            canvas.translate(offsetX, offsetY)
+                        }
                     }
+                    cachedShadowSize = shadowSize
+                    cachedShadow = shadow
                 }
 
                 translate(-radius * 2f, -radius * 2f) {
@@ -125,6 +133,8 @@ internal class ShadowNode(
             graphicsContext.createGraphicsLayer().apply {
                 compositingStrategy = CompositingStrategy.Offscreen
             }
+        cachedShadowSize = IntSize.Zero
+        cachedShadow = null
     }
 
     override fun onDetach() {
@@ -133,6 +143,8 @@ internal class ShadowNode(
             graphicsContext.releaseGraphicsLayer(layer)
             shadowLayer = null
         }
+        cachedShadowSize = IntSize.Zero
+        cachedShadow = null
     }
 
     private fun DrawScope.configurePaint(shadow: Shadow) {

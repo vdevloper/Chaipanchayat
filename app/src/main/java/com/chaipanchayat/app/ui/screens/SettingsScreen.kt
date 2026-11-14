@@ -74,8 +74,8 @@ import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.repository.SettingsRepository
 import com.chaipanchayat.app.data.repository.TextSizePreference
 import com.chaipanchayat.app.data.repository.ThemeMode
-import com.chaipanchayat.app.engine.liquidglass.GlassBlurDepth
-import com.chaipanchayat.app.engine.liquidglass.GlassTintStyle
+import com.chaipanchayat.app.engine.liquidglass.GlassSubMode
+import com.chaipanchayat.app.engine.liquidglass.liquidGlassCard
 import com.chaipanchayat.app.engine.liquidglass.LiquidGlassSettings
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
@@ -136,10 +136,11 @@ fun SettingsScreen(
     }
 
     val isLiquidGlassActive = ChaiTheme.extended.isLiquidGlass
+    val isLightGlassActive = ChaiTheme.extended.isLightGlass
     val settingsFeedBackdrop = rememberLayerBackdrop()
     var headerHeightPx by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val headerHeightDp = with(density) { headerHeightPx.toDp() }
+    val headerHeightDp = if (headerHeightPx > 0) with(density) { headerHeightPx.toDp() } else 112.dp
 
     Box(
         modifier = modifier
@@ -284,14 +285,14 @@ fun SettingsScreen(
                     }
                 }
 
-                // 2. Liquid Glass Card (iOS Inspired Glass Material)
+                // 2. Liquid Glass Card (iOS 26 / Smart Home Glass Material)
                 val isLiquid = themeMode == ThemeMode.LIQUID_GLASS
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0x38182236),
+                    color = if (isLightGlassActive) Color(0x100F172A) else Color(0x38181A20),
                     border = androidx.compose.foundation.BorderStroke(
                         width = if (isLiquid) 2.dp else 1.dp,
-                        color = if (isLiquid) Color.White.copy(alpha = 0.90f) else Color(0x33FFFFFF)
+                        color = if (isLiquid) ChaiSaffron else ChaiTheme.extended.border
                     ),
                     modifier = Modifier
                         .weight(1f)
@@ -309,13 +310,21 @@ fun SettingsScreen(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
                                     androidx.compose.ui.graphics.Brush.linearGradient(
-                                        listOf(Color(0x5538BDF8), Color(0x331E293B))
+                                        if (isLightGlassActive) {
+                                            listOf(Color(0x65FFFFFF), Color(0x140F172A))
+                                        } else {
+                                            listOf(Color(0x42FFFFFF), Color(0xFF14161C))
+                                        }
                                     )
                                 )
                                 .border(
                                     width = 0.8.dp,
                                     brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                                        listOf(Color.White.copy(alpha = 0.6f), Color.White.copy(alpha = 0.1f))
+                                        if (isLightGlassActive) {
+                                            listOf(Color(0x380F172A), Color(0x180F172A))
+                                        } else {
+                                            listOf(Color.White.copy(alpha = 0.65f), Color.White.copy(alpha = 0.15f))
+                                        }
                                     ),
                                     shape = RoundedCornerShape(8.dp)
                                 )
@@ -331,7 +340,10 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth(0.45f)
                                     .height(3.dp)
-                                    .background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
+                                    .background(
+                                        if (isLightGlassActive) Color(0xFF94A3B8) else Color.White.copy(alpha = 0.45f),
+                                        RoundedCornerShape(2.dp)
+                                    )
                                     .align(Alignment.CenterStart)
                             )
                         }
@@ -340,7 +352,7 @@ fun SettingsScreen(
                             fontFamily = InterFamily,
                             fontWeight = if (isLiquid) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 12.5.sp,
-                            color = if (isLiquid) Color.White else MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "iOS लिक्विड",
@@ -355,10 +367,10 @@ fun SettingsScreen(
                 val isLight = themeMode == ThemeMode.LIGHT
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFF182236),
+                    color = if (isLightGlassActive) Color(0x99FFFFFF) else Color(0xFF182236),
                     border = androidx.compose.foundation.BorderStroke(
                         width = if (isLight) 2.dp else 1.dp,
-                        color = if (isLight) ChaiSaffron else Color(0xFF26354D)
+                        color = if (isLight) ChaiSaffron else if (isLightGlassActive) Color(0xFFCBD5E1) else Color(0xFF26354D)
                     ),
                     modifier = Modifier
                         .weight(1f)
@@ -375,6 +387,7 @@ fun SettingsScreen(
                                 .height(40.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color(0xFFF9F6F0))
+                                .border(0.6.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
                                 .padding(5.dp)
                         ) {
                             Box(
@@ -408,141 +421,73 @@ fun SettingsScreen(
                 }
             }
 
-            // Liquid Glass Material Fine-Tuning (Shown only when Liquid Glass is active)
+            // Simple 2-Option Liquid Glass Submode Switcher: Dark Glass vs Light Glass
             if (themeMode == ThemeMode.LIQUID_GLASS) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0x38182236),
-                    border = androidx.compose.foundation.BorderStroke(
-                        width = 1.dp,
-                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                            listOf(Color.White.copy(alpha = 0.40f), Color.White.copy(alpha = 0.08f))
-                        )
-                    ),
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 6.dp)
+                        .liquidGlassCard(
+                            shape = RoundedCornerShape(16.dp),
+                            blurRadiusDp = 28.dp,
+                            withShadow = false
+                        )
+                        .padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "LIQUID GLASS MATERIAL",
-                                fontFamily = InterFamily,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 11.5.sp,
-                                letterSpacing = 0.8.sp,
-                                color = Color.White.copy(alpha = 0.85f)
-                            )
+                    GlassSubMode.entries.forEach { subMode ->
+                        val isSelected = glassSettings.subMode == subMode
+                        val pillBg = when {
+                            isSelected && isLightGlassActive -> Color(0x140F172A)
+                            isSelected -> Color.White.copy(alpha = 0.18f)
+                            else -> Color.Transparent
                         }
-
-                        // Tint Style Selector
-                        Text(
-                            text = "Tint Style (ग्लास का रंग):",
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
-                            color = ChaiTheme.extended.textSecondary
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        val pillBorder = when {
+                            isSelected && isLightGlassActive -> Color(0x360F172A)
+                            isSelected -> Color.White.copy(alpha = 0.42f)
+                            else -> Color.Transparent
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = pillBg,
+                            border = androidx.compose.foundation.BorderStroke(0.8.dp, pillBorder),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { settingsRepo.setGlassSubMode(subMode) }
+                                .testTag("glass-submode-${subMode.key}")
                         ) {
-                            GlassTintStyle.entries.forEach { tint ->
-                                val isSelected = glassSettings.tintStyle == tint
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isSelected) tint.accentColor.copy(alpha = 0.20f) else Color(0x22FFFFFF),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        width = if (isSelected) 1.5.dp else 0.5.dp,
-                                        color = if (isSelected) tint.accentColor else Color(0x33FFFFFF)
-                                    ),
+                            Row(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .clickable {
-                                            settingsRepo.updateLiquidGlassSettings { it.copy(tintStyle = tint) }
-                                        }
-                                ) {
-                                    Text(
-                                        text = when (tint) {
-                                            GlassTintStyle.CRYSTAL_CYAN -> "iOS Clear"
-                                            GlassTintStyle.FROSTED_ICE -> "Frosted"
-                                            GlassTintStyle.ROYAL_SAFFRON -> "Saffron"
-                                            GlassTintStyle.OBSIDIAN_SMOKE -> "Smoked"
-                                            GlassTintStyle.AURORA_EMERALD -> "Emerald"
-                                        },
-                                        fontFamily = InterFamily,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 10.sp,
-                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.65f),
-                                        modifier = Modifier.padding(vertical = 6.dp, horizontal = 2.dp),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (subMode == GlassSubMode.DARK) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isSelected) ChaiSaffron else Color(0xFF94A3B8),
+                                            shape = CircleShape
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${subMode.title} (${subMode.hindiTitle})",
+                                    fontFamily = InterFamily,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 12.sp,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        ChaiTheme.extended.textSecondary
+                                    }
+                                )
                             }
-                        }
-
-                        // Blur Depth Selector
-                        Text(
-                            text = "Backdrop Blur Depth (ब्लर घनत्व):",
-                            fontFamily = InterFamily,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
-                            color = ChaiTheme.extended.textSecondary
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            GlassBlurDepth.entries.forEach { blur ->
-                                val isSelected = glassSettings.blurDepth == blur
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isSelected) ChaiSaffron.copy(alpha = 0.20f) else Color(0x22FFFFFF),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        width = if (isSelected) 1.5.dp else 0.5.dp,
-                                        color = if (isSelected) ChaiSaffron else Color(0x33FFFFFF)
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable {
-                                            settingsRepo.updateLiquidGlassSettings { it.copy(blurDepth = blur) }
-                                        }
-                                ) {
-                                    Text(
-                                        text = blur.title.substringBefore(" ("),
-                                        fontFamily = InterFamily,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        fontSize = 10.5.sp,
-                                        color = if (isSelected) ChaiSaffron else Color.White.copy(alpha = 0.65f),
-                                        modifier = Modifier.padding(vertical = 6.dp, horizontal = 2.dp),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-                            }
-                        }
-
-                        // Toggles for Specular Shimmer and Ambient Orbs
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Ambient Morphing Underglow",
-                                fontFamily = InterFamily,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Switch(
-                                checked = glassSettings.ambientOrbs,
-                                onCheckedChange = { checked ->
-                                    settingsRepo.updateLiquidGlassSettings { it.copy(ambientOrbs = checked) }
-                                },
-                                colors = SwitchDefaults.colors(checkedThumbColor = ChaiSaffron, checkedTrackColor = ChaiSaffron.copy(alpha = 0.4f))
-                            )
                         }
                     }
                 }
@@ -659,12 +604,14 @@ fun SettingsScreen(
                 .fillMaxWidth()
                 .onSizeChanged { size -> headerHeightPx = size.height }
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(ChaiBrandGradient)
-            )
+            if (!isLiquidGlassActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(ChaiBrandGradient)
+                )
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1137,21 +1084,61 @@ private fun SettingsNavRow(
     onClick: () -> Unit,
     testTag: String
 ) {
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = RoundedCornerShape(16.dp)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 13.dp)
+            .then(
+                if (isLiquid) {
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .liquidGlassCard(
+                            shape = cardShape,
+                            blurRadiusDp = 20.dp,
+                            withShadow = false
+                        )
+                        .clickable(onClick = onClick)
+                        .padding(horizontal = 16.dp, vertical = 13.dp)
+                } else {
+                    Modifier
+                        .clickable(onClick = onClick)
+                        .padding(horizontal = 20.dp, vertical = 13.dp)
+                }
+            )
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = ChaiTheme.extended.textSecondary,
-                modifier = Modifier.size(20.dp)
-            )
+            if (isLiquid) {
+                val isLightGlass = ChaiTheme.extended.isLightGlass
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isLightGlass) Color(0x100F172A) else Color.White.copy(alpha = 0.10f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        0.75.dp,
+                        if (isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.22f)
+                    ),
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = ChaiTheme.extended.textSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(14.dp))
         }
 
@@ -1176,13 +1163,34 @@ private fun SettingsNavRow(
         }
 
         if (trailingValue != null) {
-            Text(
-                text = trailingValue,
-                fontFamily = InterFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.5.sp,
-                color = ChaiTheme.extended.brandText
-            )
+            if (isLiquid) {
+                val isLightGlass = ChaiTheme.extended.isLightGlass
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isLightGlass) Color(0x100F172A) else Color.White.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        0.75.dp,
+                        if (isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.24f)
+                    )
+                ) {
+                    Text(
+                        text = trailingValue,
+                        fontFamily = InterFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                    )
+                }
+            } else {
+                Text(
+                    text = trailingValue,
+                    fontFamily = InterFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp,
+                    color = ChaiTheme.extended.brandText
+                )
+            }
             Spacer(modifier = Modifier.width(8.dp))
         }
 
@@ -1203,11 +1211,29 @@ private fun SettingsToggleRow(
     onCheckedChange: (Boolean) -> Unit,
     testTag: String? = null
 ) {
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = RoundedCornerShape(16.dp)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .then(
+                if (isLiquid) {
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .liquidGlassCard(
+                            shape = cardShape,
+                            blurRadiusDp = 20.dp,
+                            withShadow = false
+                        )
+                        .clickable { onCheckedChange(!checked) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                } else {
+                    Modifier
+                        .clickable { onCheckedChange(!checked) }
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                }
+            )
             .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1238,7 +1264,9 @@ private fun SettingsToggleRow(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = ChaiSaffron,
                 uncheckedThumbColor = ChaiTheme.extended.textSecondary,
-                uncheckedTrackColor = ChaiTheme.extended.surfaceSecondary
+                uncheckedTrackColor = if (isLiquid) {
+                    if (ChaiTheme.extended.isLightGlass) Color(0x220F172A) else Color(0x4527272A)
+                } else ChaiTheme.extended.surfaceSecondary
             )
         )
     }
@@ -1249,10 +1277,26 @@ private fun SettingsInfoRow(
     title: String,
     value: String
 ) {
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = RoundedCornerShape(16.dp)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 13.dp),
+            .then(
+                if (isLiquid) {
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .liquidGlassCard(
+                            shape = cardShape,
+                            blurRadiusDp = 20.dp,
+                            withShadow = false
+                        )
+                        .padding(horizontal = 16.dp, vertical = 13.dp)
+                } else {
+                    Modifier.padding(horizontal = 20.dp, vertical = 13.dp)
+                }
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -1267,7 +1311,7 @@ private fun SettingsInfoRow(
         Text(
             text = value,
             fontFamily = InterFamily,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 13.5.sp,
             color = ChaiTheme.extended.textSecondary
         )

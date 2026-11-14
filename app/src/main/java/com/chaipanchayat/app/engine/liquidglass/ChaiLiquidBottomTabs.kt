@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.ui.navigation.MainTab
 import com.chaipanchayat.app.ui.theme.ChaiCrimson
-import com.chaipanchayat.app.ui.theme.ChaiSaffron
+import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.utils.rememberChaiHaptics
 import com.kyant.backdrop.Backdrop
@@ -63,8 +63,6 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.isRenderEffectSupported
 import com.kyant.backdrop.shadow.Shadow
 import kotlin.math.roundToInt
@@ -78,14 +76,8 @@ data class ChaiTabItem(
 
 /**
  * Flagship Refractive Liquid Glass Floating Navigation Dock for Chai Panchayat
- * Synthesizes the best of BitChord & iOS 26 Liquid Glass:
- * - Elevated floating capsule dock (16dp above system navigation bar, 16dp horizontal margin)
- *   with deep ambient drop shadow so content visibly flows underneath and around the floating bar.
- * - Deep frosted backdrop blur (26dp) + vibrancy + color saturation (1.65x) so underlying text
- *   melts into smooth, velvety color clouds and never bleeds through unblurred.
- * - Perfectly centered 3D selection pill (58dp tall inside a 68dp dock, offsetY = 0 relative to
- *   Alignment.CenterStart) that generously frames 100% of the tab icon + Hindi label at rest
- *   and swells symmetrically (+28dp width, +24dp height) past both top and bottom bar edges when lifted.
+ * In both Dark Glass and Light Glass submodes, the dock and the active water-droplet selection pill
+ * are genuinely transparent crystal glass — refracting and frosting the underlying feed.
  */
 @Composable
 fun ChaiLiquidBottomTabs(
@@ -98,6 +90,7 @@ fun ChaiLiquidBottomTabs(
 ) {
     val haptics = rememberChaiHaptics()
     val strings = com.chaipanchayat.app.ui.theme.LocalChaiStrings.current
+    val isLightGlass = ChaiTheme.extended.isLightGlass
     val capsuleShape = remember { Capsule() }
     val scope = rememberCoroutineScope()
 
@@ -144,11 +137,8 @@ fun ChaiLiquidBottomTabs(
             val barHeightPx = with(density) { barHeight.toPx() }
             val rowPadPx = with(density) { rowHorizontalPadding.toPx() }
 
-            // At rest: 58.dp tall (5.dp top & bottom margin inside 68.dp bar) and singleTabWidth + 8.dp wide
-            // so the 20.dp icon + 11.sp label (~36.dp total height) has 11.dp of cushion on top and bottom!
             val pillRestExtraW = with(density) { 8.dp.toPx() }
             val pillRestInsetH = with(density) { 10.dp.toPx() }
-            // When lifted: swells to 84.dp tall (+8.dp above top of bar and +8.dp below bottom of bar) and +28.dp wider
             val liftExtraW = with(density) { 28.dp.toPx() }
             val liftExtraH = with(density) { 26.dp.toPx() }
 
@@ -156,7 +146,7 @@ fun ChaiLiquidBottomTabs(
                 pillMotion.stepDp = singleTabWidthPx
             }
 
-            // Layer 1: Floating Frosted & Refractive Liquid Glass Capsule Bar Backdrop
+            // Layer 1: Floating Transparent & Refractive Liquid Glass Capsule Bar Backdrop
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -166,78 +156,85 @@ fun ChaiLiquidBottomTabs(
                                 backdrop = backdrop,
                                 shape = { capsuleShape },
                                 effects = {
-                                    vibrancy()
+                                    blur(22.dp.toPx())
                                     colorControls(
-                                        brightness = -0.04f,
-                                        contrast = 1.14f,
-                                        saturation = 1.68f
+                                        brightness = 0.0f,
+                                        contrast = 1.04f,
+                                        saturation = 1.12f
                                     )
-                                    blur(26.dp.toPx())
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                         lens(
-                                            refractionHeight = 18.dp.toPx(),
-                                            refractionAmount = 36.dp.toPx(),
+                                            refractionHeight = 15.dp.toPx(),
+                                            refractionAmount = 28.dp.toPx(),
                                             depthEffect = true,
                                             chromaticAberration = true
                                         )
                                     }
                                 },
                                 highlight = {
-                                    Highlight.Default.copy(
-                                        width = 1.2.dp,
-                                        alpha = 0.92f
+                                    glassHighlight(
+                                        isLightGlass = isLightGlass,
+                                        width = if (isLightGlass) 1.1.dp else 0.85.dp,
+                                        alpha = if (isLightGlass) 0.30f else 0.72f
                                     )
                                 },
                                 shadow = {
                                     Shadow(
-                                        radius = 22.dp,
-                                        offset = DpOffset(0.dp, 8.dp),
-                                        color = Color.Black.copy(alpha = 0.54f)
+                                        radius = 20.dp,
+                                        offset = DpOffset(0.dp, 6.dp),
+                                        color = Color.Black.copy(alpha = if (isLightGlass) 0.12f else 0.48f)
                                     )
                                 },
                                 onDrawSurface = {
                                     if (size.isSpecified && size.width > 0f && size.height > 0f) {
-                                        // 1. Deep Frosted Obsidian-Smoky Glass Base
-                                        drawRect(Color(0x90080C18))
-                                        // 2. Iridescent Chromatic Glass Cushion (Indigo-Violet -> Chai Saffron -> Warm Amber)
-                                        drawRect(
-                                            brush = Brush.horizontalGradient(
-                                                colors = listOf(
-                                                    Color(0x344C1D95),
-                                                    Color(0x261E1B4B),
-                                                    Color(0x2EFF5400),
-                                                    Color(0x30D97706)
+                                        if (isLightGlass) {
+                                            // Crystal-clear transparent glass dock with top white specular sheen
+                                            drawRect(Color(0x0B0F172A))
+                                            drawRect(Color(0x2EFFFFFF))
+                                            drawRect(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.White.copy(alpha = 0.58f),
+                                                        Color.Transparent,
+                                                        Color(0x0A0F172A)
+                                                    )
                                                 )
                                             )
-                                        )
-                                        // 3. Milky Frosted Diffusion Layer
-                                        drawRect(Color(0x1AFFFFFF))
-                                        // 4. Upper Specular Glass Bevel & Lower Depth Vignette
-                                        drawRect(
-                                            brush = Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.White.copy(alpha = 0.25f),
-                                                    Color.White.copy(alpha = 0.06f),
-                                                    Color.Transparent,
-                                                    Color.Black.copy(alpha = 0.28f)
+                                        } else {
+                                            // Dark Smoked-Crystal Frosted Glass Dock
+                                            drawRect(Color(0x52121318))
+                                            drawRect(Color(0x12FFFFFF))
+                                            drawRect(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.White.copy(alpha = 0.11f),
+                                                        Color.Transparent,
+                                                        Color.White.copy(alpha = 0.03f)
+                                                    )
                                                 )
                                             )
-                                        )
+                                        }
                                     }
                                 },
                                 exportedBackdrop = barGlassLayer
                             )
                         } else {
                             Modifier
-                                .background(Color(0xF00B1220), capsuleShape)
+                                .background(if (isLightGlass) Color(0x160F172A) else Color(0xDF141416), capsuleShape)
                                 .border(
-                                    width = 1.dp,
+                                    width = 0.95.dp,
                                     brush = Brush.verticalGradient(
-                                        listOf(
-                                            Color.White.copy(alpha = 0.55f),
-                                            Color.White.copy(alpha = 0.20f),
-                                            Color.White.copy(alpha = 0.06f)
-                                        )
+                                        if (isLightGlass) {
+                                            listOf(
+                                                Color(0x380F172A),
+                                                Color(0x180F172A)
+                                            )
+                                        } else {
+                                            listOf(
+                                                Color.White.copy(alpha = 0.42f),
+                                                Color.White.copy(alpha = 0.14f)
+                                            )
+                                        }
                                     ),
                                     shape = capsuleShape
                                 )
@@ -245,15 +242,9 @@ fun ChaiLiquidBottomTabs(
                     )
             )
 
-            val activeSlotIndex = pillMotion.position.roundToInt().coerceIn(0, totalTabs - 1)
-            val isCurrentTabHome = tabs.getOrNull(activeSlotIndex)?.tab == MainTab.HOME
-            val basePillFill = if (isCurrentTabHome) {
-                ChaiSaffron.copy(alpha = 0.38f)
-            } else {
-                Color(0x48E0E7FF) // Luminous milky-crystal glass pill tint
-            }
+            // Sheer transparent crystal water-droplet pill in both Dark and Light Glass modes!
+            val basePillFill = if (isLightGlass) Color(0x140F172A) else Color(0x32FFFFFF)
 
-            // Compute live physical capsule size (58.dp tall at rest, 84.dp tall water-droplet when lifted)
             val restSize = Size(
                 width = (singleTabWidthPx + pillRestExtraW).coerceAtLeast(1f),
                 height = (barHeightPx - pillRestInsetH).coerceAtLeast(1f)
@@ -266,11 +257,9 @@ fun ChaiLiquidBottomTabs(
             val pillWidthDp = with(density) { currentPillSize.width.toDp() }
             val pillHeightDp = with(density) { currentPillSize.height.toDp() }
 
-            // Horizontal center along the tab bar; vertical alignment is handled by BoxWithConstraints(CenterStart) so offsetY = 0!
             val centerX = rowPadPx + (pillMotion.position + 0.5f) * singleTabWidthPx
             val offsetX = (centerX - currentPillSize.width * 0.5f).roundToInt()
 
-            // Layer 2: Pre-Android 12 Fallback Pill
             if (!isRenderEffectSupported()) {
                 FlatSelectionPill(
                     color = basePillFill,
@@ -280,6 +269,9 @@ fun ChaiLiquidBottomTabs(
                         .size(width = pillWidthDp, height = pillHeightDp)
                 )
             }
+
+            val activeTabColor = if (isLightGlass) Color(0xFF0F172A) else Color.White
+            val inactiveTabColor = if (isLightGlass) Color(0xFF475569) else Color.White.copy(alpha = 0.65f)
 
             // Layer 3: Razor-Sharp Interactive Tab Row (Recorded into tabRowLayer so glass pill refracts it!)
             Row(
@@ -341,7 +333,7 @@ fun ChaiLiquidBottomTabs(
                     }
 
                     val iconScale by animateFloatAsState(
-                        targetValue = if (isSelected) 1.08f else 1.0f,
+                        targetValue = if (isSelected) 1.06f else 1.0f,
                         animationSpec = spring(dampingRatio = 0.58f, stiffness = 480f),
                         label = "tab_scale_${item.tab.name}"
                     )
@@ -384,11 +376,7 @@ fun ChaiLiquidBottomTabs(
                                     imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
                                     contentDescription = tabTitle,
                                     modifier = Modifier.size(if (isTabHome) 21.dp else 20.dp),
-                                    tint = if (isSelected) {
-                                        Color.White
-                                    } else {
-                                        Color.White.copy(alpha = 0.68f)
-                                    }
+                                    tint = if (isSelected) activeTabColor else inactiveTabColor
                                 )
 
                                 if (item.tab == MainTab.VIDEOS) {
@@ -410,11 +398,7 @@ fun ChaiLiquidBottomTabs(
                                 lineHeight = 12.sp,
                                 letterSpacing = 0.15.sp,
                                 maxLines = 1,
-                                color = if (isSelected) {
-                                    Color.White
-                                } else {
-                                    Color.White.copy(alpha = 0.65f)
-                                }
+                                color = if (isSelected) activeTabColor else inactiveTabColor
                             )
                         }
                     }

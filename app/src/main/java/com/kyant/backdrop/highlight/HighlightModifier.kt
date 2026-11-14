@@ -84,6 +84,8 @@ internal class HighlightNode(
     private val runtimeShaderCache = RuntimeShaderCacheImpl()
 
     private var prevStyle: HighlightStyle? = null
+    private var cachedSafeSize: IntSize = IntSize.Zero
+    private var cachedHighlight: Highlight? = null
 
     override fun ContentDrawScope.draw() {
         drawContent()
@@ -106,31 +108,36 @@ internal class HighlightNode(
                         ceil(size.height).toInt() + 2
                     )
 
-                val outline = try {
-                    shapeProvider.shape.createOutline(size, layoutDirection, density)
-                } catch (_: Throwable) {
-                    null
-                } ?: return
-
-                val clipPath =
-                    if (outline is Outline.Rounded) {
-                        clipPath ?: Path().also { clipPath = it }
-                    } else {
-                        null
-                    }
-
-                configurePaint(highlight)
-
                 highlightLayer.alpha = highlight.alpha
                 highlightLayer.blendMode = highlight.style.blendMode
-                highlightLayer.record(safeSize) {
-                    translate(1f, 1f) {
-                        val canvas = drawContext.canvas
-                        canvas.save()
-                        canvas.clipOutline(outline, clipPath)
-                        canvas.drawOutline(outline, paint)
-                        canvas.restore()
+
+                if (safeSize != cachedSafeSize || highlight != cachedHighlight) {
+                    val outline = try {
+                        shapeProvider.shape.createOutline(size, layoutDirection, density)
+                    } catch (_: Throwable) {
+                        null
+                    } ?: return
+
+                    val clipPath =
+                        if (outline is Outline.Rounded) {
+                            clipPath ?: Path().also { clipPath = it }
+                        } else {
+                            null
+                        }
+
+                    configurePaint(highlight)
+
+                    highlightLayer.record(safeSize) {
+                        translate(1f, 1f) {
+                            val canvas = drawContext.canvas
+                            canvas.save()
+                            canvas.clipOutline(outline, clipPath)
+                            canvas.drawOutline(outline, paint)
+                            canvas.restore()
+                        }
                     }
+                    cachedSafeSize = safeSize
+                    cachedHighlight = highlight
                 }
 
                 translate(-1f, -1f) {
@@ -145,6 +152,8 @@ internal class HighlightNode(
     override fun onAttach() {
         val graphicsContext = requireGraphicsContext()
         highlightLayer = graphicsContext.createGraphicsLayer()
+        cachedSafeSize = IntSize.Zero
+        cachedHighlight = null
     }
 
     override fun onDetach() {
@@ -156,6 +165,8 @@ internal class HighlightNode(
         clipPath = null
         runtimeShaderCache.clear()
         prevStyle = null
+        cachedSafeSize = IntSize.Zero
+        cachedHighlight = null
     }
 
     private fun DrawScope.configurePaint(highlight: Highlight) {

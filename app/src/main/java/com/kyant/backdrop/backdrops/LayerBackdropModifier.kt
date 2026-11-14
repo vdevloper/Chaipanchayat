@@ -1,15 +1,20 @@
 package com.kyant.backdrop.backdrops
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScrollModifierNode
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.node.DelegatingNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
-import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.layer.drawLayer
 import com.kyant.backdrop.internal.recordLayer
 
 fun Modifier.layerBackdrop(backdrop: LayerBackdrop): Modifier =
@@ -52,10 +57,27 @@ private class LayerBackdropElement(
 
 private class LayerBackdropNode(
     var backdrop: LayerBackdrop
-) : DrawModifierNode, GlobalPositionAwareModifierNode, Modifier.Node() {
+) : DelegatingNode(), DrawModifierNode, GlobalPositionAwareModifierNode, NestedScrollConnection {
+
+    init {
+        delegate(nestedScrollModifierNode(this, null))
+    }
+
+    override fun onPostScroll(
+        consumed: Offset,
+        available: Offset,
+        source: NestedScrollSource
+    ): Offset {
+        if (consumed.x != 0f || consumed.y != 0f) {
+            backdrop.drawVersion++
+        }
+        return Offset.Zero
+    }
 
     override fun ContentDrawScope.draw() {
-        if (size.isSpecified && size.width > 0f && size.height > 0f) {
+        // Observe drawVersion so this LayerBackdropNode re-records whenever child scroll containers scroll
+        val currentVersion = backdrop.drawVersion
+        if (currentVersion >= 0 && size.isSpecified && size.width > 0f && size.height > 0f) {
             backdrop.isRecording = true
             try {
                 recordLayer(this, backdrop.graphicsLayer) {
@@ -63,7 +85,9 @@ private class LayerBackdropNode(
                         this@draw.onDraw()
                     }
                 }
-                backdrop.isRecorded = true
+                if (!backdrop.isRecorded) {
+                    backdrop.isRecorded = true
+                }
             } catch (_: Throwable) {
                 backdrop.isRecorded = false
             } finally {
@@ -88,6 +112,7 @@ private class LayerBackdropNode(
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
         if (coordinates.isAttached) {
             backdrop.layerCoordinates = coordinates
+            backdrop.drawVersion++
         }
     }
 

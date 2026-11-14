@@ -350,7 +350,7 @@ fun MainTabsScaffold(
 
     Scaffold(
         containerColor = if (isLiquid) Color.Transparent else MaterialTheme.colorScheme.surface,
-        contentWindowInsets = WindowInsets.safeDrawing,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (!isLiquid) {
                 // Obsidian Dark / Editorial Light: Clean Grounded Flat Navigation Bar
@@ -470,22 +470,23 @@ fun MainTabsScaffold(
                     )
                 }
 
+                // Zero top padding so every screen's header/video extends 100% full-screen to y = 0 behind the status bar!
                 val contentPadding = if (isLiquid) {
-                    PaddingValues(
-                        top = innerPadding.calculateTopPadding(),
-                        bottom = 0.dp
-                    )
+                    PaddingValues(0.dp)
                 } else {
-                    innerPadding
+                    PaddingValues(
+                        top = 0.dp,
+                        bottom = innerPadding.calculateBottomPadding()
+                    )
                 }
 
                 val videoContentPadding = if (isLiquid) {
-                    PaddingValues(
-                        top = innerPadding.calculateTopPadding(),
-                        bottom = if (activeAudioArticle != null) 144.dp else 84.dp
-                    )
+                    PaddingValues(0.dp)
                 } else {
-                    innerPadding
+                    PaddingValues(
+                        top = 0.dp,
+                        bottom = innerPadding.calculateBottomPadding()
+                    )
                 }
 
                 AnimatedContent(

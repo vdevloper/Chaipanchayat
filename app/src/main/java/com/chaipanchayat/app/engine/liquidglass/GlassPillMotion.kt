@@ -25,10 +25,10 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -443,12 +443,13 @@ fun FlatSelectionPill(
     shape: CornerBasedShape,
     modifier: Modifier = Modifier
 ) {
+    val isLightGlass = ChaiTheme.extended.isLightGlass
     Box(
         modifier = modifier
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        Color.White.copy(alpha = 0.22f),
+                        Color.White.copy(alpha = if (isLightGlass) 0.45f else 0.22f),
                         color,
                         color.copy(alpha = (color.alpha * 1.15f).coerceAtMost(1f))
                     )
@@ -458,11 +459,19 @@ fun FlatSelectionPill(
             .border(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
-                    listOf(
-                        Color.White.copy(alpha = 0.65f),
-                        color.copy(alpha = 0.45f),
-                        Color.White.copy(alpha = 0.25f)
-                    )
+                    if (isLightGlass) {
+                        listOf(
+                            Color(0x360F172A),
+                            Color(0x180F172A),
+                            Color(0x280F172A)
+                        )
+                    } else {
+                        listOf(
+                            Color.White.copy(alpha = 0.65f),
+                            color.copy(alpha = 0.45f),
+                            Color.White.copy(alpha = 0.25f)
+                        )
+                    }
                 ),
                 shape = shape
             )
@@ -485,10 +494,11 @@ fun GlassSelectionPill(
     shape: CornerBasedShape,
     modifier: Modifier = Modifier
 ) {
+    val isLightGlass = ChaiTheme.extended.isLightGlass
     val backdrop = remember(pageBackdrop, barGlass, tabRow, fillColor) {
         SelectionPillBackdrop(pageBackdrop, barGlass, tabRow) {
             val liftMix = motion.material.coerceIn(0f, 1f)
-            fillColor.copy(alpha = (fillColor.alpha * (1f - 0.30f * liftMix)).coerceIn(0.14f, 0.48f))
+            fillColor.copy(alpha = (fillColor.alpha * (1f - 0.25f * liftMix)).coerceIn(0.08f, 0.48f))
         }
     }
     Box(
@@ -509,33 +519,54 @@ fun GlassSelectionPill(
             },
             highlight = {
                 val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
-                Highlight.Default.copy(
-                    width = (1.1f + 0.6f * liftBoost).dp,
-                    alpha = (0.85f + 0.15f * liftBoost).coerceIn(0f, 1f)
+                glassHighlight(
+                    isLightGlass = isLightGlass,
+                    width = (1.0f + 0.45f * liftBoost).dp,
+                    alpha = if (isLightGlass) {
+                        (0.32f + 0.16f * liftBoost).coerceIn(0f, 1f)
+                    } else {
+                        (0.76f + 0.20f * liftBoost).coerceIn(0f, 1f)
+                    }
                 )
             },
             shadow = {
                 val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
                 Shadow(
-                    radius = (10f + 10f * liftBoost).dp,
-                    offset = DpOffset(0.dp, (3f + 4f * liftBoost).dp),
-                    color = Color.Black.copy(alpha = 0.34f + 0.22f * liftBoost)
+                    radius = (8f + 10f * liftBoost).dp,
+                    offset = DpOffset(0.dp, (2f + 4f * liftBoost).dp),
+                    color = Color.Black.copy(
+                        alpha = if (isLightGlass) {
+                            0.12f + 0.10f * liftBoost
+                        } else {
+                            0.26f + 0.20f * liftBoost
+                        }
+                    )
                 )
             },
             onDrawSurface = {
                 if (size.isSpecified && size.width > 0f && size.height > 0f) {
                     val liftBoost = motion.glassPresence.coerceIn(0f, 1f)
-                    // Upper convex liquid dome reflection & lower inner rim glow
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.34f + 0.12f * liftBoost),
-                                Color.White.copy(alpha = 0.10f + 0.04f * liftBoost),
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.14f + 0.08f * liftBoost)
+                    if (isLightGlass) {
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.55f + 0.12f * liftBoost),
+                                    Color.Transparent,
+                                    Color(0x0C0F172A)
+                                )
                             )
                         )
-                    )
+                    } else {
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.12f + 0.08f * liftBoost),
+                                    Color.Transparent,
+                                    Color.White.copy(alpha = 0.04f + 0.05f * liftBoost)
+                                )
+                            )
+                        )
+                    }
                 }
             }
         )

@@ -3,7 +3,9 @@ package com.kyant.backdrop.backdrops
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -39,8 +41,9 @@ class LayerBackdrop internal constructor(
 
     override val isCoordinatesDependent: Boolean = true
 
-    internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null)
-    internal var isRecorded: Boolean = false
+    internal var layerCoordinates: LayoutCoordinates? by mutableStateOf(null, neverEqualPolicy())
+    internal var isRecorded: Boolean by mutableStateOf(false)
+    internal var drawVersion: Int by mutableIntStateOf(0)
     internal var isRecording: Boolean = false
 
     private var inverseLayerScope: InverseLayerScope? = null
@@ -50,10 +53,30 @@ class LayerBackdrop internal constructor(
         coordinates: LayoutCoordinates?,
         layerBlock: (GraphicsLayerScope.() -> Unit)?
     ) {
-        if (!isRecorded || isRecording) return
+        // Always read snapshot states before any early return so DrawBackdropNode subscribes to updates
+        val recorded = isRecorded
+        val version = drawVersion
+        val targetLayerCoordinates = layerCoordinates
+        if (!recorded || isRecording || version < 0) return
         val coordinates = coordinates ?: return
-        val layerCoordinates = layerCoordinates ?: return
+        val layerCoordinates = targetLayerCoordinates ?: return
         if (!coordinates.isAttached || !layerCoordinates.isAttached) return
+
+        // Cycle guard: prevent any descendant inside this LayerBackdrop from drawing its own ancestor
+        // LayerBackdrop, which would form a circular RenderNode display list on Android's RenderThread.
+        var curr: LayoutCoordinates? = coordinates
+        while (curr != null) {
+            if (curr == layerCoordinates) return
+            curr = try {
+                if (curr.isAttached) {
+                    curr.parentLayoutCoordinates ?: curr.parentCoordinates
+                } else {
+                    null
+                }
+            } catch (_: Throwable) {
+                null
+            }
+        }
 
         try {
             withTransform({

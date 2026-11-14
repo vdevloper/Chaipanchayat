@@ -75,6 +75,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.chaipanchayat.app.data.model.VideoItem
 import com.chaipanchayat.app.data.repository.NewsRepository
+import com.chaipanchayat.app.engine.liquidglass.liquidGlassRim
 import com.chaipanchayat.app.ui.components.ChaiVideoPlayer
 import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
@@ -238,6 +239,7 @@ fun VideosScreen(
         }
 
         // Top Navigation Bar: Pure Video Title & Controls
+        val capsuleShape = remember { com.kyant.backdrop.Capsule() }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -249,11 +251,21 @@ fun VideosScreen(
         ) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color.Black.copy(alpha = 0.65f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+                color = Color(0x99080D1A),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
+                modifier = Modifier.liquidGlassRim(capsuleShape)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.18f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                        .padding(horizontal = 14.dp, vertical = 6.5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -276,17 +288,28 @@ fun VideosScreen(
             // Global Sound Toggle Button
             Surface(
                 shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.65f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                color = Color(0x99080D1A),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
                 modifier = Modifier
                     .size(40.dp)
+                    .liquidGlassRim(CircleShape)
                     .clickable {
                         haptics.click()
                         isMuted = !isMuted
                     }
                     .testTag("btn_video_sound_toggle")
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.18f),
+                                Color.Transparent
+                            )
+                        )
+                    ),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                         contentDescription = if (isMuted) "Unmute" else "Mute",
@@ -524,6 +547,7 @@ private fun VideoFeedItem(
             }
         }
 
+        val isLiquid = com.chaipanchayat.app.ui.theme.ChaiTheme.extended.isLiquidGlass
         // Bottom Gradient & Content (Headline, Category, Authentic Time, Progress Scrubber & Share)
         Box(
             modifier = Modifier
@@ -539,7 +563,12 @@ private fun VideoFeedItem(
                     )
                 )
                 .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 16.dp,
+                    bottom = if (isLiquid) 140.dp else 16.dp
+                )
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Category pill and real authentic post time

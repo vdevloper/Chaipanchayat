@@ -63,27 +63,26 @@ val DarkCardGlow = Color(0x18FF5A00)
 val DarkBrandText = Color(0xFFFF8533) // Radiant saffron (contrast > 8:1 on dark)
 val DarkGoldText = Color(0xFFFBBF24) // Radiant gold (contrast > 9:1 on dark)
 
-// World-Class Liquid Glass Palette (Refractive, Frosted, Specular)
-val LiquidGlassBackground = Color(0xFF060911)
-val LiquidGlassSurface = Color(0xD90E1626)
-val LiquidGlassSurfaceSecondary = Color(0xCC152138)
-val LiquidGlassSurfaceTertiary = Color(0xA61E2E4C)
+// World-Class Liquid Glass Palette (Pure Colourless Refractive Crystal & Specular White)
+val LiquidGlassBackground = Color(0xFF0B0B0C)
+val LiquidGlassSurface = Color(0xD9161618)
+val LiquidGlassSurfaceSecondary = Color(0xCC1E1E20)
+val LiquidGlassSurfaceTertiary = Color(0xA627272A)
 val LiquidGlassOnSurface = Color(0xFFFFFFFF)
-val LiquidGlassSecondaryText = Color(0xFFE2E8F0)
-val LiquidGlassMuted = Color(0xFFCBD5E1)
-val LiquidGlassBorderColor = Color(0x4038BDF8)
-val LiquidGlassSkeleton = Color(0x801B273E)
-val LiquidGlassGlow = Color(0x3800F0FF)
-val LiquidGlassCyan = Color(0xFF00E5FF)
+val LiquidGlassSecondaryText = Color(0xFFE4E4E7)
+val LiquidGlassMuted = Color(0xFFA1A1AA)
+val LiquidGlassBorderColor = Color(0x52FFFFFF)
+val LiquidGlassSkeleton = Color(0x8027272A)
+val LiquidGlassGlow = Color(0x28FFFFFF)
+val LiquidGlassCyan = Color(0xFFFFFFFF)
 
 // Glass Optical Refraction Brushes
 val LiquidGlassBorderBrush = Brush.linearGradient(
     colors = listOf(
-        Color(0x80FFFFFF),
-        Color(0x20FFFFFF),
-        Color(0x5938BDF8),
-        Color(0x4DFF5400),
-        Color(0x1A00E5FF)
+        Color(0x88FFFFFF),
+        Color(0x38FFFFFF),
+        Color(0x18FFFFFF),
+        Color(0x42FFFFFF)
     )
 )
 
@@ -98,9 +97,9 @@ val LiquidGlassCardSpecularBrush = Brush.verticalGradient(
 val LiquidGlassHeroOverlay = Brush.verticalGradient(
     colors = listOf(
         Color(0x00000000),
-        Color(0x40060911),
-        Color(0xD9060911),
-        Color(0xF2060911)
+        Color(0x400B0B0C),
+        Color(0xD90B0B0C),
+        Color(0xF20B0B0C)
     )
 )
 

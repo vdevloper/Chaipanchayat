@@ -1,7 +1,6 @@
 package com.chaipanchayat.app.engine.liquidglass
 
 import android.os.Build
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -10,10 +9,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +34,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -59,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
+import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.utils.ChaiAudioReader
 import com.chaipanchayat.app.utils.rememberChaiHaptics
@@ -68,19 +64,13 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
-import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.isRenderEffectSupported
 import com.kyant.backdrop.shadow.Shadow
 
 /**
  * Floating Liquid Glass Mini-Player for Chai Panchayat
- * Modeled after BitChord's iOS 26 GlassNowPlaying and floating accessory dock:
- * - Refractive optical glass backdrop sampling
- * - Color saturation boost and AGSL chromatic lens refraction
- * - Cover artwork thumbnail with rounded corners
- * - Tactile press scaling and haptic feedback
- * - Progress indicator and Hindi audio status
+ * Supports both Dark Glass and Light Glass submodes with crisp 22dp backdrop blur,
+ * AGSL chromatic lens refraction, and an inset capsule progress indicator.
  */
 @Composable
 fun ChaiGlassMiniPlayer(
@@ -95,12 +85,13 @@ fun ChaiGlassMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val haptics = rememberChaiHaptics()
+    val isLightGlass = ChaiTheme.extended.isLightGlass
     val shape = remember { Capsule() }
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 1.035f else 1.0f,
+        targetValue = if (isPressed) 1.03f else 1.0f,
         animationSpec = spring(stiffness = 380f, dampingRatio = 0.60f),
         label = "mini_player_press_scale"
     )
@@ -125,6 +116,9 @@ fun ChaiGlassMiniPlayer(
         label = "wave_3"
     )
 
+    val primaryTextColor = MaterialTheme.colorScheme.onSurface
+    val secondaryTextColor = ChaiTheme.extended.textSecondary
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -137,77 +131,83 @@ fun ChaiGlassMiniPlayer(
                         backdrop = backdrop,
                         shape = { shape },
                         effects = {
-                            vibrancy()
+                            blur(22.dp.toPx())
                             colorControls(
-                                brightness = -0.03f,
-                                contrast = 1.12f,
-                                saturation = 1.65f
+                                brightness = 0.0f,
+                                contrast = 1.04f,
+                                saturation = 1.12f
                             )
-                            blur(24.dp.toPx())
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 lens(
-                                    refractionHeight = 15.dp.toPx(),
-                                    refractionAmount = 32.dp.toPx(),
+                                    refractionHeight = 14.dp.toPx(),
+                                    refractionAmount = 26.dp.toPx(),
                                     depthEffect = true,
                                     chromaticAberration = true
                                 )
                             }
                         },
                         highlight = {
-                            Highlight.Default.copy(
-                                width = 1.05.dp,
-                                alpha = 0.86f
+                            glassHighlight(
+                                isLightGlass = isLightGlass,
+                                width = if (isLightGlass) 1.05.dp else 0.82.dp,
+                                alpha = if (isLightGlass) 0.28f else 0.68f
                             )
                         },
                         shadow = {
                             Shadow(
                                 radius = 16.dp,
                                 offset = DpOffset(0.dp, 5.dp),
-                                color = Color.Black.copy(alpha = 0.45f)
+                                color = Color.Black.copy(alpha = if (isLightGlass) 0.10f else 0.42f)
                             )
                         },
                         onDrawSurface = {
                             if (size.width > 0f && size.height > 0f) {
-                                // 1. Deep Frosted Obsidian-Sapphire Base (prevents raw text bleed-through)
-                                drawRect(Color(0x88080D1A))
-                                // 2. Chromatic Glass Under-Glow (Indigo-Violet -> Warm Saffron-Amber)
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color(0x325B21B6),
-                                            Color(0x201E1B4B),
-                                            Color(0x2EFF5400),
-                                            Color(0x28D97706)
+                                if (isLightGlass) {
+                                    // Sheer crystal-clear transparent glass with top white specular sheen
+                                    drawRect(Color(0x0B0F172A))
+                                    drawRect(Color(0x2EFFFFFF))
+                                    drawRect(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.58f),
+                                                Color.Transparent,
+                                                Color(0x0A0F172A)
+                                            )
                                         )
                                     )
-                                )
-                                // 3. Milky Frosted Diffusion Layer
-                                drawRect(Color(0x16FFFFFF))
-                                // 4. Top Specular Glass Bevel
-                                drawRect(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.22f),
-                                            Color.White.copy(alpha = 0.05f),
-                                            Color.Transparent,
-                                            Color.Black.copy(alpha = 0.24f)
+                                } else {
+                                    drawRect(Color(0x52121318))
+                                    drawRect(Color(0x12FFFFFF))
+                                    drawRect(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.11f),
+                                                Color.Transparent,
+                                                Color.White.copy(alpha = 0.03f)
+                                            )
                                         )
                                     )
-                                )
+                                }
                             }
                         }
                     )
                 } else {
                     Modifier
-                        .background(Color(0xEC0B1220), shape)
+                        .background(if (isLightGlass) Color(0x160F172A) else Color(0xD8141416), shape)
                         .border(
                             width = 0.9.dp,
                             brush = Brush.verticalGradient(
-                                listOf(
-                                    Color.White.copy(alpha = 0.48f),
-                                    Color.White.copy(alpha = 0.16f),
-                                    Color.White.copy(alpha = 0.05f)
-                                )
+                                if (isLightGlass) {
+                                    listOf(
+                                        Color(0x360F172A),
+                                        Color(0x180F172A)
+                                    )
+                                } else {
+                                    listOf(
+                                        Color.White.copy(alpha = 0.40f),
+                                        Color.White.copy(alpha = 0.14f)
+                                    )
+                                }
                             ),
                             shape = shape
                         )
@@ -237,7 +237,7 @@ fun ChaiGlassMiniPlayer(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0x33FFFFFF)),
+                        .background(if (isLightGlass) Color(0x140F172A) else Color(0x33FFFFFF)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!article.imageUrl.isNullOrBlank()) {
@@ -268,7 +268,7 @@ fun ChaiGlassMiniPlayer(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.5.sp,
                         letterSpacing = 0.1.sp,
-                        color = Color.White,
+                        color = primaryTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -290,7 +290,7 @@ fun ChaiGlassMiniPlayer(
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Medium,
                             fontSize = 10.5.sp,
-                            color = Color.White.copy(alpha = 0.65f),
+                            color = secondaryTextColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -307,7 +307,12 @@ fun ChaiGlassMiniPlayer(
                         modifier = Modifier
                             .size(34.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.12f))
+                            .background(if (isLightGlass) Color(0x140F172A) else Color.White.copy(alpha = 0.14f))
+                            .border(
+                                width = 0.7.dp,
+                                color = if (isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.24f),
+                                shape = CircleShape
+                            )
                             .clickable {
                                 haptics.click()
                                 onPlayPause()
@@ -317,7 +322,7 @@ fun ChaiGlassMiniPlayer(
                         Icon(
                             imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = Color.White,
+                            tint = primaryTextColor,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -333,7 +338,7 @@ fun ChaiGlassMiniPlayer(
                         Icon(
                             imageVector = Icons.Filled.FastForward,
                             contentDescription = "Skip Forward",
-                            tint = Color.White.copy(alpha = 0.75f),
+                            tint = secondaryTextColor,
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -349,25 +354,27 @@ fun ChaiGlassMiniPlayer(
                         Icon(
                             imageVector = Icons.Filled.Close,
                             contentDescription = "Close player",
-                            tint = Color.White.copy(alpha = 0.50f),
+                            tint = secondaryTextColor.copy(alpha = 0.75f),
                             modifier = Modifier.size(15.dp)
                         )
                     }
                 }
             }
 
-            // Bottom Audio Progress Bar (thin saffron line)
+            // Inset Bottom Audio Progress Bar (padded horizontally by 24.dp so it stays cleanly inside the capsule curve)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
                     .height(2.dp)
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .clip(CircleShape)
+                    .background(if (isLightGlass) Color(0x140F172A) else Color.White.copy(alpha = 0.10f))
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(fraction = progress.coerceIn(0f, 1f))
                         .height(2.dp)
-                        .background(ChaiSaffron)
+                        .background(ChaiSaffron, CircleShape)
                 )
             }
         }

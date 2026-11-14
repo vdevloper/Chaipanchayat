@@ -1,11 +1,7 @@
 package com.chaipanchayat.app.ui.theme
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +26,7 @@ import com.chaipanchayat.app.engine.liquidglass.ProvideLiquidGlassEngine
 @Immutable
 data class ExtendedColors(
     val isLiquidGlass: Boolean,
+    val isLightGlass: Boolean = false,
     val surfaceSecondary: Color,
     val surfaceTertiary: Color,
     val brandTertiary: Color,
@@ -52,6 +49,7 @@ data class ExtendedColors(
 val LocalExtendedColors = staticCompositionLocalOf {
     ExtendedColors(
         isLiquidGlass = false,
+        isLightGlass = false,
         surfaceSecondary = DarkSurfaceSecondary,
         surfaceTertiary = DarkSurfaceTertiary,
         brandTertiary = ChaiSaffronTintDark,
@@ -95,16 +93,30 @@ private val DarkScheme = darkColorScheme(
     onError = Color.White
 )
 
-private val LiquidGlassScheme = darkColorScheme(
+private val LiquidGlassDarkScheme = darkColorScheme(
     primary = ChaiSaffron,
     onPrimary = Color.White,
-    primaryContainer = Color(0x2E00E5FF),
-    onPrimaryContainer = Color(0xFF00E5FF),
-    surface = LiquidGlassBackground,
-    onSurface = LiquidGlassOnSurface,
-    surfaceVariant = LiquidGlassSurfaceSecondary,
-    onSurfaceVariant = LiquidGlassSecondaryText,
-    outline = LiquidGlassBorderColor,
+    primaryContainer = Color(0x24FFFFFF),
+    onPrimaryContainer = Color.White,
+    surface = Color(0xFF0A0B0E),
+    onSurface = Color(0xFFF8FAFC),
+    surfaceVariant = Color(0x40181A20),
+    onSurfaceVariant = Color(0xFFCBD5E1),
+    outline = Color(0x38FFFFFF),
+    error = ErrorBreakingNews,
+    onError = Color.White
+)
+
+private val LiquidGlassLightScheme = lightColorScheme(
+    primary = ChaiSaffron,
+    onPrimary = Color.White,
+    primaryContainer = Color(0x140F172A),
+    onPrimaryContainer = Color(0xFF0F172A),
+    surface = Color(0xFFF0F2F5),
+    onSurface = Color(0xFF0F172A),
+    surfaceVariant = Color(0x0D0F172A),
+    onSurfaceVariant = Color(0xFF334155),
+    outline = Color(0x280F172A),
     error = ErrorBreakingNews,
     onError = Color.White
 )
@@ -117,44 +129,61 @@ fun ChaiPanchayatTheme(
 ) {
     val isSystemDark = isSystemInDarkTheme()
     val isLiquid = themeMode == ThemeMode.LIQUID_GLASS
+    val isLightGlass = isLiquid && liquidGlassSettings.isLightGlass
     val isDark = when (themeMode) {
-        ThemeMode.LIQUID_GLASS -> false
+        ThemeMode.LIQUID_GLASS -> !liquidGlassSettings.isLightGlass
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
         ThemeMode.SYSTEM -> isSystemDark
     }
 
     val colorScheme = when {
-        isLiquid -> LiquidGlassScheme.copy(
-            primaryContainer = liquidGlassSettings.tintStyle.glowColor.copy(alpha = 0.2f),
-            onPrimaryContainer = liquidGlassSettings.tintStyle.accentColor,
-            surface = LiquidGlassBackground,
-            surfaceVariant = liquidGlassSettings.tintStyle.surfaceSecondaryColor
-        )
+        isLiquid && isLightGlass -> LiquidGlassLightScheme
+        isLiquid -> LiquidGlassDarkScheme
         isDark -> DarkScheme
         else -> LightScheme
     }
 
     val extendedColors = when {
+        isLiquid && isLightGlass -> ExtendedColors(
+            isLiquidGlass = true,
+            isLightGlass = true,
+            surfaceSecondary = Color(0x0D0F172A), // Pure sheer transparent crystal glass
+            surfaceTertiary = Color(0x140F172A),
+            brandTertiary = ChaiSaffron.copy(alpha = 0.14f),
+            border = Color(0x280F172A),
+            muted = Color(0xFF475569),
+            textSecondary = Color(0xFF334155),
+            brandText = Color(0xFFC2410C),
+            goldText = Color(0xFFB45309),
+            skeleton = Color(0x3394A3B8),
+            errorBreaking = ErrorBreakingNews,
+            cardGlow = Color(0x28FFFFFF),
+            cyan = ChaiSaffron,
+            glassBorderBrush = liquidGlassSettings.createRimBrush(),
+            glassSpecularBrush = liquidGlassSettings.createSpecularBevelBrush()
+        )
         isLiquid -> ExtendedColors(
             isLiquidGlass = true,
-            surfaceSecondary = liquidGlassSettings.tintStyle.surfaceSecondaryColor.copy(alpha = liquidGlassSettings.frostOpacity),
-            surfaceTertiary = liquidGlassSettings.tintStyle.surfaceSecondaryColor.copy(alpha = 0.55f),
-            brandTertiary = liquidGlassSettings.tintStyle.accentColor.copy(alpha = 0.18f),
-            border = liquidGlassSettings.tintStyle.rimHighlight,
-            muted = LiquidGlassMuted,
-            textSecondary = LiquidGlassSecondaryText,
-            brandText = liquidGlassSettings.tintStyle.accentColor,
+            isLightGlass = false,
+            surfaceSecondary = Color(0x3816181D),
+            surfaceTertiary = Color(0x481E2028),
+            brandTertiary = ChaiSaffron.copy(alpha = 0.18f),
+            border = Color(0x38FFFFFF),
+            muted = Color(0xFF94A3B8),
+            textSecondary = Color(0xFFCBD5E1),
+            brandText = Color(0xFFFF7A28),
             goldText = DarkGoldText,
             skeleton = LiquidGlassSkeleton,
             errorBreaking = ErrorBreakingNews,
-            cardGlow = liquidGlassSettings.tintStyle.glowColor,
-            cyan = liquidGlassSettings.tintStyle.accentColor,
+            cardGlow = Color(0x18FFFFFF),
+            cyan = Color(0xFFFF7A28),
             glassBorderBrush = liquidGlassSettings.createRimBrush(),
             glassSpecularBrush = liquidGlassSettings.createSpecularBevelBrush()
         )
         isDark -> ExtendedColors(
             isLiquidGlass = false,
+            isLightGlass = false,
             surfaceSecondary = DarkSurfaceSecondary,
             surfaceTertiary = DarkSurfaceTertiary,
             brandTertiary = ChaiSaffronTintDark,
@@ -170,6 +199,7 @@ fun ChaiPanchayatTheme(
         )
         else -> ExtendedColors(
             isLiquidGlass = false,
+            isLightGlass = false,
             surfaceSecondary = LightSurfaceSecondary,
             surfaceTertiary = LightSurfaceTertiary,
             brandTertiary = ChaiSaffronTintLight,
@@ -212,7 +242,7 @@ object ChaiTheme {
 fun LiquidGlassCard(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(16.dp),
-    borderWidth: Dp = 1.dp,
+    borderWidth: Dp = 0.85.dp,
     elevation: Dp = 4.dp,
     onClick: (() -> Unit)? = null,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },

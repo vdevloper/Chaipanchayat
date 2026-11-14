@@ -90,6 +90,8 @@ import com.chaipanchayat.app.data.model.WPPost
 import com.chaipanchayat.app.data.repository.BookmarkRepository
 import com.chaipanchayat.app.data.repository.NewsRepository
 import com.chaipanchayat.app.data.repository.SettingsRepository
+import com.chaipanchayat.app.engine.liquidglass.liquidGlass
+import com.chaipanchayat.app.engine.liquidglass.liquidGlassCard
 import com.chaipanchayat.app.ui.components.ArticleHtmlView
 import com.chaipanchayat.app.ui.components.ArticleSkeleton
 import com.chaipanchayat.app.ui.components.ChaiVideoPlayer
@@ -660,13 +662,23 @@ fun ArticleScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Interactive Audio Listen Widget with real Text-to-Speech
+                    val isLiquid = ChaiTheme.extended.isLiquidGlass
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = ChaiTheme.extended.surfaceSecondary,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border),
+                        shape = if (isLiquid) RoundedCornerShape(18.dp) else RoundedCornerShape(14.dp),
+                        color = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
+                        border = if (isLiquid) null else androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
+                            .then(
+                                if (isLiquid) {
+                                    Modifier.liquidGlassCard(
+                                        shape = RoundedCornerShape(18.dp),
+                                        accentColor = ChaiSaffron,
+                                        blurRadiusDp = 22.dp
+                                    )
+                                } else Modifier
+                            )
                             .clickable {
                                 haptics.medium()
                                 val audioTitle = if (isTranslated && translatedArticle != null) translatedArticle!!.translatedTitle else currentPost.cleanTitle
@@ -842,12 +854,20 @@ fun ArticleScreen(
 
                     // Google Play News Policy Compliance: Source & Publisher Attribution Card
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = ChaiTheme.extended.surfaceSecondary,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border),
+                        shape = if (isLiquid) RoundedCornerShape(18.dp) else RoundedCornerShape(12.dp),
+                        color = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
+                        border = if (isLiquid) null else androidx.compose.foundation.BorderStroke(1.dp, ChaiTheme.extended.border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
+                            .then(
+                                if (isLiquid) {
+                                    Modifier.liquidGlassCard(
+                                        shape = RoundedCornerShape(18.dp),
+                                        blurRadiusDp = 22.dp
+                                    )
+                                } else Modifier
+                            )
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp)
@@ -1019,19 +1039,33 @@ fun ArticleScreen(
 
         // Sticky Bottom Action Bar with elevated styling
         post?.let { currentPost ->
-            HorizontalDivider(thickness = 0.8.dp, color = ChaiTheme.extended.border.copy(alpha = 0.7f))
+            val isLiquidBar = ChaiTheme.extended.isLiquidGlass
+            if (!isLiquidBar) {
+                HorizontalDivider(thickness = 0.8.dp, color = ChaiTheme.extended.border.copy(alpha = 0.7f))
+            }
 
             Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 8.dp,
+                color = if (isLiquidBar) Color.Transparent else MaterialTheme.colorScheme.surface,
+                shadowElevation = if (isLiquidBar) 0.dp else 8.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
+                    .then(
+                        if (isLiquidBar) {
+                            Modifier
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                                .liquidGlass(
+                                    shape = com.kyant.backdrop.Capsule(),
+                                    blurRadiusDp = 24.dp,
+                                    withShadow = true
+                                )
+                        } else Modifier
+                    )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
+                        .height(58.dp)
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
