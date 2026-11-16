@@ -1,6 +1,8 @@
 package com.chaipanchayat.app.ui.navigation
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -13,6 +15,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import com.chaipanchayat.app.ui.components.LocalNavAnimatedVisibilityScope
+import com.chaipanchayat.app.ui.components.LocalSharedTransitionScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.background
@@ -106,6 +110,7 @@ import com.chaipanchayat.app.utils.rememberChaiHaptics
 
 private typealias TabBarItem = ChaiTabItem
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MainAppNavigation(
     initialArticleId: Long? = null,
@@ -125,10 +130,12 @@ fun MainAppNavigation(
         }
     }
 
-    androidx.compose.runtime.CompositionLocalProvider(
-        com.chaipanchayat.app.ui.theme.LocalChaiStrings provides com.chaipanchayat.app.ui.theme.getChaiStrings(appLang)
-    ) {
-        NavHost(
+    SharedTransitionLayout {
+        androidx.compose.runtime.CompositionLocalProvider(
+            com.chaipanchayat.app.ui.theme.LocalChaiStrings provides com.chaipanchayat.app.ui.theme.getChaiStrings(appLang),
+            LocalSharedTransitionScope provides this
+        ) {
+            NavHost(
         navController = rootNavController,
         startDestination = if (isOnboardingDone) NavRoutes.MAIN else NavRoutes.ONBOARDING,
         modifier = Modifier.fillMaxSize(),
@@ -188,20 +195,22 @@ fun MainAppNavigation(
         }
 
         composable(NavRoutes.MAIN) {
-            MainTabsScaffold(
-                onNavigateToArticle = { id ->
-                    rootNavController.navigate(NavRoutes.articleRoute(id))
-                },
-                onNavigateToCategory = { id, name ->
-                    rootNavController.navigate(NavRoutes.categoryFeedRoute(id, name))
-                },
-                onNavigateToSearch = {
-                    rootNavController.navigate(NavRoutes.SEARCH)
-                },
-                onNavigateToOnboarding = {
-                    rootNavController.navigate(NavRoutes.ONBOARDING)
-                }
-            )
+            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                MainTabsScaffold(
+                    onNavigateToArticle = { id ->
+                        rootNavController.navigate(NavRoutes.articleRoute(id))
+                    },
+                    onNavigateToCategory = { id, name ->
+                        rootNavController.navigate(NavRoutes.categoryFeedRoute(id, name))
+                    },
+                    onNavigateToSearch = {
+                        rootNavController.navigate(NavRoutes.SEARCH)
+                    },
+                    onNavigateToOnboarding = {
+                        rootNavController.navigate(NavRoutes.ONBOARDING)
+                    }
+                )
+            }
         }
 
         composable(
@@ -225,12 +234,14 @@ fun MainAppNavigation(
                 ) + fadeOut(tween(240))
             }
         ) {
-            SearchScreen(
-                onNavigateToArticle = { id ->
-                    rootNavController.navigate(NavRoutes.articleRoute(id))
-                },
-                onBack = { rootNavController.popBackStack() }
-            )
+            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                SearchScreen(
+                    onNavigateToArticle = { id ->
+                        rootNavController.navigate(NavRoutes.articleRoute(id))
+                    },
+                    onBack = { rootNavController.popBackStack() }
+                )
+            }
         }
 
         composable(
@@ -262,10 +273,12 @@ fun MainAppNavigation(
             }
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getLong("id") ?: 0L
-            ArticleScreen(
-                postId = postId,
-                onBack = { rootNavController.popBackStack() }
-            )
+            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                ArticleScreen(
+                    postId = postId,
+                    onBack = { rootNavController.popBackStack() }
+                )
+            }
         }
 
         composable(
@@ -296,15 +309,18 @@ fun MainAppNavigation(
             val categoryId = backStackEntry.arguments?.getLong("id") ?: 0L
             val rawName = backStackEntry.arguments?.getString("name").orEmpty()
             val categoryName = java.net.URLDecoder.decode(rawName, "UTF-8")
-            CategoryFeedScreen(
-                categoryId = categoryId,
-                categoryName = categoryName,
-                onNavigateToArticle = { id ->
-                    rootNavController.navigate(NavRoutes.articleRoute(id))
-                },
-                onBack = { rootNavController.popBackStack() }
-            )
+            CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                CategoryFeedScreen(
+                    categoryId = categoryId,
+                    categoryName = categoryName,
+                    onNavigateToArticle = { id ->
+                        rootNavController.navigate(NavRoutes.articleRoute(id))
+                    },
+                    onBack = { rootNavController.popBackStack() }
+                )
+            }
         }
+    }
     }
 }
 }
@@ -390,39 +406,19 @@ fun MainTabsScaffold(
                                         modifier = Modifier.scale(iconScale),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        if (isCenterHome) {
+                                        Icon(
+                                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                            contentDescription = item.tab.title,
+                                            modifier = Modifier.size(if (isCenterHome) 24.dp else 23.dp)
+                                        )
+                                        if (item.tab == MainTab.VIDEOS) {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(36.dp)
-                                                    .background(
-                                                        if (isSelected) ChaiSaffron.copy(alpha = 0.16f)
-                                                        else Color.Transparent,
-                                                        CircleShape
-                                                    ),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                                    contentDescription = item.tab.title,
-                                                    modifier = Modifier.size(24.dp),
-                                                    tint = if (isSelected) ChaiSaffron else ChaiTheme.extended.textSecondary
-                                                )
-                                            }
-                                        } else {
-                                            Icon(
-                                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                                contentDescription = item.tab.title,
-                                                modifier = Modifier.size(23.dp)
+                                                    .size(6.dp)
+                                                    .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
+                                                    .align(Alignment.TopEnd)
+                                                    .offset(x = 3.dp, y = (-2).dp)
                                             )
-                                            if (item.tab == MainTab.VIDEOS) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(6.dp)
-                                                        .background(ChaiCrimson.copy(alpha = videoBadgeAlpha), CircleShape)
-                                                        .align(Alignment.TopEnd)
-                                                        .offset(x = 3.dp, y = (-2).dp)
-                                                )
-                                            }
                                         }
                                     }
                                 },

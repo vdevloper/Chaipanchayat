@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.chaipanchayat.app.data.model.WPPost
+import com.chaipanchayat.app.engine.liquidglass.liquidGlassCard
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiGold
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
@@ -68,17 +69,30 @@ fun TodayChaiDigest(
     if (posts.isEmpty()) return
 
     val digestStories = posts.take(5)
-    val cardShape = RoundedCornerShape(10.dp)
+    val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val cardShape = if (isLiquid) RoundedCornerShape(20.dp) else RoundedCornerShape(12.dp)
 
     Card(
         shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = ChaiTheme.extended.surfaceSecondary),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLiquid) 0.dp else 1.dp),
         modifier = modifier
             .testTag("today-chai-digest")
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .border(1.dp, ChaiTheme.extended.border.copy(alpha = 0.6f), cardShape)
+            .then(
+                if (isLiquid) {
+                    Modifier.liquidGlassCard(
+                        shape = cardShape,
+                        accentColor = ChaiSaffron,
+                        blurRadiusDp = 22.dp
+                    )
+                } else {
+                    Modifier.border(0.8.dp, ChaiTheme.extended.border.copy(alpha = 0.65f), cardShape)
+                }
+            )
     ) {
         Column(
             modifier = Modifier

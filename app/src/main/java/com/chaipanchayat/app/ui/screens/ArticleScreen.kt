@@ -97,6 +97,8 @@ import com.chaipanchayat.app.ui.components.ArticleSkeleton
 import com.chaipanchayat.app.ui.components.ChaiVideoPlayer
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.components.TopBar
+import com.chaipanchayat.app.ui.components.chaiSharedBounds
+import com.chaipanchayat.app.ui.components.chaiSharedElement
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
@@ -125,8 +127,8 @@ fun ArticleScreen(
     val textSize by settingsRepo.textSize.collectAsState()
     val isBookmarked by bookmarkRepo.isBookmarked(postId).collectAsState(initial = false)
 
-    var post by remember { mutableStateOf<WPPost?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    var post by remember(postId) { mutableStateOf(NewsRepository.getInstance().peekCachedPost(postId)) }
+    var isLoading by remember(postId) { mutableStateOf(post == null) }
     var isError by remember { mutableStateOf(false) }
 
     val appLanguage by settingsRepo.appLanguage.collectAsState()
@@ -230,13 +232,17 @@ fun ArticleScreen(
     }
 
     LaunchedEffect(postId) {
-        isLoading = true
+        if (post == null) {
+            isLoading = true
+        }
         try {
             val fetched = NewsRepository.getInstance().getPost(postId)
             post = fetched
             isError = false
         } catch (e: Exception) {
-            isError = true
+            if (post == null) {
+                isError = true
+            }
         } finally {
             isLoading = false
         }
@@ -603,7 +609,9 @@ fun ArticleScreen(
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 25.sp,
                         lineHeight = 33.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .chaiSharedBounds("article_title_${currentPost.id}")
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -827,6 +835,7 @@ fun ArticleScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
                                 .aspectRatio(16f / 9.5f)
+                                .chaiSharedElement("article_image_${currentPost.id}")
                                 .clip(RoundedCornerShape(14.dp))
                                 .border(1.dp, ChaiTheme.extended.border.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                                 .background(ChaiTheme.extended.skeleton)

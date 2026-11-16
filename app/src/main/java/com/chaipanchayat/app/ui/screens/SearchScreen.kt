@@ -68,6 +68,7 @@ import com.chaipanchayat.app.engine.liquidglass.liquidGlass
 import com.chaipanchayat.app.ui.components.ChaiBrewLoadingIndicator
 import com.chaipanchayat.app.ui.components.EmptyState
 import com.chaipanchayat.app.ui.components.NewsCard
+import com.chaipanchayat.app.ui.components.chaiSharedBounds
 import com.chaipanchayat.app.ui.theme.ChaiBrandGradient
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
@@ -438,6 +439,7 @@ fun SearchScreen(
                         ),
                         modifier = Modifier
                             .weight(1f)
+                            .chaiSharedBounds("search_bar")
                             .liquidGlass(
                                 shape = RoundedCornerShape(24.dp),
                                 blurRadiusDp = 18.dp,
@@ -523,6 +525,7 @@ fun SearchScreen(
                         ),
                         modifier = Modifier
                             .weight(1f)
+                            .chaiSharedBounds("search_bar")
                             .focusRequester(focusRequester)
                             .testTag("search-input-field")
                     )

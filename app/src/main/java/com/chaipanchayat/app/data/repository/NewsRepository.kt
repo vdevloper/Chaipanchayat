@@ -436,6 +436,18 @@ class NewsRepository private constructor(private val cacheDao: PostCacheDao?) {
         freshTags
     }
 
+    fun peekCachedPost(id: Long): WPPost? {
+        articleLruCache.get(id)?.let { return it }
+        homePostsCache?.find { it.id == id }?.let { return it }
+        categoryPostsCache.values.forEach { list ->
+            list.find { it.id == id }?.let { return it }
+        }
+        tagPostsCache.values.forEach { list ->
+            list.find { it.id == id }?.let { return it }
+        }
+        return null
+    }
+
     suspend fun getPost(id: Long, forceRefresh: Boolean = false): WPPost {
         if (!forceRefresh) {
             val cached = articleLruCache.get(id)

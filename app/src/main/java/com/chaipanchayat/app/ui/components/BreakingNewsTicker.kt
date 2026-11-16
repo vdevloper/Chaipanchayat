@@ -1,6 +1,7 @@
 package com.chaipanchayat.app.ui.components
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -12,7 +13,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +55,7 @@ import com.chaipanchayat.app.ui.theme.ChaiCrimson
 import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
+import com.chaipanchayat.app.ui.theme.LocalChaiStrings
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
 import com.chaipanchayat.app.utils.rememberChaiHaptics
 import com.kyant.backdrop.Capsule
@@ -59,8 +63,7 @@ import kotlinx.coroutines.delay
 
 /**
  * Breaking News Live Ticker Strip
- * Cycles through top headlines with vertical slide transition.
- * In Liquid Glass mode, features a 3D convex Crimson-Saffron Glass Flash News capsule with specular shader rim.
+ * Cycles through top headlines with vertical slide transition + smooth horizontal marquee + badge sheen.
  */
 @Composable
 fun BreakingNewsTicker(
@@ -72,12 +75,13 @@ fun BreakingNewsTicker(
     if (posts.isEmpty()) return
 
     val haptics = rememberChaiHaptics()
+    val strings = LocalChaiStrings.current
     var currentIndex by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(posts.size) {
         if (posts.size > 1) {
             while (true) {
-                delay(4200)
+                delay(4600)
                 currentIndex = (currentIndex + 1) % posts.size
             }
         }
@@ -96,9 +100,39 @@ fun BreakingNewsTicker(
         ),
         label = "pulse_alpha"
     )
+    val sheenOffset by infiniteTransition.animateFloat(
+        initialValue = -0.6f,
+        targetValue = 2.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "badge_sheen"
+    )
 
     val isLiquid = ChaiTheme.extended.isLiquidGlass
     val capsuleShape = remember { Capsule() }
+    val badgeShape = if (isLiquid) capsuleShape else RoundedCornerShape(6.dp)
+
+    val sheenModifier = Modifier.drawWithContent {
+        drawContent()
+        if (sheenOffset in -0.2f..1.3f) {
+            val w = size.width
+            val h = size.height
+            val startX = w * sheenOffset
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = 0.28f),
+                        Color.Transparent
+                    ),
+                    start = Offset(startX - 24f, 0f),
+                    end = Offset(startX + 24f, h)
+                )
+            )
+        }
+    }
 
     Surface(
         color = if (isLiquid) Color.Transparent else ChaiTheme.extended.surfaceSecondary,
@@ -115,7 +149,7 @@ fun BreakingNewsTicker(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Live Flash News Badge
+            // Live Breaking Badge with subtle animated light sheen
             if (isLiquid) {
                 Box(
                     modifier = Modifier
@@ -123,8 +157,8 @@ fun BreakingNewsTicker(
                         .background(
                             brush = Brush.horizontalGradient(
                                 listOf(
-                                    ChaiCrimson.copy(alpha = 0.88f),
-                                    ChaiSaffron.copy(alpha = 0.85f)
+                                    ChaiCrimson.copy(alpha = 0.90f),
+                                    ChaiSaffron.copy(alpha = 0.86f)
                                 )
                             ),
                             shape = capsuleShape
@@ -140,9 +174,10 @@ fun BreakingNewsTicker(
                             shape = capsuleShape
                         )
                         .liquidGlassRim(capsuleShape)
+                        .then(sheenModifier)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.5.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
@@ -153,22 +188,25 @@ fun BreakingNewsTicker(
                                 .background(Color.White, CircleShape)
                         )
                         Text(
-                            text = "Flash News",
+                            text = strings.breakingNews,
                             color = Color.White,
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 10.5.sp,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.4.sp
                         )
                     }
                 }
             } else {
                 Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = ChaiCrimson
+                    shape = badgeShape,
+                    color = ChaiCrimson,
+                    modifier = Modifier
+                        .clip(badgeShape)
+                        .then(sheenModifier)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
@@ -179,12 +217,12 @@ fun BreakingNewsTicker(
                                 .background(Color.White, CircleShape)
                         )
                         Text(
-                            text = "Flash News",
+                            text = strings.breakingNews,
                             color = Color.White,
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 10.sp,
-                            letterSpacing = 0.6.sp
+                            letterSpacing = 0.5.sp
                         )
                     }
                 }
@@ -192,12 +230,12 @@ fun BreakingNewsTicker(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Animated Headline
+            // Animated Headline with Marquee
             AnimatedContent(
                 targetState = currentPost,
                 transitionSpec = {
                     (slideInVertically { height -> height } + fadeIn(tween(260))) togetherWith
-                            (slideOutVertically { height -> -height } + fadeOut(tween(220)))
+                        (slideOutVertically { height -> -height } + fadeOut(tween(220)))
                 },
                 modifier = Modifier.weight(1f),
                 label = "ticker_headline"
@@ -209,7 +247,11 @@ fun BreakingNewsTicker(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.basicMarquee(
+                        iterations = Int.MAX_VALUE,
+                        initialDelayMillis = 1200
+                    )
                 )
             }
 

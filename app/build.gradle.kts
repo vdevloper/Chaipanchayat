@@ -13,8 +13,8 @@ android {
         applicationId = "com.chaipanchayat.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 25
-        versionName = "2.9.8"
+        versionCode = 26
+        versionName = "2.9.9"
     }
 
     signingConfigs {

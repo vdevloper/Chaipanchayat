@@ -1,11 +1,16 @@
 package com.chaipanchayat.app.ui.components
 
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -249,13 +254,19 @@ fun CategoryChips(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 15.dp, vertical = 7.5.dp)
                         ) {
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .background(ChaiSaffron, CircleShape)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.3f, animationSpec = spring(dampingRatio = 0.5f, stiffness = 500f)),
+                                exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.3f)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(ChaiSaffron, CircleShape)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
                             }
                             Text(
                                 text = cat.name,
@@ -286,7 +297,7 @@ fun CategoryChips(
                         label = "chip_border_${cat.id}"
                     )
 
-                    val chipShape = RoundedCornerShape(8.dp)
+                    val chipShape = RoundedCornerShape(20.dp)
 
                     Surface(
                         shape = chipShape,

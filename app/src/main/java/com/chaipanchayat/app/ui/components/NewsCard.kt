@@ -1,10 +1,7 @@
 package com.chaipanchayat.app.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,9 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,8 +33,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +59,7 @@ import com.chaipanchayat.app.ui.theme.ChaiSaffron
 import com.chaipanchayat.app.ui.theme.ChaiTheme
 import com.chaipanchayat.app.ui.theme.InterFamily
 import com.chaipanchayat.app.ui.theme.NotoSerifFamily
+import com.chaipanchayat.app.utils.ChaiAudioReader
 import com.chaipanchayat.app.utils.DateUtils
 import com.chaipanchayat.app.utils.DeepLinkManager
 import com.chaipanchayat.app.utils.rememberChaiHaptics
@@ -81,6 +79,12 @@ fun NewsCard(
     val isBookmarked by bookmarkRepo.isBookmarked(post.id).collectAsState(initial = false)
     val hasVideo = !post.youtubeId.isNullOrBlank() || !post.videoUrl.isNullOrBlank()
 
+    val audioReader = remember { ChaiAudioReader.getInstance(context) }
+    val activeAudio by audioReader.activeArticle
+    val audioPlayState by audioReader.playState
+    val isPlayingThisPost = activeAudio?.postId == post.id &&
+        audioPlayState == ChaiAudioReader.PlayState.PLAYING
+
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -89,20 +93,12 @@ fun NewsCard(
         label = "card_scale"
     )
 
-    val bookmarkScale by animateFloatAsState(
-        targetValue = if (isBookmarked) 1.22f else 1.0f,
-        animationSpec = spring(dampingRatio = 0.45f, stiffness = 500f),
-        label = "bookmark_bounce"
-    )
-    val bookmarkTint by animateColorAsState(
-        targetValue = if (isBookmarked) ChaiSaffron else ChaiTheme.extended.muted,
-        animationSpec = tween(200, easing = FastOutSlowInEasing),
-        label = "bookmark_tint"
-    )
-
     val isLiquid = ChaiTheme.extended.isLiquidGlass
+    val isLightGlass = ChaiTheme.extended.isLightGlass
     val cardShape = if (isLiquid) RoundedCornerShape(18.dp) else RoundedCornerShape(12.dp)
-    val thumbShape = if (isLiquid) RoundedCornerShape(12.dp) else RoundedCornerShape(8.dp)
+    val thumbShape = if (isLiquid) RoundedCornerShape(12.dp) else RoundedCornerShape(9.dp)
+    val shimmerBrush = rememberShimmerBrush()
+    var isImageLoaded by remember(post.id) { mutableStateOf(false) }
 
     val imageUrl = post.featuredImageUrl?.takeIf { it.isNotBlank() }
         ?: post.youtubeId?.takeIf { it.isNotBlank() }?.let { "https://img.youtube.com/vi/$it/hqdefault.jpg" }
@@ -116,7 +112,7 @@ fun NewsCard(
         modifier = modifier
             .testTag("news-card-${post.id}")
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 5.5.dp)
             .scale(scale)
             .then(
                 if (isLiquid) {
@@ -147,15 +143,15 @@ fun NewsCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Thumbnail
+            // Left Thumbnail aligned flush with text height + Shimmer placeholder + Shared Element
             if (!imageUrl.isNullOrBlank()) {
                 Box(
                     modifier = Modifier
-                        .size(width = 108.dp, height = 84.dp)
+                        .size(width = 112.dp, height = 90.dp)
+                        .chaiSharedElement("article_image_${post.id}")
                         .clip(thumbShape)
                         .then(
                             if (isLiquid) {
-                                val isLightGlass = ChaiTheme.extended.isLightGlass
                                 Modifier.border(
                                     0.8.dp,
                                     if (isLightGlass) Color(0x280F172A) else Color.White.copy(alpha = 0.26f),
@@ -163,7 +159,8 @@ fun NewsCard(
                                 )
                             } else Modifier
                         )
-                        .background(ChaiTheme.extended.skeleton)
+                        .background(if (isImageLoaded) ChaiTheme.extended.skeleton else Color.Transparent)
+                        .then(if (!isImageLoaded) Modifier.background(shimmerBrush) else Modifier)
                 ) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
@@ -172,6 +169,8 @@ fun NewsCard(
                             .build(),
                         contentDescription = post.cleanTitle,
                         contentScale = ContentScale.Crop,
+                        onSuccess = { isImageLoaded = true },
+                        onError = { isImageLoaded = true },
                         modifier = Modifier.matchParentSize()
                     )
 
@@ -199,13 +198,12 @@ fun NewsCard(
                 Spacer(modifier = Modifier.width(12.dp))
             }
 
-            // Right Text Content
+            // Right Text Content + Unified Action Footer
             Column(
                 modifier = Modifier.weight(1f)
             ) {
                 if (!post.primaryCategory.isNullOrBlank()) {
                     if (isLiquid) {
-                        val isLightGlass = ChaiTheme.extended.isLightGlass
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = ChaiSaffron.copy(alpha = if (isLightGlass) 0.16f else 0.22f),
@@ -229,13 +227,13 @@ fun NewsCard(
                             color = ChaiTheme.extended.brandText,
                             fontFamily = InterFamily,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.5.sp,
+                            fontSize = 10.sp,
                             letterSpacing = 0.7.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                 }
 
                 Text(
@@ -243,10 +241,11 @@ fun NewsCard(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = NotoSerifFamily,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.5.sp,
-                    lineHeight = 22.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 21.sp,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.chaiSharedBounds("article_title_${post.id}")
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -268,12 +267,34 @@ fun NewsCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        ChaiAudioActionButton(
+                            isPlayingThisPost = isPlayingThisPost,
+                            onClick = {
+                                if (isPlayingThisPost) {
+                                    audioReader.pause()
+                                } else if (activeAudio?.postId == post.id && audioPlayState == ChaiAudioReader.PlayState.PAUSED) {
+                                    audioReader.resume()
+                                } else {
+                                    audioReader.playArticle(
+                                        postId = post.id,
+                                        title = displayTitle ?: post.cleanTitle,
+                                        contentHtml = post.rawContent,
+                                        imageUrl = post.featuredImageUrl,
+                                        category = post.primaryCategory ?: "ताज़ा ख़बरें"
+                                    )
+                                }
+                            },
+                            size = 28.dp,
+                            iconSize = 14.5.dp,
+                            isLiquid = isLiquid,
+                            isLightGlass = isLightGlass
+                        )
+
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
                                 .then(
                                     if (isLiquid) {
-                                        val isLightGlass = ChaiTheme.extended.isLightGlass
                                         Modifier
                                             .clip(CircleShape)
                                             .background(
@@ -289,22 +310,14 @@ fun NewsCard(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            IconButton(
-                                onClick = {
-                                    haptics.success()
-                                    coroutineScope.launch { bookmarkRepo.toggleBookmark(post) }
-                                },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isBookmarked) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                    contentDescription = "Save",
-                                    tint = if (isLiquid && !isBookmarked) ChaiTheme.extended.textSecondary else bookmarkTint,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .scale(bookmarkScale)
-                                )
-                            }
+                            ChaiBookmarkButton(
+                                isBookmarked = isBookmarked,
+                                onToggle = { coroutineScope.launch { bookmarkRepo.toggleBookmark(post) } },
+                                size = 28.dp,
+                                iconSize = 16.dp,
+                                inactiveColor = ChaiTheme.extended.textSecondary,
+                                testTag = null
+                            )
                         }
 
                         Box(
@@ -312,7 +325,6 @@ fun NewsCard(
                                 .size(28.dp)
                                 .then(
                                     if (isLiquid) {
-                                        val isLightGlass = ChaiTheme.extended.isLightGlass
                                         Modifier
                                             .clip(CircleShape)
                                             .background(
